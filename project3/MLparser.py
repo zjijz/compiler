@@ -53,9 +53,9 @@ def parser(source_file, token_file):
     G = lexer(source_file, token_file)
     return program(next(G), G).line == "$"
 
-def raiseParserError(symbol, expectedTokenStr, actualToken):
+def raiseParserError(symbolName, expectedTokenStr, actualToken):
     raise ParserError('Error in <%s>, expect "%s", actually is "%s" \nLine num: %d, column num: %d'
-                      %(symbol, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
+                      %(symbolName, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
 
 @add_debug
 #<program> -> begin <statement_list> end
@@ -160,8 +160,11 @@ def ident(curToken, G):
     # if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
     # line above would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
-    if re.match("begin|end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
-        raiseParserError("ID", "[a-zA-Z]\w* and not RESERVED tokens", curToken)
+    print(reservedWords)
+    if any(re.match(ptn, curToken.pattern) for ptn in reservedWords):
+        raiseParserError("ID", "None RESERVED tokens", curToken)
+    if not re.match("[a-zA-Z]\w*", curToken.pattern):
+        raiseParserError("ID", "[a-zA-Z]\w*", curToken)
     return next(G)
 
 @add_debug
@@ -170,7 +173,6 @@ def arith_op(curToken, G):
     if curToken.pattern not in ("+", "-"):
         raiseParserError("arith_op", "+|-", curToken)
     return next(G)
-
 
 
 
