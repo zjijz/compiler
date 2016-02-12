@@ -100,3 +100,5 @@ def lexer(source_file, token_file):
                         break
                 if not match:
                    raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
+    # need to patch an empty token at the end
+    # yield '$'
