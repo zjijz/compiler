@@ -1,104 +1,183 @@
-import re
-import sys
+"""
+Parser for the Micro-language.
+Grammar:
+   <program> -> begin <statement_list> end
+   <statement_list> -> <statement>; { <statement>; }
+   <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
+   <assign> -> <ident> := <expression>
+   <id_list> -> <ident> {, <ident>}
+   <expr_list> -> <expression> {, <expression>}
+   <expression> -> <primary> {<arith_op> <primary>}
+   <primary> -> (<expression>) | <ident> | INTLITERAL
+   <ident> -> ID
+   <arith_op> -> + | -
+"""
 
-class LexerError(Exception):
-    """
-    Exception to be thrown when the lexer encounters a bad token.
-    """
+from lexer import *
+import re
+
+#######################
+# For debugging
+debug = False
+recursion_level = 0
+
+def add_debug(fn):
+    def debugged_fn(current, G):
+        global recursion_level
+        print(" "*recursion_level + "Entering: %s (%s)" % (fn.__name__, current))
+        recursion_level += 3
+        R = fn(current, G)
+        recursion_level -= 3
+        print(" "*recursion_level + "Leaving: %s" % (fn.__name__))
+        return R
+
+    return debugged_fn if debug else fn
+#######################
+
+class ParserError(Exception):
     def __init__(self, msg):
         self.msg = msg
 
     def __str__(self):
-        return str(self.msg)
+        return self.msg
 
-class Token:
+
+#######################################
+# Parsing code
+def parser(source_file, token_file):
     """
-    A class for storing token information.
-    The variable instances for a token object are:
-    * t_class: The token class.
-    * name: The name of the token.
-    * pattern: The specific pattern of the token
-    * line: The line containing the token
-    * line_num: The line number (numbered from 1)
-    * col: The column number (numbered from 0)
+    source_file: A program written in the ML langauge.
+    returns True if the code is syntactically correct.
+    Throws a ParserError otherwise.
     """
+    G = lexer(source_file, token_file)
+    return program(next(G), G).line == "$"
 
-    def __init__(self, t_class, name, pattern, line, line_num, col):
-        """
-        Constructor
-        """
-        self.t_class = t_class
-        self.name = name
-        self.pattern = pattern
-        self.line = line
-        self.line_num = int(line_num)
-        self.col = int(col)
+def raiseParserError(symbol, expectedTokenStr, actualToken):
+    raise ParserError('Error in <%s>, expect "%s", actually is "%s" \nLine num: %d, column num: %d'
+                      %(symbol, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
 
-    def __str__(self):
-        """
-        Defines behavior of the str function on the Token class.
-        Prints as a tupple all information except self.line.
-        """
-        return str((self.t_class, self.name, self.pattern, self.line_num, self.col))
+@add_debug
+#<program> -> begin <statement_list> end
+def program(curToken, G):
+    if curToken.pattern != "begin":
+        raise raiseParserError("program", "begin", curToken)
+    curToken = statement_list(next(G), G)
+    if curToken.pattern != "end":
+        raiseParserError("program", "end", curToken)
+    return next(G)
 
-    def __repr__(self):
-        """
-        Defines the behaviour of the repr() function
-        on the Token class.
-        """
-        return "Token: " + str(self)
+@add_debug
+#<statement_list> -> <statement>; { <statement>; }
+def statement_list(curToken, G):
+    curToken = statement(curToken, G)
+    if curToken.pattern != ";":
+        raiseParserError("statement_list", ";", curToken)
+    while True: # re.match("write|read|[a-zA-Z]\w*", next(G)):
+        curToken = next(G)
+        ###########################################################################
+        if curToken.pattern == "end":
+            return curToken
+        ###########################################################################
+        if not re.match("write|read|[a-zA-Z]\w*", curToken.pattern):
+            break
+        curToken = statement(curToken, G)
+        if curToken.pattern != ";":
+            raiseParserError("statement_list", ";", curToken)
 
-    def __eq__(self, other):
-        """
-        Defines behaviour of the == operator on the Token class
-        """
-        return self.t_class == other.t_class and self.name == other.name and \
-               self.pattern == other.pattern and self.line == other.line and \
-               self.line_num == other.line_num and self.col == other.col
+    return curToken
+
+@add_debug
+#<statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
+def statement(curToken, G):
+    if curToken.pattern == "read":
+        curToken = next(G)
+        if curToken.pattern != '(':
+            raiseParserError("statement", '(', curToken)
+        curToken = id_list(next(G), G)
+        if curToken.pattern != ')':
+            raiseParserError("statement", ')', curToken)
+        return next(G)
+    if curToken.pattern == "write":
+        curToken = next(G)
+        if curToken.pattern != '(':
+            raiseParserError("statement", '(', curToken)
+        curToken = expr_list(next(G), G)
+        if curToken.pattern != ')':
+            raiseParserError("statement", ')', curToken)
+        return next(G)
+    return assign(curToken, G)
+
+@add_debug
+#<assign> -> <ident> := <expression>
+def assign(curToken, G):
+    curToken = ident(curToken, G)
+    if curToken.pattern != ":=":
+        raiseParserError("assign", ":=", curToken)
+    return expression(next(G), G)
+
+@add_debug
+#<id_list> -> <ident> {, <ident>}
+def id_list(curToken, G):
+    curToken = ident(curToken, G)
+    while curToken.pattern == ",":
+        curToken = ident(next(G), G)
+    return curToken
+
+@add_debug
+#<expr_list> -> <expression> {, <expression>}
+def expr_list(curToken, G):
+    curToken = expression(curToken, G)
+    while curToken.pattern == ",":
+        curToken = expression(next(G), G)
+    return curToken
+
+@add_debug
+#<expression> -> <primary> {<arith_op> <primary>}
+def expression(curToken, G):
+    curToken = primary(curToken, G)
+    while curToken.pattern in ("+", "-"):
+        curToken = primary(arith_op(curToken, G), G)
+    return curToken
+
+@add_debug
+#<primary> -> (<expression>) | <ident> | INTLITERAL
+def primary(curToken, G):
+    if curToken.pattern == "(":
+        curToken = expression(next(G), G)
+        if curToken.pattern != ")":
+            raiseParserError("primary", ")", curToken)
+        return next(G)
+    if re.match("[a-zA-Z]\w*", curToken.pattern):
+        return ident(curToken, G)
+    if not re.match("\d+", curToken.pattern):
+        raiseParserError('INTLITERAL', "\d+", curToken)
+    return next(G)
+
+@add_debug
+#<ident> -> ID
+def ident(curToken, G):
+    # if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+    # line above would match all the test cases but it's still wrong 
+    # because it didn't exclude the reserved word begin for ID
+    if re.match("begin|end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+        raiseParserError("ID", "[a-zA-Z]\w* and not RESERVED tokens", curToken)
+    return next(G)
+
+@add_debug
+#<arith_op> -> + | -
+def arith_op(curToken, G):
+    if curToken.pattern not in ("+", "-"):
+        raiseParserError("arith_op", "+|-", curToken)
+    return next(G)
 
 
-def lexer(source_file, token_file):
-    """
-    lexer is a generator that returns the next found token (as specified by token_file)
-    from the source_file.
 
-    :param source_file: The source code file
-    :param token_file: The list of tokens
-    :return: Token
-    """
 
-    re_list = []
-    token_hash = {}
 
-    # Create a list of regex patterns along with a hash table of
-    # the pattern's associated class and name
-    with open(token_file) as tokenFp:
-        for line in tokenFp:
-            split = re.split("\s+", line.rstrip())
-            re_list.append(split[2])
-            token_hash[split[2]] = (split[0], split[1])
 
-    # Open the source file to tokenize
-    with open(source_file) as source_fp:
-        line_num = 0
-        for line in source_fp:
-            line_num += 1
 
-            # Remove comments with re.sub
-            line = re.sub("#(.|\s)*$", "", line.rstrip())
-            # Set col to start at non-whitespace
-            col = len(line) - len(line.lstrip())
 
-            while col < len(line):
-                # match is a MatchObject when matched; None otherwise
-                match = None
-                for ptn in re_list:
-                    match = re.match(ptn, line[col:])
-                    if match:
-                        yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, line_num, col)
-                        col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
-                        break
-                if not match:
-                   raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
-    # need to patch an empty token at the end
-    # yield '$'
+
+
+
