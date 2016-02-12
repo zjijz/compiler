@@ -56,54 +56,39 @@ class Token:
                self.pattern == other.pattern and self.line == other.line and \
                self.line_num == other.line_num and self.col == other.col
 
+#global variable defined for reserved words
+reservedWords = []
 
 def lexer(source_file, token_file):
-    """
-    lexer is a generator that returns the next found token (as specified by token_file)
-    from the source_file.
-
-    :param source_file: The source code file
-    :param token_file: The list of tokens
-    :return: Token
-    """
 
     re_list = []
     token_hash = {}
 
-    # Create a list of regex patterns along with a hash table of
-    # the pattern's associated class and name
     with open(token_file) as tokenFp:
         for line in tokenFp:
-            split = re.split("\s+", line.rstrip())
-            re_list.append(split[2])
-            token_hash[split[2]] = (split[0], split[1])
+            A = re.split("\s+", line.rstrip())
+            re_list.append(A[2])
+            token_hash[A[2]] = (A[0], A[1])
+            if (A[0] == "RESERVED"):
+                reservedWords.append(A[2])
 
-    # Open the source file to tokenize
-    with open(source_file) as source_fp:
-        line_num = 0
-        for line in source_fp:
-            line_num += 1
-
-            # Remove comments with re.sub
+    lineNum = 0
+    with open(source_file) as sourceFp:
+        for line in sourceFp:
+            lineNum += 1
             line = re.sub("#(.|\s)*$", "", line.rstrip())
-            # Set col to start at non-whitespace
             col = len(line) - len(line.lstrip())
-
-            while col < len(line):
-                # match is a MatchObject when matched; None otherwise
+            while(col < len(line)):
                 match = None
                 for ptn in re_list:
                     match = re.match(ptn, line[col:])
                     if match:
-                        yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, line_num, col)
+                        yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, lineNum, col)
                         col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
                         break
                 if not match:
-                   raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
+                    raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
     yield Token("$", "$", "$", "$", -1, -1)
-    # need to patch an empty token at the end
-    # yield '$'
-
 
 
 
