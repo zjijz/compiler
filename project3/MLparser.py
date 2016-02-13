@@ -135,7 +135,7 @@ def primary(curToken, G):
     if curToken.name == "ID":
         return ident(curToken, G)
     if curToken.name != "INTLIT":
-        raiseParserError('primary: INTLITERAL', "\d+", curToken)
+        raiseParserError('primary', "INTLITERAL", curToken)
     return next(G)
 
 @add_debug
@@ -145,14 +145,14 @@ def ident(curToken, G):
     # line above would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
     if curToken.name != "ID":
-        raiseParserError("ID", "[a-zA-Z]\w*", curToken)
+        raiseParserError("ident", "ID", curToken)
     return next(G)
 
 @add_debug
 #<arith_op> -> + | -
 def arith_op(curToken, G):
     if curToken.t_class != "ARITHOP":
-        raiseParserError("arith_op", "+|-", curToken)
+        raiseParserError("arith_op", "ARITHOP", curToken)
     return next(G)
 
 
