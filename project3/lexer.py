@@ -56,9 +56,6 @@ class Token:
                self.pattern == other.pattern and self.line == other.line and \
                self.line_num == other.line_num and self.col == other.col
 
-#global variable defined for reserved words
-reservedWords = []
-
 def lexer(source_file, token_file):
 
     re_list = []
@@ -69,8 +66,6 @@ def lexer(source_file, token_file):
             A = re.split("\s+", line.rstrip())
             re_list.append(A[2])
             token_hash[A[2]] = (A[0], A[1])
-            if (A[0] == "RESERVED"):
-                reservedWords.append(A[2])
 
     lineNum = 0
     with open(source_file) as sourceFp:
@@ -89,10 +84,5 @@ def lexer(source_file, token_file):
                 if not match:
                     raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
     yield Token("$", "$", "$", "$", -1, -1)
-
-
-
-
-
 
 
