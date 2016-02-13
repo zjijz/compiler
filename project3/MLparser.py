@@ -14,7 +14,6 @@ Grammar:
 """
 
 from lexer import *
-import re
 
 #######################
 # For debugging
@@ -60,50 +59,35 @@ def raiseParserError(symbolName, expectedTokenStr, actualToken):
 @add_debug
 #<program> -> begin <statement_list> end
 def program(curToken, G):
-    if curToken.pattern != "begin":
+    if curToken.name != "BEGIN":
         raise raiseParserError("program", "begin", curToken)
     curToken = statement_list(next(G), G)
-    if curToken.pattern != "end":
+    if curToken.name != "END":
         raiseParserError("program", "end", curToken)
     return next(G)
 
 @add_debug
 #<statement_list> -> <statement>; { <statement>; }
 def statement_list(curToken, G):
-    curToken = statement(curToken, G)
-    if curToken.pattern != ";":
-        raiseParserError("statement_list", ";", curToken)
-    while True: # re.match("write|read|[a-zA-Z]\w*", next(G)):
-        curToken = next(G)
-        ###########################################################################
-        if curToken.pattern == "end":
-            return curToken
-        ###########################################################################
-        if not re.match("write|read|[a-zA-Z]\w*", curToken.pattern):
-            break
+    firstTime = True
+    while firstTime or curToken.name in ("READ", "WRITE", "ID"):
         curToken = statement(curToken, G)
-        if curToken.pattern != ";":
+        if curToken.name != "SEMICOLON":
             raiseParserError("statement_list", ";", curToken)
-
+        curToken = next(G)
+        firstTime = False
     return curToken
 
 @add_debug
 #<statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
 def statement(curToken, G):
-    if curToken.pattern == "read":
+    if curToken.name in ("READ", "WRITE"):
+        tokenName = curToken.name
         curToken = next(G)
-        if curToken.pattern != '(':
+        if curToken.name != "LPAREN":
             raiseParserError("statement", '(', curToken)
-        curToken = id_list(next(G), G)
-        if curToken.pattern != ')':
-            raiseParserError("statement", ')', curToken)
-        return next(G)
-    if curToken.pattern == "write":
-        curToken = next(G)
-        if curToken.pattern != '(':
-            raiseParserError("statement", '(', curToken)
-        curToken = expr_list(next(G), G)
-        if curToken.pattern != ')':
+        curToken = id_list(next(G), G) if tokenName == "READ" else expr_list(next(G), G)
+        if curToken.name != "RPAREN":
             raiseParserError("statement", ')', curToken)
         return next(G)
     return assign(curToken, G)
@@ -112,7 +96,7 @@ def statement(curToken, G):
 #<assign> -> <ident> := <expression>
 def assign(curToken, G):
     curToken = ident(curToken, G)
-    if curToken.pattern != ":=":
+    if curToken.name != "ASSIGNOP":
         raiseParserError("assign", ":=", curToken)
     return expression(next(G), G)
 
@@ -120,7 +104,7 @@ def assign(curToken, G):
 #<id_list> -> <ident> {, <ident>}
 def id_list(curToken, G):
     curToken = ident(curToken, G)
-    while curToken.pattern == ",":
+    while curToken.name == "COMMA":
         curToken = ident(next(G), G)
     return curToken
 
@@ -128,7 +112,7 @@ def id_list(curToken, G):
 #<expr_list> -> <expression> {, <expression>}
 def expr_list(curToken, G):
     curToken = expression(curToken, G)
-    while curToken.pattern == ",":
+    while curToken.name == "COMMA":
         curToken = expression(next(G), G)
     return curToken
 
@@ -136,22 +120,22 @@ def expr_list(curToken, G):
 #<expression> -> <primary> {<arith_op> <primary>}
 def expression(curToken, G):
     curToken = primary(curToken, G)
-    while curToken.pattern in ("+", "-"):
+    while curToken.t_class == "ARITHOP":
         curToken = primary(arith_op(curToken, G), G)
     return curToken
 
 @add_debug
 #<primary> -> (<expression>) | <ident> | INTLITERAL
 def primary(curToken, G):
-    if curToken.pattern == "(":
+    if curToken.name == "LPAREN":
         curToken = expression(next(G), G)
-        if curToken.pattern != ")":
+        if curToken.name != "RPAREN":
             raiseParserError("primary", ")", curToken)
         return next(G)
-    if re.match("[a-zA-Z]\w*", curToken.pattern):
+    if curToken.name == "ID":
         return ident(curToken, G)
-    if not re.match("\d+", curToken.pattern):
-        raiseParserError('INTLITERAL', "\d+", curToken)
+    if curToken.name != "INTLIT":
+        raiseParserError('primary: INTLITERAL', "\d+", curToken)
     return next(G)
 
 @add_debug
@@ -160,23 +144,16 @@ def ident(curToken, G):
     # if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
     # line above would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
-    print(reservedWords)
-    if any(re.match(ptn, curToken.pattern) for ptn in reservedWords):
-        raiseParserError("ID", "None RESERVED tokens", curToken)
-    if not re.match("[a-zA-Z]\w*", curToken.pattern):
+    if curToken.name != "ID":
         raiseParserError("ID", "[a-zA-Z]\w*", curToken)
     return next(G)
 
 @add_debug
 #<arith_op> -> + | -
 def arith_op(curToken, G):
-    if curToken.pattern not in ("+", "-"):
+    if curToken.t_class != "ARITHOP":
         raiseParserError("arith_op", "+|-", curToken)
     return next(G)
-
-
-
-
 
 
 
