@@ -14,6 +14,7 @@ Grammar:
 """
 
 from lexer import *
+import re
 
 #######################
 # For debugging
@@ -43,6 +44,13 @@ class ParserError(Exception):
 
 #########################
 
+"""
+We know there are two errors while passing unit tests:
+    - statement_list is allowing for zero statements between being and end,
+        which is disallowed by grammar
+    - ident isn't checking t_class, but instead chekcing patterns
+"""
+
 # Parsing code
 def parser(source_file, token_file):
     """
@@ -70,8 +78,7 @@ def program(current, G):
 @add_debug
 # <statement_list> -> <statement>; { <statement>; }
 def statement_list(current, G):
-
-    # removed the 'firstTime' boolean since it's unnecessary
+    # This allows for no 'statements', which is a grammar error
     while current.name in ("READ", "WRITE", "ID"):
         current = statement(current, G)
         if current.name != "SEMICOLON":
@@ -79,12 +86,15 @@ def statement_list(current, G):
         current = next(G)
     return current
 
-    # This is a more general version...
-    # while current.name != "END":
+    ## Correct version ##
+    ## Ensures the loop runs at least once ##
+    # first_time = True
+    # while first_time or current.name in ("READ", "WRITE", "ID"):
     #    current = statement(current, G)
-    #    if current.name != 'SEMICOLON':
+    #    if current.name != "SEMICOLON":
     #        raiseParserError("statement_list", ";", current)
     #    current = next(G)
+    #    first_time = False
     # return current
 
 @add_debug
@@ -140,14 +150,8 @@ def primary(current, G):
         current = expression(next(G), G)
         if current.name != "RPAREN":
             raiseParserError("primary", ")", current)
-        # Returned at the end
-        # return next(G)
-    # Changed to elif's to use the same return at the bottom
-    # Can be improved by never calling ID, since we know it is an ID token or not at this stage?
     elif current.name == "ID":
         return ident(current, G)
-    # elif current.name != "ID":
-    #   raise ParserError('primary', 'ID', current)
     elif current.name != "INTLIT":
         raiseParserError('primary', "INTLITERAL", current)
     return next(G)
@@ -155,12 +159,12 @@ def primary(current, G):
 @add_debug
 # <ident> -> ID
 def ident(current, G):
-    # if re.match("end|read|write", current.pattern) or not re.match("[a-zA-Z]\w*", current.pattern):
+    if re.match("end|read|write", current.pattern) or not re.match("[a-zA-Z]\w*", current.pattern):
     # line above would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
 
-    # (Greg: I don't think there could be a 'begin' token in place of an ID token)
-    if current.name != "ID":
+    ## (Use the condition below for real version) ##
+    # if current.name != "ID":
         raiseParserError("ident", "ID", current)
     return next(G)
 
