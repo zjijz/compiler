@@ -11,6 +11,7 @@ class LexerError(Exception):
     def __str__(self):
         return str(self.msg)
 
+
 class Token:
     """
     A class for storing token information.
@@ -56,50 +57,51 @@ class Token:
                self.pattern == other.pattern and self.line == other.line and \
                self.line_num == other.line_num and self.col == other.col
 
-def printAll(source_file, token_file):
-    for t in lexer(source_file, token_file):
-        print(t)
 
 def lexer(source_file, token_file):
-
     re_list = []
     token_hash = {}
 
-    with open(token_file) as tokenFp:
-        for line in tokenFp:
-            A = re.split("\s+", line.rstrip())
-            re_list.append(A[2])
-            token_hash[A[2]] = (A[0], A[1])
+    with open(token_file) as tokens:
+        for line in tokens:
+            split = re.split("\s+", line.rstrip())
+            re_list.append(split[2])
+            token_hash[split[2]] = (split[0], split[1])
 
-    lineNum = 0
-    with open(source_file) as sourceFp:
-        for line in sourceFp:
-            lineNum += 1
+    with open(source_file) as source:
+        line_num = 0
+        for line in source:
+            line_num += 1
+
+            # Remove all comments from the line
             line = re.sub("#(.|\s)*$", "", line.rstrip())
+
+            # Start col at first non-whitespace
             col = len(line) - len(line.lstrip())
 
-            """
-            while(col < len(line)):
-                match = None
-                for ptn in re_list:
-                    match = re.match(ptn, line[col:])
-                    if match:
-                        yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, lineNum, col)
-                        col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
-                        break
-                if not match:
-                    raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
-            """
-
             while col < len(line):
+                # This will return the next 'm' such that m is not null (governed by 'if m [!= None]')
+                # and 'm' is the matchObject (or None) returned by re.match(...)
                 match = next(m for m in [re.match(ptn, line[col:]) for ptn in re_list] if m)
 
                 if match:
                     yield Token(token_hash[match.re.pattern][0], token_hash[match.re.pattern][1],
-                            match.group(1), line, lineNum, col)
+                            match.group(1), line, line_num, col)
                     col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
                 if not match:
-                    raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
+                    raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
+
+            # Original loop
+            # while(col < len(line)):
+            #    match = None
+            #    for ptn in re_list:
+            #        match = re.match(ptn, line[col:])
+            #        if match:
+            #            yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, line_num, col)
+            #            col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
+            #            break
+            #    if not match:
+            #        raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
 
     yield Token("$", "$", "$", "$", -1, -1)
 
