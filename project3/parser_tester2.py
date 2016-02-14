@@ -174,7 +174,7 @@ class ParserTester(unittest.TestCase):
         # A program with no statements between begin and end
         # Grammar says this is incorrect
         L = ["begin", "end"]
-        with self.asserRaises(MLparser.ParserError):
+        with self.assertRaises(MLparser.ParserError):
             runTest(L)
     """
 def run_tests(test = None):
