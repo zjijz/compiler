@@ -56,6 +56,10 @@ class Token:
                self.pattern == other.pattern and self.line == other.line and \
                self.line_num == other.line_num and self.col == other.col
 
+def printAll(source_file, token_file):
+    for t in lexer(source_file, token_file):
+        print(t)
+
 def lexer(source_file, token_file):
 
     re_list = []
@@ -73,6 +77,8 @@ def lexer(source_file, token_file):
             lineNum += 1
             line = re.sub("#(.|\s)*$", "", line.rstrip())
             col = len(line) - len(line.lstrip())
+
+            """
             while(col < len(line)):
                 match = None
                 for ptn in re_list:
@@ -83,6 +89,18 @@ def lexer(source_file, token_file):
                         break
                 if not match:
                     raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
+            """
+
+            while col < len(line):
+                match = next(m for m in [re.match(ptn, line[col:]) for ptn in re_list] if m)
+
+                if match:
+                    yield Token(token_hash[match.re.pattern][0], token_hash[match.re.pattern][1],
+                            match.group(1), line, lineNum, col)
+                    col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
+                if not match:
+                    raise LexerError("Bad token (line %d, column %d): %s" %(lineNum, col, line[col:]))
+
     yield Token("$", "$", "$", "$", -1, -1)
 
 
