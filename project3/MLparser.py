@@ -48,7 +48,8 @@ class ParserError(Exception):
 We know there are two errors while passing unit tests:
     - statement_list is allowing for zero statements between being and end,
         which is disallowed by grammar
-    - ident isn't checking t_class, but instead chekcing patterns
+    - ident isn't checking for token name, which would possibly allow reserved 
+        be used as ID
 """
 
 # Parsing code
@@ -87,15 +88,15 @@ def statement_list(current, G):
     return current
 
     ## Correct version ##
-    ## Ensures the loop runs at least once ##
-    # first_time = True
-    # while first_time or current.name in ("READ", "WRITE", "ID"):
-    #    current = statement(current, G)
-    #    if current.name != "SEMICOLON":
-    #        raiseParserError("statement_list", ";", current)
-    #    current = next(G)
-    #    first_time = False
-    # return current
+    ## Ensures the loop runs at least once
+    ## emulate a do-while loop. Better than using firstTime ##
+    # while True:
+    #   curToken = statement(curToken, G)
+    #   if curToken.name != "SEMICOLON":
+    #       raiseParserError("statement_list", ";", curToken)
+    #   curToken = next(G)
+    #   if curToken.name not in ("READ", "WRITE", "ID"):
+    #       return curToken
 
 @add_debug
 # <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
