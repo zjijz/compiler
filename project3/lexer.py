@@ -81,8 +81,8 @@ def lexer(source_file, token_file):
 
             while col < len(line):
                 # This will return the next 'm' such that m is not null (governed by 'if m [!= None]')
-                # and 'm' is the matchObject (or None) returned by re.match(...)
-                match = next(m for m in [re.match(ptn, line[col:]) for ptn in re_list] if m)
+                # and 'm' is the matchObject (or None) returned by (re.match(...) for ptn in re_list)
+                match = next(m for m in (re.match(ptn, line[col:]) for ptn in re_list) if m)
 
                 if match:
                     yield Token(token_hash[match.re.pattern][0], token_hash[match.re.pattern][1],
