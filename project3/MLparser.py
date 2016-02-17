@@ -22,11 +22,11 @@ debug = False
 recursion_level = 0
 
 def add_debug(fn):
-    def debugged_fn(current, G):
+    def debugged_fn(curToken, G):
         global recursion_level
-        print(" "*recursion_level + "Entering: %s (%s)" % (fn.__name__, current))
+        print(" "*recursion_level + "Entering: %s (%s)" % (fn.__name__, curToken))
         recursion_level += 3
-        R = fn(current, G)
+        R = fn(curToken, G)
         recursion_level -= 3
         print(" "*recursion_level + "Leaving: %s" % (fn.__name__))
         return R
@@ -48,7 +48,7 @@ class ParserError(Exception):
 We know there are two errors while passing unit tests:
     - statement_list is allowing for zero statements between being and end,
         which is disallowed by grammar
-    - ident isn't checking for token name, which would possibly allow reserved 
+    - ident isn't checking for token name, which would possibly allow reserved
         be used as ID
 """
 
@@ -68,115 +68,105 @@ def raiseParserError(symbolName, expectedTokenStr, actualToken):
 
 @add_debug
 # <program> -> begin <statement_list> end
-def program(current, G):
-    if current.name != "BEGIN":
-        raise raiseParserError("program", "begin", current)
-    current = statement_list(next(G), G)
-    if current.name != "END":
-        raiseParserError("program", "end", current)
+def program(curToken, G):
+    if curToken.name != "BEGIN":
+        raise raiseParserError("program", "begin", curToken)
+    curToken = statement_list(next(G), G)
+    if curToken.name != "END":
+        raiseParserError("program", "end", curToken)
     return next(G)
 
 @add_debug
 # <statement_list> -> <statement>; { <statement>; }
-def statement_list(current, G):
-    # This allows for no 'statements', which is a grammar error
-    while current.name in ("READ", "WRITE", "ID"):
-        current = statement(current, G)
-        if current.name != "SEMICOLON":
-            raiseParserError("statement_list", ";", current)
-        current = next(G)
-    return current
+def statement_list(curToken, G):
 
-    ## Correct version ##
-    ## Ensures the loop runs at least once
-    ## emulate a do-while loop. Better than using firstTime ##
-    # while True:
-    #   curToken = statement(curToken, G)
-    #   if curToken.name != "SEMICOLON":
-    #       raiseParserError("statement_list", ";", curToken)
-    #   curToken = next(G)
-    #   if curToken.name not in ("READ", "WRITE", "ID"):
-    #       return curToken
+    while True:
+        curToken = statement(curToken, G)
+        if curToken.name != "SEMICOLON":
+            raiseParserError("statement_list", ";", curToken)
+        curToken = next(G)
+        if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+        #if curToken.name not in ("READ", "WRITE", "ID"): correct version
+            return curToken
 
 @add_debug
 # <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
-def statement(current, G):
-    if current.name in ("READ", "WRITE"):
-        tokenName = current.name
-        current = next(G)
-        if current.name != "LPAREN":
-            raiseParserError("statement", '(', current)
-        current = id_list(next(G), G) if tokenName == "READ" else expr_list(next(G), G)
-        if current.name != "RPAREN":
-            raiseParserError("statement", ')', current)
+def statement(curToken, G):
+    if curToken.name in ("READ", "WRITE"):
+        tokenName = curToken.name
+        curToken = next(G)
+        if curToken.name != "LPAREN":
+            raiseParserError("statement", '(', curToken)
+        curToken = id_list(next(G), G) if tokenName == "READ" else expr_list(next(G), G)
+        if curToken.name != "RPAREN":
+            raiseParserError("statement", ')', curToken)
         return next(G)
-    return assign(current, G)
+    return assign(curToken, G)
 
 @add_debug
 # <assign> -> <ident> := <expression>
-def assign(current, G):
-    current = ident(current, G)
-    if current.name != "ASSIGNOP":
-        raiseParserError("assign", ":=", current)
+def assign(curToken, G):
+    curToken = ident(curToken, G)
+    if curToken.name != "ASSIGNOP":
+        raiseParserError("assign", ":=", curToken)
     return expression(next(G), G)
 
 @add_debug
 # <id_list> -> <ident> {, <ident>}
-def id_list(current, G):
-    current = ident(current, G)
-    while current.name == "COMMA":
-        current = ident(next(G), G)
-    return current
+def id_list(curToken, G):
+    curToken = ident(curToken, G)
+    while curToken.name == "COMMA":
+        curToken = ident(next(G), G)
+    return curToken
 
 @add_debug
 # <expr_list> -> <expression> {, <expression>}
-def expr_list(current, G):
-    current = expression(current, G)
-    while current.name == "COMMA":
-        current = expression(next(G), G)
-    return current
+def expr_list(curToken, G):
+    curToken = expression(curToken, G)
+    while curToken.name == "COMMA":
+        curToken = expression(next(G), G)
+    return curToken
 
 @add_debug
 # <expression> -> <primary> {<arith_op> <primary>}
-def expression(current, G):
-    current = primary(current, G)
-    while current.t_class == "ARITHOP":
-        current = primary(arith_op(current, G), G)
-    return current
+def expression(curToken, G):
+    curToken = primary(curToken, G)
+    while curToken.t_class == "ARITHOP":
+        curToken = primary(arith_op(curToken, G), G)
+    return curToken
 
 @add_debug
 # <primary> -> (<expression>) | <ident> | INTLITERAL
-def primary(current, G):
-    if current.name == "LPAREN":
-        current = expression(next(G), G)
-        if current.name != "RPAREN":
-            raiseParserError("primary", ")", current)
-    elif current.name == "ID":
-        return ident(current, G)
-    elif current.name != "INTLIT":
-        raiseParserError('primary', "INTLITERAL", current)
+def primary(curToken, G):
+    if curToken.name == "LPAREN":
+        curToken = expression(next(G), G)
+        if curToken.name != "RPAREN":
+            raiseParserError("primary", ")", curToken)
+    if not re.match("end|read|write", curToken.pattern) and re.match("[a-zA-Z]\w*", curToken.pattern):
+    #if curToken.name == "ID": correct version
+        return ident(curToken, G)
+    if curToken.name != "INTLIT":
+        raiseParserError('primary', "INTLITERAL", curToken)
     return next(G)
 
 @add_debug
 # <ident> -> ID
-def ident(current, G):
-    if re.match("end|read|write", current.pattern) or not re.match("[a-zA-Z]\w*", current.pattern):
+def ident(curToken, G):
+    if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
     # line above would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
 
     ## (Use the condition below for real version) ##
-    # if current.name != "ID":
-        raiseParserError("ident", "ID", current)
+    # if curToken.name != "ID":
+        raiseParserError("ident", "ID", curToken)
     return next(G)
 
 @add_debug
 # <arith_op> -> + | -
-def arith_op(current, G):
-    if current.t_class != "ARITHOP":
-        raiseParserError("arith_op", "ARITHOP", current)
+def arith_op(curToken, G):
+    if curToken.t_class != "ARITHOP":
+        raiseParserError("arith_op", "ARITHOP", curToken)
     return next(G)
-
-
 
 
 
