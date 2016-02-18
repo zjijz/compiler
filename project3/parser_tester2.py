@@ -9,26 +9,26 @@ def runTest(L):
     create_file(L)
     return MLparser.parser("test.txt", "tokens.txt")
 
-        
+
 class ParserTester(unittest.TestCase):
 
     def test01(self):
         """Missing begin"""
-        
+
         L = ["read(x);", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
-    
+
     def test02(self):
         """Missing end"""
-        
+
         L = ["begin", "read(x);"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
 
     def test03(self):
         """Missing statement"""
-        
+
         L = ["begin", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
@@ -36,20 +36,20 @@ class ParserTester(unittest.TestCase):
 
     def test04(self):
         """Missing semi-colon (single statement)"""
-        
+
         L = ["begin", "x := 5", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
 
     def test05(self):
         """Missing semi-colon (multiple statements)"""
-        L = ["begin", "x := 5; x := 5", "end"]        
+        L = ["begin", "x := 5; x := 5", "end"]
         L = ["begin", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)                                    
+            runTest(L)
 
     def test06(self):
-        """Missing assignop """        
+        """Missing assignop """
         L = ["begin", "x + 5;", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
@@ -64,7 +64,7 @@ class ParserTester(unittest.TestCase):
         """Missing ( after read"""
         L = ["begin", "read x);", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)                                    
+            runTest(L)
 
     def test09(self):
         """Missing ) after read"""
@@ -76,7 +76,7 @@ class ParserTester(unittest.TestCase):
         """Missing ( after write"""
         L = ["begin", "write x);", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)                                    
+            runTest(L)
 
     def test11(self):
         """Missing ) after write"""
@@ -88,7 +88,7 @@ class ParserTester(unittest.TestCase):
         """Missing ID in id_list"""
         L = ["begin", "read(5);", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)                                    
+            runTest(L)
 
     def test13(self):
         """Bad expression 1: Missing operrand"""
@@ -135,19 +135,19 @@ class ParserTester(unittest.TestCase):
         """Multiple comma in read"""
         L = ["begin", "read(x,,y);", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)            
+            runTest(L)
 
     def test20(self):
         """Multiple comma in write"""
         L = ["begin", "write(x,,y);", "end"]
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)            
+            runTest(L)
 
     def test21(self):
         """Run out of source"""
         L = ["begin", "x:="];
         with self.assertRaises(MLparser.ParserError):
-            runTest(L)            
+            runTest(L)
 
     def test22(self):
         """Unexpected primary"""
@@ -157,17 +157,43 @@ class ParserTester(unittest.TestCase):
 
     def test23(self):
         """Extra code after terminal end"""
-        L = ["begin", "x := read + 5;", "end", "read(x)"]
+        #L = ["begin", "x := read + 5;", "end", "read(x)"]
+        L = ["begin", "x := 6 + 5;", "end", "read(x)"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
-
     """
-    def test24(self): 
+    THIS IS REDUNDANT IF WE CHECK FOR BEGIN AT LATER STAGE
+    -- <expression> AFTER ":=" IN <assign>. BECAUSE ULTIMATELY,
+    WE ARE CHECKING FOR ID, IF BEGIN IS BEFORE ":=", IT COULD
+    BE CHECK AT EITHER <statement> OR <statement_list> AND STILL
+    FAIL THE ID SYMBOL. SOL WE'LL CHECK AT A PLACE WHERE ONLY ID
+    WILL BE DERIVED LATER ON, WHICH IS AFTER ":="
+    def test24(self):
         # A reserved word begin as an ID
         L = ["begin", "x := y;", "begin := 2;", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
     """
+
+    def test24(self):
+        # A reserved word end as an ID
+        L = ["begin", "x := y;", "x := end;", "end"]
+        with self.assertRaises(MLparser.ParserError):
+            runTest(L)
+
+
+    def test25(self):
+        # A reserved word begin as an ID
+        L = ["begin", "x := y;", "x := begin;", "end"]
+        with self.assertRaises(MLparser.ParserError):
+            runTest(L)
+
+    def test26(self):
+        # A reserved word write as an ID
+        L = ["begin", "x := y;", "x := write;", "end"]
+        with self.assertRaises(MLparser.ParserError):
+            runTest(L)
+
 
 def run_tests(test = None):
     suite = unittest.TestLoader().loadTestsFromTestCase(ParserTester)
