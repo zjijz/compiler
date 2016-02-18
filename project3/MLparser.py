@@ -60,7 +60,12 @@ def parser(source_file, token_file):
     Throws a ParserError otherwise.
     """
     G = lexer(source_file, token_file)
-    return program(next(G), G).name == "$"
+    curToken = program(next(G), G)
+    if (curToken.name != "$"):
+        raise ParserError('There are redundant tokens at the end of the program, '
+                          'starting with: %s\nLine num: %d, column num: %d'
+                          %(curToken.line, curToken.line_num, curToken.col))
+    return True
 
 def raiseParserError(symbolName, expectedTokenStr, actualToken):
     raise ParserError('Error in <%s>, expected "%s", actually is "%s" \nLine num: %d, column num: %d'
@@ -85,8 +90,8 @@ def statement_list(curToken, G):
         if curToken.name != "SEMICOLON":
             raiseParserError("statement_list", ";", curToken)
         curToken = next(G)
-        if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
-        #if curToken.name not in ("READ", "WRITE", "ID"): correct version
+        #if re.match("end", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+        if curToken.name not in ("READ", "WRITE", "ID"): #correct version
             return curToken
 
 @add_debug
@@ -142,22 +147,20 @@ def primary(curToken, G):
         curToken = expression(next(G), G)
         if curToken.name != "RPAREN":
             raiseParserError("primary", ")", curToken)
-    if not re.match("end|read|write", curToken.pattern) and re.match("[a-zA-Z]\w*", curToken.pattern):
+    elif not re.match("read", curToken.pattern) and re.match("[a-zA-Z]\w*", curToken.pattern):
     #if curToken.name == "ID": correct version
         return ident(curToken, G)
-    if curToken.name != "INTLIT":
+    elif curToken.name != "INTLIT":
         raiseParserError('primary', "INTLITERAL", curToken)
     return next(G)
 
 @add_debug
 # <ident> -> ID
 def ident(curToken, G):
-    if re.match("end|read|write", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
-    # line above would match all the test cases but it's still wrong
+    # line below would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
-
-    ## (Use the condition below for real version) ##
-    # if curToken.name != "ID":
+    if re.match("read", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+    # if curToken.name != "ID":   correct version
         raiseParserError("ident", "ID", curToken)
     return next(G)
 
@@ -167,6 +170,5 @@ def arith_op(curToken, G):
     if curToken.t_class != "ARITHOP":
         raiseParserError("arith_op", "ARITHOP", curToken)
     return next(G)
-
 
 
