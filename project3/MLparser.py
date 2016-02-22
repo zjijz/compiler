@@ -147,8 +147,8 @@ def primary(curToken, G):
         curToken = expression(next(G), G)
         if curToken.name != "RPAREN":
             raiseParserError("primary", ")", curToken)
-    elif not re.match("read", curToken.pattern) and re.match("[a-zA-Z]\w*", curToken.pattern):
-    #if curToken.name == "ID": correct version
+    #elif not re.match("read", curToken.pattern) and re.match("[a-zA-Z]\w*", curToken.pattern):
+    elif curToken.name == "ID":
         return ident(curToken, G)
     elif curToken.name != "INTLIT":
         raiseParserError('primary', "INTLITERAL", curToken)
@@ -159,8 +159,8 @@ def primary(curToken, G):
 def ident(curToken, G):
     # line below would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
-    if re.match("read", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
-    # if curToken.name != "ID":   correct version
+    #if re.match("read", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
+    if curToken.name != "ID": 
         raiseParserError("ident", "ID", curToken)
     return next(G)
 
