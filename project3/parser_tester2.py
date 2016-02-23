@@ -44,7 +44,6 @@ class ParserTester(unittest.TestCase):
     def test05(self):
         """Missing semi-colon (multiple statements)"""
         L = ["begin", "x := 5; x := 5", "end"]
-        L = ["begin", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
 
@@ -157,40 +156,13 @@ class ParserTester(unittest.TestCase):
 
     def test23(self):
         """Extra code after terminal end"""
-        #L = ["begin", "x := read + 5;", "end", "read(x)"]
-        L = ["begin", "x := 6 + 5;", "end", "read(x)"]
+        L = ["begin", "x := 5;", "end", "read(x)"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
-    """
-    THIS IS REDUNDANT IF WE CHECK FOR BEGIN AT LATER STAGE
-    -- <expression> AFTER ":=" IN <assign>. BECAUSE ULTIMATELY,
-    WE ARE CHECKING FOR ID, IF BEGIN IS BEFORE ":=", IT COULD
-    BE CHECK AT EITHER <statement> OR <statement_list> AND STILL
-    FAIL THE ID SYMBOL. SOL WE'LL CHECK AT A PLACE WHERE ONLY ID
-    WILL BE DERIVED LATER ON, WHICH IS AFTER ":="
+
     def test24(self):
         # A reserved word begin as an ID
         L = ["begin", "x := y;", "begin := 2;", "end"]
-        with self.assertRaises(MLparser.ParserError):
-            runTest(L)
-    """
-
-    def test24(self):
-        # A reserved word end as an ID
-        L = ["begin", "x := y;", "x := end;", "end"]
-        with self.assertRaises(MLparser.ParserError):
-            runTest(L)
-
-
-    def test25(self):
-        # A reserved word begin as an ID
-        L = ["begin", "x := y;", "x := begin;", "end"]
-        with self.assertRaises(MLparser.ParserError):
-            runTest(L)
-
-    def test26(self):
-        # A reserved word write as an ID
-        L = ["begin", "x := y;", "x := write;", "end"]
         with self.assertRaises(MLparser.ParserError):
             runTest(L)
 
@@ -199,8 +171,5 @@ def run_tests(test = None):
     suite = unittest.TestLoader().loadTestsFromTestCase(ParserTester)
     testResult = unittest.TextTestRunner(verbosity=2).run(test if test else suite)
 
-if __name__ == "__man__":
+if __name__ == "__main__":
     run_tests()
-
-
-
