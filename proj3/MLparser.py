@@ -1,4 +1,6 @@
 """
+Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
+
 Parser for the Micro-language.
 Grammar:
    <program> -> begin <statement_list> end
@@ -160,7 +162,7 @@ def ident(curToken, G):
     # line below would match all the test cases but it's still wrong
     # because it didn't exclude the reserved word begin for ID
     #if re.match("read", curToken.pattern) or not re.match("[a-zA-Z]\w*", curToken.pattern):
-    if curToken.name != "ID": 
+    if curToken.name != "ID":
         raiseParserError("ident", "ID", curToken)
     return next(G)
 
@@ -170,5 +172,3 @@ def arith_op(curToken, G):
     if curToken.t_class != "ARITHOP":
         raiseParserError("arith_op", "ARITHOP", curToken)
     return next(G)
-
-
