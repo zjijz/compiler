@@ -13,7 +13,7 @@ class tree:
         self.label = label
         self.children = children if children != None else []
 
-    def str_helper(self):
+    def _str_helper(self):
 
         return self.label if not self.children \
             else "(" + ",".join([c._str_helper() for c in self.children]) + ")" + self.label
@@ -22,7 +22,7 @@ class tree:
         """
         Translate to newick string
         """
-        return self.str_helper() + ";"
+        return self._str_helper() + ";"
 
 
     def __repr__(self):
