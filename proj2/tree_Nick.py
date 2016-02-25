@@ -22,7 +22,7 @@ class tree:
         """
         Translate to newick string
         """
-        return self.strHelper() + ";"
+        return self.str_helper() + ";"
 
 
     def __repr__(self):
