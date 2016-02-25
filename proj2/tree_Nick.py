@@ -15,9 +15,8 @@ class tree:
 
     def strHelper(self):
 
-        return ("" if not self.children
-                else "(" + ','.join(child.strHelper() for child in self.children) + ")")\
-               + str(self.label)
+        return self.label if not self.children \
+            else "(" + ",".join([c._str_helper() for c in self.children]) + ")" + self.label
 
     def __str__(self):
         """
@@ -33,7 +32,7 @@ class tree:
         """
         Return number of nodes in teee
         """
-        return 1 if not self.children else sum(len(node) for node in self.children) + 1
+        return sum(len(node) for node in self.children) + 1
 
     def isLeaf(self):
         """
@@ -89,20 +88,16 @@ def T(current, G):
 def S(current, G):
     children = []
     if current == '(':
-        current, child = S(next(G), G)
-        children.append(child)
-        while current == ",":
+        while current != ")":
             current, child = S(next(G), G)
             children.append(child)
-        if current != ")":
+        if current not in (",", ")"):
             raise ParserException("Error in S: missing closing parenthesis or wrong token")
         current = next(G)
     label = ""
-    if not children and not re.match("\w", current):
-        raise ParserException("Missing label for leaf nodes")
     while re.match("\w", current):
         label += current
         current = next(G)
+    if not label:
+        raise ParserException("Missing label for leaf nodes")
     return current, tree(label, children)
-
-
