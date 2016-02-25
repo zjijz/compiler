@@ -13,7 +13,7 @@ class tree:
         self.label = label
         self.children = children if children != None else []
 
-    def strHelper(self):
+    def str_helper(self):
 
         return self.label if not self.children \
             else "(" + ",".join([c._str_helper() for c in self.children]) + ")" + self.label
