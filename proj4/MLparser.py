@@ -103,8 +103,11 @@ def statement(curToken, G):
         if curToken.name != "RPAREN":
             raiseParserError("statement", ')', curToken)
         return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
-    curToken, child_assign = assign(curToken, G)
-    return curToken, tree("STATEMENT", [child_assign])
+    # Also done to make this more explicit
+    # if not in read, write, then it is assign (or assign should throw error)
+    else:
+        curToken, child_assign = assign(curToken, G)
+        return curToken, tree("STATEMENT", [child_assign])
 ################### possible one line optimization ###################
 
 @add_debug
@@ -158,12 +161,15 @@ def primary(curToken, G):
         if curToken.name != "RPAREN":
             raiseParserError("primary", ")", curToken)
         return next(G), tree("PRIMARY", [child_expr])
-    if curToken.name == "ID":
+    elif curToken.name == "ID":
         curToken, child_ident = ident(curToken, G)
         return curToken, tree("PRIMARY", [child_ident])
-    if curToken.name != "INTLIT":
+    # I flipped this to a positive check just to make
+    # it slightly clearer
+    elif curToken.name == "INTLIT":
+        return next(G), tree("PRIMARY", [tree("INTLIT")])
+    else:
         raiseParserError('primary', "INTLITERAL", curToken)
-    return next(G), tree("PRIMARY", [tree("INTLIT")])
 
 @add_debug
 # <ident> -> ID
