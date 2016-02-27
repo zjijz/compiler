@@ -91,8 +91,8 @@ def S(current, G):
         while current != ")":
             current, child = S(next(G), G)
             children.append(child)
-        if current not in (",", ")"):
-            raise ParserException("Error in S: missing closing parenthesis or wrong token")
+            if current not in (",", ")"):
+                raise ParserException("Error in S: missing closing parenthesis or wrong token")
         current = next(G)
     label = ""
     while re.match("\w", current):
