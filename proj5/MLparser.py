@@ -65,7 +65,7 @@ def parser(source_file, token_file):
     return t, symbol_table
 
 def raiseParserError(symbolName, expectedTokenStr, actualToken):
-    raise ParserError('Error in <%s>, expected "%s", actually is "%s" \nLine num: %d, column num: %d'
+    raise ParserError('Syntax error in <%s>, expected "%s", actually is "%s" \nLine num: %d, column num: %d'
                       %(symbolName, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
 
 @add_debug
