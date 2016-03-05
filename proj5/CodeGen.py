@@ -16,8 +16,7 @@ def traverse(parse_tree, symbol_table, fp):
             if child.label in func_factory:
                 func_factory[parse_tree.label](parse_tree, symbol_table, fp)
             else:
-                for child in parse_tree.children:
-                    traverse(child, symbol_table, fp)
+                traverse(child, symbol_table, fp)
 
 
 def start(symbol_table, fp):
