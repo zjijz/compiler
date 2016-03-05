@@ -82,26 +82,17 @@ def lexer(source_file, token_file):
             while col < len(line):
                 # This will return the next 'm' such that m is not null (governed by 'if m [!= None]')
                 # and 'm' is the matchObject (or None) returned by (re.match(...) for ptn in re_list)
-                match = next(m for m in (re.match(ptn, line[col:]) for ptn in re_list) if m)
-
-                if match:
-                    yield Token(token_hash[match.re.pattern][0], token_hash[match.re.pattern][1],
-                            match.group(1), line, line_num, col)
-                    col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
-                if not match:
+                while col < len(line):
+                # This will return the next 'm' such that m is not null (governed by 'if m [!= None]')
+                # and 'm' is the matchObject (or None) returned by (re.match(...) for ptn in re_list)
+                try:
+                    match = next(m for m in (re.match(ptn, line[col:]) for ptn in re_list) if m)
+                except StopIteration:
                     raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
 
-            # Original loop
-            # while(col < len(line)):
-            #    match = None
-            #    for ptn in re_list:
-            #        match = re.match(ptn, line[col:])
-            #        if match:
-            #            yield Token(token_hash[ptn][0], token_hash[ptn][1], match.group(1), line, line_num, col)
-            #            col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
-            #            break
-            #    if not match:
-            #        raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
+                yield Token(token_hash[match.re.pattern][0], token_hash[match.re.pattern][1],
+                            match.group(1), line, line_num, col)
+                col += match.end(1) + re.match("\s*", line[col + match.end(1):]).end(0)
 
     yield Token("$", "$", "$", "$", -1, -1)
 

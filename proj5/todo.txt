@@ -1,0 +1,50 @@
+compiler:
+-DFS search of parse tree
+
+(Each function passes in a tree and a file pointer)
+
+Start:
+-reserve memory space
+-associate each variable in symbol table
+
+Finish:
+-Flush the buffer
+-Close the file
+
+readids:
+-solve for one variable first
+
+writeids:
+-solve for one variable first
+-Get register / memory addresses of variables
+
+assign:
+-pass MIPS code for assignment to file pointer
+
+expression: /infix
+-Generate all of the code for adding/subtracting variable in MIPS
+-Return the register / memory name where the result is stored
+
+_______________________________
+MIPS Code:
+Registers: ($v0-$v4, $a0-$a2)
+-syscall for read (syscall 5)
+-syscall for print (syscall 1)
+-code to add a series of numbers
+-code to set a register with to a new value
+
+_______________________________
+Name Generator (Ask Karro about this)
+-generator that returns a new name for each variable2
+
+_______________________________
+Register Table
+-Like symbol table, but keeps track of registers
+_______________________________
+Queue for Recent Variables
+-When variables are loaded into registers, push them to queue
+-When you need to remove a variable from a register to make space,
+ the one you remove is whatever the queue pops
+
+
+
