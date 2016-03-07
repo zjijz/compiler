@@ -20,14 +20,14 @@ def asm_sub(r_reg, f_reg, s_reg):
 def asm_reg_set(f_reg, s_reg):
     # This branches if s_reg is a register (i.e. string) or an immediate (i.e. int)
     if type(s_reg) is int:
-        return 'li {:s}, {:d}'.format(f_reg, s_reg)
+        return 'li {:s}, {:d}\n'.format(f_reg, s_reg)
     else:
         return 'move {:s}, {:s}\n'.format(f_reg, s_reg) # move is a pseudo-instruction
 
 
 # Loads a variable's memory address into a register
 def asm_load_mem_addr(mem_name, temp_reg):
-    return 'la {:s}, {:s}'.format(temp_reg, mem_name)
+    return 'la {:s}, {:s}\n'.format(temp_reg, mem_name)
 
 
 # Assumes mem_name address isn't in memory already

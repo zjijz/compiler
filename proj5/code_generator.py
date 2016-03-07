@@ -3,21 +3,22 @@ from MLparser import *
 import string
 from assembly_helper import *
 
-# Symbol Table (Keys are ID pattern)
-#  Type
-#  Scope
-#  Name for .data
-#  initial data (None if not set with INTLITERAL assignment)
-#  temporary register with memory address
-#  temporary register with value
+# Symbol Table (Keys are ID pattern, Values are Dicts themselve)
+#  'type': Data type
+#  'scope': Data scope
+#  'mem_name": variable name for .data
+#  'init_val': initial value (None if set with READ)
+#  'curr_val': current value (None if used in an operation with a variable from READ)
+#  'addr_reg': temporary register with memory address
+#  'val_reg': temporary register with value
 
-# Register Table (Keys are register names)
-#  ID pattern
-#  Variable name
-#  Variable type (address or value)
+# Register Table (Keys are register names, Values are Dicts themselves)
+#  'id': ID pattern
+#  'mem_name': Variable name
+#  'mem_type': Variable type (address or value)
 
 # Var_Queue
-#  Holds a (reg, ID pattern, var_name, var_type) tuple
+#  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
 #  Push to back, pop from front
 
 
@@ -41,13 +42,20 @@ class CodeGenerator():
     """Object that takes a parse tree, symbol table, and output file,
     and has methods to compile the parse tree to asm"""
 
+    @staticmethod
+    def _empty_reg_dict():
+        return {'id': None, 'mem_name': None, 'mem_type': None}
+
     def __init__(self, parse_tree, symbol_table, output_filename):
         self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
                         "EXPRESSION": self._expr_func, "ID": self._process}
         self.tree = parse_tree
         self.sym_table = symbol_table
-        self.reg_table = {'$t0': None, '$t1': None, '$t2': None, '$t3': None, '$t4': None, '$t5': None, '$t6': None,
-                          '$t7': None, '$t8': None, '$t9': None}
+        self.reg_table = {'$t0': CodeGenerator._empty_reg_dict(), '$t1': CodeGenerator._empty_reg_dict(),
+                          '$t2': CodeGenerator._empty_reg_dict(), '$t3': CodeGenerator._empty_reg_dict(),
+                          '$t4': CodeGenerator._empty_reg_dict(), '$t5': CodeGenerator._empty_reg_dict(),
+                          '$t6': CodeGenerator._empty_reg_dict(), '$t7': CodeGenerator._empty_reg_dict(),
+                          '$t8': CodeGenerator._empty_reg_dict(), '$t9': CodeGenerator._empty_reg_dict()}
         self.var_queue = []
         self.var_name_generator = variable_name_generator()
         self.output_name = output_filename
@@ -69,41 +77,68 @@ class CodeGenerator():
     def _find_free_register(self):
         # Look for open register
         for reg in self.reg_table:
-            if not self.reg_table[reg]:
+            if not self.reg_table[reg]['id']:
                 return reg
 
         # If none are open, free up a register
         reg_pop = self.var_queue.pop(0)
 
-        # If the register stores an address, just update tables
-        if reg_pop[2] == 'ADDRESS':
-            # Update symbol_table
-            curr_sym = self.sym_table[reg_pop[1]]
-            curr_sym = (curr_sym[0], curr_sym[1], curr_sym[2], curr_sym[3], curr_sym[4], None, curr_sym[6])
-            self.sym_table[reg_pop[1]] = curr_sym
+        id = reg_pop['id']
+        id_dict = self.sym_table[id]
+        reg = reg_pop['reg']
 
-            # Update reg_table
-            self.reg_table[reg_pop[0]] = None
+        # If the register stores an address, just update tables
+        if reg_pop['mem_type'] == 'ADDRESS':
+            # Remove old references
+            id_dict['addr_reg'] = None
+            self.reg_table[reg] = CodeGenerator._empty_reg_dict()
         else:
             # Save off variable to RAM
-            # Try to find mem_addr, else free up a register
-            mem_addr = None
-            if self.sym_table[reg_pop[1]][4]:
-                mem_addr = self.sym_table[reg_pop[1][4]]
-            else:
-                mem_addr = self._find_free_register()
-                self.output_string += asm_load_mem_addr(reg_pop[1], mem_addr)
-            self.output_string += asm_write_mem_addr(mem_addr, reg_pop[0])
+            # Try to find addr_reg, else free up a register
+            addr_reg = id_dict['addr_reg']
 
-            # Update symbol_table
-            curr_sym = self.sym_table[reg_pop[1]]
-            curr_sym = (curr_sym[0], curr_sym[1], curr_sym[2], curr_sym[3], curr_sym[4], curr_sym[5], None)
-            self.sym_table[reg_pop[1]] = curr_sym
+            if not addr_reg:
+                addr_reg = self._find_free_register()
+                self._update_tables(id, addr_reg, id_dict['val_reg'], id_dict)
+                self.output_string += asm_load_mem_addr(id, addr_reg)
 
-            # Update reg_table
-            self.reg_table[reg_pop[0]] = None
+            self.output_string += asm_write_mem_addr(addr_reg, reg_pop[0])
 
-        return reg_pop[0]
+            # Remove old references
+            id_dict['val_reg'] = None
+            self.reg_table[reg] = CodeGenerator._empty_reg_dict()
+
+        return reg
+
+    # Will update tables to reflect the changes made to val_reg and addr_reg
+    # Even though this may call more updates than necessary, just use it to ensure everything is updated
+    # This WILL NOT update if passed registers are None. Instead, manually remove them yourself (might make a separate
+    #  method for this later)
+    # DOES NOT update var_queue, that is up to you
+    def _update_tables(self, id, new_addr_reg, new_val_reg, id_dict = None, addr_reg_dict = None, val_reg_dict = None):
+        # Null Checks
+        if not id_dict:
+            id_dict = self.sym_table[id]
+        if not addr_reg_dict and new_addr_reg:
+            addr_reg_dict = self.reg_table[new_addr_reg]
+        if not val_reg_dict and new_val_reg:
+            val_reg_dict = self.reg_table[new_val_reg]
+
+        # Edit addr_reg dict
+        if new_addr_reg:
+            addr_reg_dict['id'] = id
+            addr_reg_dict['mem_name'] = id_dict['mem_name']
+            addr_reg_dict['mem_type'] = 'ADDRESS'
+
+            id_dict['addr_reg'] = new_addr_reg
+
+        # Edit val_reg dict
+        if new_val_reg:
+            val_reg_dict['id'] = id
+            val_reg_dict['mem_name'] = id_dict['mem_name']
+            val_reg_dict['mem_type'] = 'VALUE'
+
+            id_dict['val_reg'] = new_val_reg
 
     def _start(self):
         # Append .text' section
@@ -112,19 +147,20 @@ class CodeGenerator():
     def _finish(self):
         # Prepend '.data' section
         data_section = '.data\n'
+
         for id in self.sym_table:
-            var = self.sym_table[id]
-            if var:
-                type = var[0]
-                scope = var[1]
-                name = var[2]
-                init_val = var[3]
+            id_dict = self.sym_table[id]
 
-                # Variables can only be integers right now
-                # CHANGE THIS WHEN MORE TYPES ARE ADDED
-                o_type = '.word'
+            type = id_dict['type']
+            scope = id_dict['scope']
+            name = id_dict['mem_name']
+            init_val = id_dict['init_val']
 
-                data_section += '{:s}:\t{:s}\t{:d}\t#{:s} in original\n'.format(name, o_type, init_val if init_val else 0, id)
+            # Variables can only be integers right now
+            # CHANGE THIS WHEN MORE TYPES ARE ADDED
+            o_type = '.word'
+
+            data_section += '{:s}:\t{:s}\t{:d}\t# {:s} in original\n'.format(name, o_type, init_val if init_val else 0, id)
 
         self.output_string = data_section + self.output_string
 
@@ -140,9 +176,6 @@ class CodeGenerator():
 
     def _read_id(self, tree):
         print('Read', tree)
-        # Update Queue
-        # Update sym_table
-        # Update reg_table
 
     def _write_id(self, tree):
         print('Write')
@@ -151,84 +184,107 @@ class CodeGenerator():
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
     def _assign(self, tree):
         # Get RHS result
-        e_reg = self._expr_func(tree[0].children[1].children)
+        expr, expr_type = self._expr_func(tree[0].children[1].children)
 
         # Get LHS variable
         id = tree[0].children[0].children[0].token.pattern
-        type, scope, name, init_val, addr_reg, var_reg = self._process(tree[0].children[0].children)
+        id_dict = self._process(tree[0].children[0].children)
+
+        type = id_dict['type']
+        name = id_dict['mem_name']
+        addr_reg = id_dict['addr_reg']
+        val_reg = id_dict['val_reg']
 
         # Create name
-        if name == None:
+        if not name:
             name = next(self.var_name_generator)
+            id_dict['mem_name'] = name
 
             # Since this is the first time the variable is declared,
             # the initial value property can be set to an INTLITERAL
-            if isinstance(e_reg, int):
-                self.sym_table[id] = (type, scope, name, e_reg, addr_reg, var_reg)
+            if isinstance(expr, int) and type == 'int':
+                id_dict['init_val'] = expr
+                id_dict['curr_val'] = expr
                 return # no longer have to process the rest of the method
 
-        # Load variable into registers
-        if var_reg == None:
-            var_reg = self._find_free_register()
-            self.reg_table[var_reg] = (id, name, 'VALUE')
+            # Do a similar thing for STRLITERALS, BYTELITERALS, SHORTLITERALS, etc
+
+        # Load variable addr and val into registers
+        if not val_reg:
+            val_reg = self._find_free_register()
+            self._update_tables(id, addr_reg, val_reg, id_dict)
+
             if not addr_reg:
                 addr_reg = self._find_free_register()
-                self.reg_table[addr_reg] = (id, name, 'ADDRESS')
-                self.output_string += asm_read_mem(name, addr_reg, var_reg)
-            else:
-                self.output_string += asm_read_mem_addr(addr_reg, var_reg)
+                self._update_tables(id, addr_reg, val_reg, id_dict)
+                self.var_queue.append({'reg': addr_reg, 'id': id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+                self.output_string += asm_load_mem_addr(name, addr_reg)
+
+            # Since it is less work to pop an addr register from the queue, I would rather push that first
+            # (if necessary), and then push the value register
+            self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+
+            self.output_string += asm_read_mem_addr(addr_reg, val_reg)
 
         # Assign LHS to RHS
-        self.output_string += asm_reg_set(var_reg, e_reg)
-
-        # Update sym_table
-        self.sym_table[id] = (type, scope, name, init_val, addr_reg, var_reg)
-
-        # Update queue
-        self.var_queue.append((addr_reg, id, name, 'ADDRESS'))
-        self.var_queue.append((var_reg, id, name, 'VALUE'))
+        self.output_string += asm_reg_set(val_reg, expr)
 
     # Takes a sequence of primary tokens and arith_ops
     # Checks that all variables are initialized
     # Does any addition/subtraction required
-    # Returns either the INTLITERAL itself or the address of the value for assignment
+    # Returns a pair: the register of the result or the INTLITERAL itself if it could be discerned,
+    # and the type of the variable
     def _expr_func(self, tree):
         if len(tree) == 1: # then tree is a single variable or INTLITERAL
             child = tree[0].children[0]
+
+            # Check for INTLITERAL
             if child.label == 'INTLITERAL':
-                return int(child.token.pattern)
-            else: # single IDENT
+                return int(child.token.pattern), 'int'
+            # single IDENT
+            else:
                 child = child.children
 
                 id = child[0].token.pattern
-                type, scope, name, init_val, addr_reg, var_reg = self._process(child)
+                id_dict = self._process(child)
+
+                name = id_dict['mem_name']
+                addr_reg = id_dict['addr_reg']
+                val_reg = id_dict['val_reg']
+                curr_val = id_dict['curr_val']
 
                 # Raise error if id has not been defined
                 if not name:
                     SemanticError.raise_initialization_error(id, child[0].token.line_num, child[0].token.col)
-                # Return register with value
-                elif var_reg:
-                    return var_reg
-                # Load value into register
+                # Check if curr_val is not None (thus, if we can just return it)
+                elif curr_val:
+                    return curr_val, 'int'
+                # If the value of the variable is in a register already, just return it
+                elif val_reg:
+                    return val_reg
+                # If not, load the value into a register if the addr is already loaded
                 elif addr_reg:
-                    var_reg = self._find_free_register()
-                    self.output_string += asm_read_mem_addr(addr_reg, var_reg)
-                    self.reg_table[var_reg] = (id, name, 'VALUE')
-                    self.var_queue.append((var_reg, id, name, 'VALUE'))
-                # Load address and value into registers
+                    val_reg = self._find_free_register()
+
+                    self._update_tables(id, addr_reg, val_reg, id_dict)
+                    self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+
+                    self.output_string += asm_read_mem_addr(id_dict['addr_reg'], val_reg)
+                # Worst case, you have to load both the addr and the value into registers
                 else:
                     addr_reg = self._find_free_register()
-                    self.reg_table[addr_reg] = (id, name, 'ADDRESS')
-                    var_reg = self._find_free_register()
-                    self.reg_table[var_reg] = (id, name, 'VALUE')
-                    self.output_string += asm_read_mem(name, addr_reg, var_reg)
+                    self._update_tables(id, addr_reg, val_reg, id_dict)
+                    self.var_queue.append({'reg': addr_reg, 'id': id, 'mem_name': name, 'mem_type': 'ADDRESS'})
 
-                # Update sym_table
-                self.sym_table[id] = (type, scope, name, init_val, addr_reg, var_reg)
+                    val_reg = self._find_free_register()
+                    self._update_tables(id, addr_reg, val_reg, id_dict)
+                    self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
 
-                return var_reg
+                    self.output_string += asm_read_mem(name, addr_reg, val_reg)
+
+                return val_reg, id_dict['type']
         else: # <primary> +/- ... +/- <primary>
-            pass # Finish
+            print(tree) # finish
 
     # Takes an ID token
     # Checks if variable address or value is in a register
@@ -236,20 +292,3 @@ class CodeGenerator():
     def _process(self, tree):
         # Return tuple from sym_table
         return self.sym_table[tree[0].token.pattern]
-
-
-#def codeGen(parse_tree, symbol_table, output):
-#    fp = open("test.txt", "w")
-#    start(symbol_table, fp)
-#    traverse(parse_tree, symbol_table, fp)
-#    finish(fp)
-#    fp.close()
-
-
-#def traverse(parse_tree, symbol_table, fp):
-#    if parse_tree.children:
-#        for child in parse_tree.children:
-#            if child.label in func_factory:
-#                func_factory[parse_tree.label](parse_tree, symbol_table, fp)
-#            else:
-#                traverse(child, symbol_table, fp)

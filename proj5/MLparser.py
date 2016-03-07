@@ -186,7 +186,8 @@ def primary(curToken, G):
 def ident(curToken, G):
     if curToken.name != "ID":
         raiseParserError("ident", "ID", curToken)
-    symbol_table[curToken.pattern] = ('int', None, None, None, None, None)
+    symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
+                                      'curr_val': None, 'addr_reg': None, 'val_reg': None}
     return next(G), tree("IDENT", [ID_Leaf(curToken)])
 
 @add_debug

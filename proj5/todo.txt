@@ -1,5 +1,5 @@
 MIPS Code (NEEDS TESTING):
-Registers: ($v0-$v4, $a0-$a2)
+Registers: ($t0 - $t9)
 -syscall for read (syscall 5)
 -syscall for print (syscall 1)
 -code to add two numbers
@@ -24,25 +24,20 @@ Name Generator (Ask Karro about this)
 -generator that returns a new name for each variable
 -this needs fixing to allow for infinite amounts of variable names to be generated (only 26 right now)
 _______________________________
-Symbole Table (REWRITE WITH DICTS)
--store type, scope, mem_name, initial value, register with address of mem_name, and register of value
-_______________________________
-Register Table (REQRITE WITH DICTS)(Using a dict causes random free registers to be picked arbitraily)
--Like symbol table, but keeps track of registers
--Keep track of data type (address or value) and what variable name
-_______________________________
 Queue for Recent Variables (REQRITE TO USE DICTS)
 -When variables are loaded into registers, push them to queue
 -When you need to remove a variable from a register to make space,
  the one you remove is whatever the queue pops
 -Could optimize this to better keep variables in registers to minimize
  read/write to RAM
+  - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
  Compiler Flags
  -Debug flag (turn parser and compiler debugging on)
  ______________________________
  Optimizations:
- - Keeping track of current variable value sin sym_table to further reduce calls to read from RAM
+ - Keeping track of current variable values in sym_table to further reduce calls to read from RAM
    (Since initialization can be done with immediates instead of loading addresses and values)
+ - Making use of more registers ($s's?)
 
 
