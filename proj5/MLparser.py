@@ -44,6 +44,16 @@ class ParserError(Exception):
     def __str__(self):
         return self.msg
 
+class ID_Leaf(tree):
+    def __init__(self, token):
+        self.token = token
+        super().__init__('ID')
+
+class INTLITERAL_Leaf(tree):
+    def __init__(self, token):
+        self.token = token
+        super().__init__('INTLITERAL')
+
 #########################
 
 symbol_table = {}
@@ -167,7 +177,7 @@ def primary(curToken, G):
     # I flipped this to a positive check just to make
     # it slightly clearer
     elif curToken.name == "INTLIT":
-        return next(G), tree("PRIMARY", [tree("INTLIT")])
+        return next(G), tree("PRIMARY", [INTLITERAL_Leaf(curToken)])
     else:
         raiseParserError('primary', "INTLITERAL", curToken)
 
@@ -176,8 +186,8 @@ def primary(curToken, G):
 def ident(curToken, G):
     if curToken.name != "ID":
         raiseParserError("ident", "ID", curToken)
-    symbol_table[curToken.pattern] = None
-    return next(G), tree("IDENT", [tree("ID")])
+    symbol_table[curToken.pattern] = ('int', None, None, None, None, None)
+    return next(G), tree("IDENT", [ID_Leaf(curToken)])
 
 @add_debug
 # <arith_op> -> + | -

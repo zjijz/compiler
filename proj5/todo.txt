@@ -1,50 +1,48 @@
-compiler:
--DFS search of parse tree
-
-(Each function passes in a tree and a file pointer)
-
-Start:
--reserve memory space
--associate each variable in symbol table
-
-Finish:
--Flush the buffer
--Close the file
-
-readids:
--solve for one variable first
-
-writeids:
--solve for one variable first
--Get register / memory addresses of variables
-
-assign:
--pass MIPS code for assignment to file pointer
-
-expression: /infix
--Generate all of the code for adding/subtracting variable in MIPS
--Return the register / memory name where the result is stored
-
-_______________________________
-MIPS Code:
+MIPS Code (NEEDS TESTING):
 Registers: ($v0-$v4, $a0-$a2)
 -syscall for read (syscall 5)
 -syscall for print (syscall 1)
--code to add a series of numbers
+-code to add two numbers
+-code to subtract two numbers
 -code to set a register with to a new value
-
+-code to read from RAM
+-code to write to RAM
+-(helper) swap variables in/out of RAM
+-(helper) repeated addition
+-(helper) repeated subtraction
+_______________________________
+Methods
+-start (~done)
+-finish (~done)
+-assign (~done)
+-process (~done?)
+-expression (still needs evaluation of many variables added together)
+-read (nothing done)
+-write (nothing done)
 _______________________________
 Name Generator (Ask Karro about this)
--generator that returns a new name for each variable2
-
+-generator that returns a new name for each variable
+-this needs fixing to allow for infinite amounts of variable names to be generated (only 26 right now)
 _______________________________
-Register Table
+Symbole Table (REWRITE WITH DICTS)
+-store type, scope, mem_name, initial value, register with address of mem_name, and register of value
+_______________________________
+Register Table (REQRITE WITH DICTS)(Using a dict causes random free registers to be picked arbitraily)
 -Like symbol table, but keeps track of registers
+-Keep track of data type (address or value) and what variable name
 _______________________________
-Queue for Recent Variables
+Queue for Recent Variables (REQRITE TO USE DICTS)
 -When variables are loaded into registers, push them to queue
 -When you need to remove a variable from a register to make space,
  the one you remove is whatever the queue pops
-
+-Could optimize this to better keep variables in registers to minimize
+ read/write to RAM
+ ______________________________
+ Compiler Flags
+ -Debug flag (turn parser and compiler debugging on)
+ ______________________________
+ Optimizations:
+ - Keeping track of current variable value sin sym_table to further reduce calls to read from RAM
+   (Since initialization can be done with immediates instead of loading addresses and values)
 
 

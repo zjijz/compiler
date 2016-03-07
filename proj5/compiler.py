@@ -1,8 +1,12 @@
 import sys
 import argparse
+import MLparser
+from code_generator import *
 
 def compiler(source, tokens, output):
-    pass
+    # For testing
+    print('Compiling "{:s}" into "{:s}" using "{:s}" for tokens\n'.format(source, output, tokens))
+    CodeGenerator(*MLparser.parser(source, tokens), output).compile()
 
  
 if __name__ == "__main__":  # Only true if program invoked from the command line

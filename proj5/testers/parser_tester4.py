@@ -1,6 +1,6 @@
-import MLparser
+from proj5 import MLparser
 import unittest
-from ../tree import parse_newick
+from proj5.tree import parse_newick
 
 def create_file(str_list):
     with open("test.txt", "w") as fp:
