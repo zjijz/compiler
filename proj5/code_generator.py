@@ -20,7 +20,7 @@ from assembly_helper import *
 #  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
 #  Push to back, pop from front
 
-# Courtesy of from Dr. Karro
+# Courtesy of Dr. Karro
 def next_variable_name(curr_name):
    curr_name_len = len(curr_name)
    for i in range(curr_name_len - 1, -1, -1):
@@ -253,6 +253,7 @@ class CodeGenerator():
         if len(tree_nodes) == 1: # then tree_nodes is a single PRIMARY
             return self._process_primary(tree_nodes[0])
         else: # PRIMARY +/- PRIMARY +/- ... +/- PRIMARY
+            print(tree_nodes)
             # Keep a running total of all values that the compiler knows and can just add together
             immediate = 0
             immediate_type = None
@@ -261,7 +262,9 @@ class CodeGenerator():
             result_reg = None
             result_type = None
 
+            # Look at first three tree_nodes for the original operation
             f_reg, f_type = self._process_primary(tree_nodes[0])
+            oper = tree_nodes[1].label
             s_reg, s_type = self._process_primary(tree_nodes[2])
 
             if f_type != s_type:
@@ -269,17 +272,22 @@ class CodeGenerator():
                 pass
 
             if type(f_reg) is int and type(s_reg) is int:
-                immediate += f_reg + s_reg
+                if oper == 'PLUS':
+                    immediate += f_reg + s_reg
+                elif oper == 'MINUS':
+                    immediate += f_reg - s_reg
                 immediate_type = f_type
             else: # Initiate result_reg
                 result_reg = self._find_free_register()
                 result_type = f_type
-                if tree_nodes[1].label == 'PLUS':
+                if oper == 'PLUS':
                     self.output_string += asm_add(result_reg, f_reg, s_reg)
-                elif tree_nodes[1].label == 'MINUS':
+                elif oper == 'MINUS':
                     self.output_string += asm_sub(result_reg, f_reg, s_reg)
 
-            for i in range(3, len(tree_nodes) - 1):
+            # Look at each additional two to change the previous result
+            for i in range(3, len(tree_nodes) - 1, 2):
+                print(tree_nodes[i:i+2])
                 oper = tree_nodes[i].label
                 next_reg, next_type = self._process_primary(tree_nodes[i+1])
 
@@ -289,16 +297,19 @@ class CodeGenerator():
                     pass
 
                 if type(next_reg) is int:
-                    immediate += next_reg
+                    if oper == 'PLUS':
+                        immediate += next_reg
+                    elif oper == 'MINUS':
+                        immediate -= next_reg
                     immediate_type = next_type
                 else:
                     if not result_reg: # result_reg needs to be initialized
                         result_reg = self._find_free_register()
                         result_type = f_type
 
-                    if tree_nodes[1].label == 'PLUS':
+                    if oper == 'PLUS':
                         self.output_string += asm_add(result_reg, f_reg, s_reg)
-                    elif tree_nodes[1].label == 'MINUS':
+                    elif oper == 'MINUS':
                         self.output_string += asm_sub(result_reg, f_reg, s_reg)
 
             # Add parts together
@@ -336,7 +347,6 @@ class CodeGenerator():
     # for _expr)
     # (Note: This will NOT force a variable to loaded into memory if the compiler can statically evaluate the value)
     def _process_id(self, token):
-        print(token)
         id = token.pattern
         id_dict = self.sym_table[id]
 

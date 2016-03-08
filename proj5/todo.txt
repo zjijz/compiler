@@ -29,6 +29,7 @@ Testing
 - write multiple expressions
 - when primary is '( expression )'
 - when RHS of assignment is x + y + 2 or something like that
+- when RHS is a mix of variables assigned normally and through read
 _______________________________
 Queue for Recent Variables
 -When variables are loaded into registers, push them to queue
@@ -38,10 +39,12 @@ Queue for Recent Variables
  read/write to RAM
   - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
- Compiler Flags
- -Debug flag (turn parser and compiler debugging on)
+ Helper function to make dictionaries for use with var_queue
  ______________________________
  Make a module that houses all exceptions instead of being spread out
+ ______________________________
+ Compiler Flags
+ -Debug flag (turn parser and compiler debugging on)
  ______________________________
  Optimizations:
  - Keeping track of current variable values in sym_table to further reduce calls to read from RAM

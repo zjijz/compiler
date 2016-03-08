@@ -43,14 +43,14 @@ def asm_write(var_type, reg):
 
 def asm_add(r_reg, f_reg, s_reg):
     if type(s_reg) is int:
-        return 'addi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+        return 'addi {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
         return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
 def asm_sub(r_reg, f_reg, s_reg):
     if type(s_reg) is int:
-        return 'subi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+        return 'subi {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
         return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
