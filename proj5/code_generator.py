@@ -253,7 +253,6 @@ class CodeGenerator():
         if len(tree_nodes) == 1: # then tree_nodes is a single PRIMARY
             return self._process_primary(tree_nodes[0])
         else: # PRIMARY +/- PRIMARY +/- ... +/- PRIMARY
-            print(tree_nodes)
             # Keep a running total of all values that the compiler knows and can just add together
             immediate = 0
             immediate_type = None
@@ -287,7 +286,6 @@ class CodeGenerator():
 
             # Look at each additional two to change the previous result
             for i in range(3, len(tree_nodes) - 1, 2):
-                print(tree_nodes[i:i+2])
                 oper = tree_nodes[i].label
                 next_reg, next_type = self._process_primary(tree_nodes[i+1])
 
