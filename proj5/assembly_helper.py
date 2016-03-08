@@ -1,13 +1,45 @@
 # _______________________Assembly________________________
 
+# Pass in type information to indicate which syscall to use:
+# 5 - read int
+# 6 - read float
+# 7 - read double
+# 8 - read string
+def asm_read(var_type):
+    ret_asm = ''
+    if var_type == 'int':
+        ret_asm += asm_reg_set('$v0', 5)
+    elif var_type == 'float':
+        ret_asm += asm_reg_set('$v0', 6)
+    elif var_type == 'double':
+        ret_asm += asm_reg_set('$v0', 7)
+    else:
+        ret_asm += asm_reg_set('$v0', 8)
+        
+    return ret_asm + 'syscall\n'
 
-def asm_read():
-    pass
+# var_type is the type of the variable to print
+# reg is the register where the variable is stored
+# 1 - print int, arg in $a0
+# 2 - print float, arg in $f12
+# 3 - print double, arg in $f12
+# 4 - print string, arg in $a0
+def asm_write(var_type, reg):
+    ret_asm = ''
+    if var_type == 'int':
+        ret_asm += asm_reg_set('$v0', 1)
+        ret_asm += asm_reg_set('$a0', reg)
+    elif var_type == 'float':
+        ret_asm += asm_reg_set('$v0', 2)
+        ret_asm += asm_reg_set('$f12', reg)
+    elif var_type == 'double':
+        ret_asm += asm_reg_set('v0', 3)
+        ret_asm += asm_reg_set('f12', reg)
+    else:
+        ret_asm += asm_reg_set('v0', 4)
+        ret_asm += asm_reg_set('a0', reg)
 
-
-def asm_write():
-    pass
-
+    return ret_asm + 'syscall\n'
 
 def asm_add(r_reg, f_reg, s_reg):
     return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
@@ -20,7 +52,7 @@ def asm_sub(r_reg, f_reg, s_reg):
 def asm_reg_set(f_reg, s_reg):
     # This branches if s_reg is a register (i.e. string) or an immediate (i.e. int)
     if type(s_reg) is int:
-        return 'li {:s}, {:d}'.format(f_reg, s_reg)
+        return 'li {:s}, {:d}\n'.format(f_reg, s_reg)
     else:
         return 'move {:s}, {:s}\n'.format(f_reg, s_reg) # move is a pseudo-instruction
 
