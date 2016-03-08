@@ -1,4 +1,4 @@
 .data
-b:	.word	3	# y in original
-a:	.word	3	# x in original
+a:	.word	2	# x in original
+b:	.word	6	# y in original
 .text

@@ -1,6 +1,4 @@
 begin
-  x := 3;
-  y := x;
-  z := 4;
-  a := x + y + z;
+  x := 2;
+  y := x + 4;
 end

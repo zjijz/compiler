@@ -1,6 +1,5 @@
 from tree import *
 from MLparser import *
-import string
 from assembly_helper import *
 
 # Symbol Table (Keys are ID pattern, Values are Dicts themselve)
@@ -21,10 +20,23 @@ from assembly_helper import *
 #  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
 #  Push to back, pop from front
 
+# Courtesy of from Dr. Karro
+def next_variable_name(curr_name):
+   curr_name_len = len(curr_name)
+   for i in range(curr_name_len - 1, -1, -1):
+       if curr_name[i] != 'z':
+           return curr_name[:i] + chr(ord(curr_name[i]) + 1) + curr_name[i + 1:]
+       else:
+           curr_name = curr_name[:i] + 'a' + curr_name[i + 1:]
+   return 'a' + curr_name
+
 
 def variable_name_generator():
-    for c in string.ascii_lowercase:
-        yield '' + c
+    s = ""
+    while True:
+        s = next_variable_name(s)
+        yield s
+
 
 class SemanticError(Exception):
     @staticmethod
@@ -38,6 +50,7 @@ class SemanticError(Exception):
     def __str__(self):
         return self.msg
 
+
 class CodeGenerator():
     """Object that takes a parse tree, symbol table, and output file,
     and has methods to compile the parse tree to asm"""
@@ -48,7 +61,7 @@ class CodeGenerator():
 
     def __init__(self, parse_tree, symbol_table, output_filename):
         self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
-                        "EXPRESSION": self._expr_func, "ID": self._process}
+                        "EXPRESSION": self._expr_func, "ID": self._process_id}
         self.tree = parse_tree
         self.sym_table = symbol_table
         self.reg_table = {'$t0': CodeGenerator._empty_reg_dict(), '$t1': CodeGenerator._empty_reg_dict(),
@@ -174,21 +187,23 @@ class CodeGenerator():
         print('Register Table: ', self.reg_table, '\n')
         print('Variable Queue: ', self.var_queue, '\n')
 
-    def _read_id(self, tree):
-        print('Read', tree)
+    def _read_id(self, tree_nodes):
+        print('Read', tree_nodes)
 
-    def _write_id(self, tree):
+    def _write_id(self, tree_nodes):
         print('Write')
+        # this may need to create temporary variables for printing (or it could just create the temp variable, print it
+        # and reuse that memory space)
 
-    # Takes an assign tree: with an ID on the left and some expression on the right
+    # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
-    def _assign(self, tree):
+    def _assign(self, tree_nodes):
         # Get RHS result
-        expr, expr_type = self._expr_func(tree[0].children[1].children)
+        expr, expr_type = self._expr_func(tree_nodes[0].children[1].children)
 
         # Get LHS variable
-        id = tree[0].children[0].children[0].token.pattern
-        id_dict = self._process(tree[0].children[0].children)
+        id = tree_nodes[0].children[0].children[0].token.pattern
+        id_dict = self.sym_table[id]
 
         type = id_dict['type']
         name = id_dict['mem_name']
@@ -234,61 +249,130 @@ class CodeGenerator():
     # Does any addition/subtraction required
     # Returns a pair: the register of the result or the INTLITERAL itself if it could be discerned,
     # and the type of the variable
-    def _expr_func(self, tree):
-        if len(tree) == 1: # then tree is a single variable or INTLITERAL
-            child = tree[0].children[0]
+    def _expr_func(self, tree_nodes):
+        if len(tree_nodes) == 1: # then tree_nodes is a single PRIMARY
+            return self._process_primary(tree_nodes[0])
+        else: # PRIMARY +/- PRIMARY +/- ... +/- PRIMARY
+            # Keep a running total of all values that the compiler knows and can just add together
+            immediate = 0
+            immediate_type = None
 
-            # Check for INTLITERAL
-            if child.label == 'INTLITERAL':
-                return int(child.token.pattern), 'int'
-            # single IDENT
-            else:
-                child = child.children
+            # Keep a register to store intermediate calculations (Only initialized if necessary)
+            result_reg = None
+            result_type = None
 
-                id = child[0].token.pattern
-                id_dict = self._process(child)
+            f_reg, f_type = self._process_primary(tree_nodes[0])
+            s_reg, s_type = self._process_primary(tree_nodes[2])
 
-                name = id_dict['mem_name']
-                addr_reg = id_dict['addr_reg']
-                val_reg = id_dict['val_reg']
-                curr_val = id_dict['curr_val']
+            if f_type != s_type:
+                # New Semantic Error (Type Mismatch)
+                pass
 
-                # Raise error if id has not been defined
-                if not name:
-                    SemanticError.raise_initialization_error(id, child[0].token.line_num, child[0].token.col)
-                # Check if curr_val is not None (thus, if we can just return it)
-                elif curr_val:
-                    return curr_val, 'int'
-                # If the value of the variable is in a register already, just return it
-                elif val_reg:
-                    return val_reg
-                # If not, load the value into a register if the addr is already loaded
-                elif addr_reg:
-                    val_reg = self._find_free_register()
+            if type(f_reg) is int and type(s_reg) is int:
+                immediate += f_reg + s_reg
+                immediate_type = f_type
+            else: # Initiate result_reg
+                result_reg = self._find_free_register()
+                result_type = f_type
+                if tree_nodes[1].label == 'PLUS':
+                    self.output_string += asm_add(result_reg, f_reg, s_reg)
+                elif tree_nodes[1].label == 'MINUS':
+                    self.output_string += asm_sub(result_reg, f_reg, s_reg)
 
-                    self._update_tables(id, addr_reg, val_reg, id_dict)
-                    self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+            for i in range(3, len(tree_nodes) - 1):
+                oper = tree_nodes[i].label
+                next_reg, next_type = self._process_primary(tree_nodes[i+1])
 
-                    self.output_string += asm_read_mem_addr(id_dict['addr_reg'], val_reg)
-                # Worst case, you have to load both the addr and the value into registers
+                if (not immediate_type and immediate_type != next_type) \
+                        or (not result_type and result_type != next_type):
+                    # Raise Semantic Error (Type Mismatch)
+                    pass
+
+                if type(next_reg) is int:
+                    immediate += next_reg
+                    immediate_type = next_type
                 else:
-                    addr_reg = self._find_free_register()
-                    self._update_tables(id, addr_reg, val_reg, id_dict)
-                    self.var_queue.append({'reg': addr_reg, 'id': id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+                    if not result_reg: # result_reg needs to be initialized
+                        result_reg = self._find_free_register()
+                        result_type = f_type
 
-                    val_reg = self._find_free_register()
-                    self._update_tables(id, addr_reg, val_reg, id_dict)
-                    self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+                    if tree_nodes[1].label == 'PLUS':
+                        self.output_string += asm_add(result_reg, f_reg, s_reg)
+                    elif tree_nodes[1].label == 'MINUS':
+                        self.output_string += asm_sub(result_reg, f_reg, s_reg)
 
-                    self.output_string += asm_read_mem(name, addr_reg, val_reg)
+            # Add parts together
+            if not result_reg:
+                # simply set immediate to return
+                result_reg = immediate
+                result_type = immediate_type
+            elif immediate_type == result_type:
+                # add these together in the register
+                self.output_string += asm_add(result_reg, result_reg, immediate)
+            else:
+                # Throw semantic error (type mismatch)
+                pass
 
-                return val_reg, id_dict['type']
-        else: # <primary> +/- ... +/- <primary>
-            print(tree) # finish
+            return result_reg, result_type
 
-    # Takes an ID token
-    # Checks if variable address or value is in a register
-    # Returns (var_name, reg_address, reg_value)
-    def _process(self, tree):
-        # Return tuple from sym_table
-        return self.sym_table[tree[0].token.pattern]
+    # Takes a PRIMARY node
+    # Processes the node to get the INTLITERAL, IDENT, or EXPRESSION
+    # Loads whatever it is into memory (if necessary)
+    # returns the (val_reg, type) pair that all these other methods return
+    def _process_primary(self, primary_node):
+        primary_children = primary_node.children
+
+        primary_child = primary_children[0] # only one child
+        if primary_child.label == 'INTLITERAL':
+            return int(primary_child.token.pattern), 'int'
+        elif primary_child.label == 'IDENT': # single IDENT
+            return self._process_id(primary_child.children[0].token)
+        else: # Single <expression>
+            return self._expr_func(primary_children)
+
+    # Takes a full ID token
+    # Handles loading a variable's address and value into registers
+    # Returns a pair of the value of the id or the register with it's value and the type of the variable (This is mainly
+    # for _expr)
+    # (Note: This will NOT force a variable to loaded into memory if the compiler can statically evaluate the value)
+    def _process_id(self, token):
+        print(token)
+        id = token.pattern
+        id_dict = self.sym_table[id]
+
+        type = id_dict['type']
+        name = id_dict['mem_name']
+        addr_reg = id_dict['addr_reg']
+        val_reg = id_dict['val_reg']
+        curr_val = id_dict['curr_val']
+
+        # Raise error if id has not been defined
+        if not name:
+            SemanticError.raise_initialization_error(id, token.line_num, token.col)
+        # Check if curr_val is not None (thus, if we can just return it)
+        elif curr_val:
+            return curr_val, 'int'
+        # If the value of the variable is in a register already, just return it
+        elif val_reg:
+            return val_reg, type
+        # If not, load the value into a register if the addr is already loaded
+        elif addr_reg:
+            val_reg = self._find_free_register()
+
+            self._update_tables(id, addr_reg, val_reg, id_dict)
+            self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+
+            self.output_string += asm_read_mem_addr(id_dict['addr_reg'], val_reg)
+        # Worst case, you have to load both the addr and the value into registers
+        else:
+            addr_reg = self._find_free_register()
+            self._update_tables(id, addr_reg, val_reg, id_dict)
+            self.var_queue.append({'reg': addr_reg, 'id': id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+
+            val_reg = self._find_free_register()
+            self._update_tables(id, addr_reg, val_reg, id_dict)
+            self.var_queue.append({'reg': val_reg, 'id': id, 'mem_name': name, 'mem_type': 'VALUE'})
+
+            self.output_string += asm_read_mem(name, addr_reg, val_reg)
+
+        return val_reg, type

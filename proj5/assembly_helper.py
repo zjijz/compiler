@@ -10,11 +10,17 @@ def asm_write():
 
 
 def asm_add(r_reg, f_reg, s_reg):
-    return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    if type(s_reg) is int:
+        return 'addi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+    else:
+        return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
 def asm_sub(r_reg, f_reg, s_reg):
-    return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    if type(s_reg) is int:
+        return 'subi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+    else:
+        return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
 def asm_reg_set(f_reg, s_reg):
