@@ -42,11 +42,17 @@ def asm_write(var_type, reg):
     return ret_asm + 'syscall\n'
 
 def asm_add(r_reg, f_reg, s_reg):
-    return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    if type(s_reg) is int:
+        return 'addi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+    else:
+        return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
 def asm_sub(r_reg, f_reg, s_reg):
-    return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    if type(s_reg) is int:
+        return 'subi {:s}, {:s}, {:d}'.format(r_reg, f_reg, s_reg)
+    else:
+        return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
 def asm_reg_set(f_reg, s_reg):
@@ -59,7 +65,7 @@ def asm_reg_set(f_reg, s_reg):
 
 # Loads a variable's memory address into a register
 def asm_load_mem_addr(mem_name, temp_reg):
-    return 'la {:s}, {:s}'.format(temp_reg, mem_name)
+    return 'la {:s}, {:s}\n'.format(temp_reg, mem_name)
 
 
 # Assumes mem_name address isn't in memory already

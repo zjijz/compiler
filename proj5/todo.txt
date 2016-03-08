@@ -1,5 +1,5 @@
 MIPS Code (NEEDS TESTING):
-Registers: ($v0-$v4, $a0-$a2)
+Registers: ($t0 - $t9)
 -syscall for read (syscall 5)
 -syscall for print (syscall 1)
 -code to add two numbers
@@ -19,30 +19,34 @@ Methods
 -expression (still needs evaluation of many variables added together)
 -read (nothing done)
 -write (nothing done)
+-Tree names need to be redone for better readability
 _______________________________
-Name Generator (Ask Karro about this)
--generator that returns a new name for each variable
--this needs fixing to allow for infinite amounts of variable names to be generated (only 26 right now)
+Pretty Print for Sym_table, reg_table, and var_queue
 _______________________________
-Symbole Table (REWRITE WITH DICTS)
--store type, scope, mem_name, initial value, register with address of mem_name, and register of value
+Testing
+- read multiple variables
+- write multiple variables
+- write multiple expressions
+- when primary is '( expression )'
+- when RHS of assignment is x + y + 2 or something like that
 _______________________________
-Register Table (REQRITE WITH DICTS)(Using a dict causes random free registers to be picked arbitraily)
--Like symbol table, but keeps track of registers
--Keep track of data type (address or value) and what variable name
-_______________________________
-Queue for Recent Variables (REQRITE TO USE DICTS)
+Queue for Recent Variables
 -When variables are loaded into registers, push them to queue
 -When you need to remove a variable from a register to make space,
  the one you remove is whatever the queue pops
 -Could optimize this to better keep variables in registers to minimize
  read/write to RAM
+  - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
  Compiler Flags
  -Debug flag (turn parser and compiler debugging on)
  ______________________________
+ Make a module that houses all exceptions instead of being spread out
+ ______________________________
  Optimizations:
- - Keeping track of current variable value sin sym_table to further reduce calls to read from RAM
+ - Keeping track of current variable values in sym_table to further reduce calls to read from RAM
    (Since initialization can be done with immediates instead of loading addresses and values)
+ - Making use of more registers ($s's?)
+ - Change Queue to be a more complete LinkedList
 
 
