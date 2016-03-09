@@ -84,6 +84,7 @@ class CodeGenerator():
             for child in tree.children:
                 if child.label in self.func_factory:
                     self.func_factory[child.label](tree.children)
+                    break
                 else:
                     self._traverse(child)
 
@@ -188,12 +189,14 @@ class CodeGenerator():
         print('Variable Queue: ', self.var_queue, '\n')
 
     def _read_id(self, tree_nodes):
+        # read((id)ident, (id)ident))id_list
         print('Read', tree_nodes)
 
     def _write_id(self, tree_nodes):
-        print('Write')
-        # this may need to create temporary variables for printing (or it could just create the temp variable, print it
-        # and reuse that memory space)
+        expr_lst = tree_nodes[1].children
+        for expr in expr_lst:
+           reg, var_type = self._expr_func(expr.children)
+           self.output_string += asm_write(reg, var_type)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'

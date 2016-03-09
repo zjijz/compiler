@@ -24,7 +24,7 @@ def asm_read(var_type):
 # 2 - print float, arg in $f12
 # 3 - print double, arg in $f12
 # 4 - print string, arg in $a0
-def asm_write(var_type, reg):
+def asm_write(reg, var_type):
     ret_asm = ''
     if var_type == 'int':
         ret_asm += asm_reg_set('$v0', 1)
