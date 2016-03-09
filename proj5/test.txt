@@ -1,5 +1,6 @@
 begin
   x := 2;
   y := 5;
-  write(x, y);
+  read(x, y);
+  write(x);
 end

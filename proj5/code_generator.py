@@ -189,7 +189,13 @@ class CodeGenerator():
         print('Variable Queue: ', self.var_queue, '\n')
 
     def _read_id(self, tree_nodes):
-        # read((id)ident, (id)ident))id_list
+        id_list = tree_nodes[1].children
+        for ident in id_list:
+           print(ident)
+           token = ident.children[0].token
+           reg, var_type = self._process_id(token)
+           self.output_string += asm_read(reg)
+           
         print('Read', tree_nodes)
 
     def _write_id(self, tree_nodes):
