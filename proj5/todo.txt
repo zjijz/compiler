@@ -39,6 +39,9 @@ Queue for Recent Variables
  read/write to RAM
   - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
+ Abstractt and merge _process_id and _assign_id more
+ - these methods are very similar, except one throws a Semantic Error when it finds a variable that isn't initialized
+ ______________________________
  Helper function to make dictionaries for use with var_queue
  ______________________________
  Make a module that houses all exceptions instead of being spread out
@@ -49,7 +52,11 @@ Queue for Recent Variables
  Optimizations:
  - Keeping track of current variable values in sym_table to further reduce calls to read from RAM
    (Since initialization can be done with immediates instead of loading addresses and values)
+   - Done for 'int'
  - Making use of more registers ($s's?)
  - Change Queue to be a more complete LinkedList
+ - Allowing a register to track more than one variable (for instance, in situations of equality)
+   - The register would then just have to know it has two values, and save off both whenever the register is freed
+ - Keep track of number in $v0
 
 
