@@ -1,7 +1,4 @@
 begin
-  x := 2;
-  y := 5;
-  write(x, y, 7);
-  read(x, y);
-  write(x, y);
+    read(x);
+    write(x);
 end

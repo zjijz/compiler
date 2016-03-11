@@ -117,7 +117,7 @@ class CodeGenerator():
                 self._update_tables(id, addr_reg, id_dict['val_reg'], id_dict)
                 self.output_string += asm_load_mem_addr(id, addr_reg)
 
-            self.output_string += asm_write_mem_addr(addr_reg, reg_pop[0])
+            self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
 
             # Remove old references
             id_dict['val_reg'] = None
@@ -192,16 +192,13 @@ class CodeGenerator():
     def _read_id(self, tree_nodes):
         id_list = tree_nodes[1].children
         for ident in id_list:
-            print(ident)
-            token = ident.children[0].token
-            reg, var_type = self._process_id(token)
-            self.output_string += asm_read(var_type) # places input into $v0
+            id = ident.children[0].token.pattern
+
+            self.output_string += asm_read('int') # places input into $v0
 
             # id_type is redundant here (maybe not even assign it)
             # Eventually, replace $v0 with a register object
-            id_reg, id_type = self._assign_id(token.pattern, '$v0')
-
-        print('Read', tree_nodes)
+            id_reg, id_type = self._assign_id(id, '$v0')
 
     def _write_id(self, tree_nodes):
         expr_lst = tree_nodes[1].children
@@ -222,21 +219,16 @@ class CodeGenerator():
         val_reg = id_dict['val_reg']
         curr_val = id_dict['curr_val']
 
-        print(name)
-        print(assn_reg)
-
         # If not initiliazed, pick a name and set properties
         if not name:
             name = next(self.var_name_generator)
             id_dict['mem_name'] = name
 
-            print(name)
-
             # Since this is the first time the variable is declared,
             # the initial value property can be set to an INTLITERAL
             if isinstance(assn_reg, int):
                 id_dict['init_val'] = assn_reg
-                curr_val = assn_reg
+                id_dict['curr_val'] = assn_reg
                 return curr_val, var_type # no longer have to process the rest of the method
             # Do a similar thing for STRLITERALS, BYTELITERALS, SHORTLITERALS, etc
 
@@ -244,9 +236,9 @@ class CodeGenerator():
         # (INTLITERAL gives a value for 'curr_val' and register makes 'curr_val' None)
         python_assn_type = type(assn_reg)
         if python_assn_type is str: # Change this to check for register type instead of string
-            curr_val = None
-        elif python_assn_type is int and type == 'int':
-            curr_val = assn_reg
+            id_dict['curr_val'] = None
+        elif python_assn_type is int and var_type == 'int':
+            id_dict['curr_val'] = assn_reg
         # Do a similar thing for STRLITERALS, BYTELITERALS, SHORTLITERALS, etc
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do sttic analysis)
@@ -271,7 +263,7 @@ class CodeGenerator():
             # Equate registers (move assn_reg value into val_reg
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
-        return curr_val if curr_val else val_reg, var_type
+        return (curr_val, 'int') if curr_val else (val_reg, var_type)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
