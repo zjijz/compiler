@@ -20,6 +20,14 @@ from assembly_helper import *
 #  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
 #  Push to back, pop from front
 
+# Auxiliiary Reg Table (Keeps track registers not used for variables
+# Keeps track of $v0, $v1, $a0, $a1
+# Each value has:
+# - 'id': ID pattern
+# - 'val': current integer value in register
+# - 'mem_name': Variable name
+# - 'mem_type': Variable type
+
 # Courtesy of Dr. Karro
 def next_variable_name(curr_name):
    curr_name_len = len(curr_name)
@@ -59,6 +67,10 @@ class CodeGenerator():
     def _empty_reg_dict():
         return {'id': None, 'mem_name': None, 'mem_type': None}
 
+    @staticmethod
+    def _empty_aux_reg_dict():
+        return {'id': None, 'val': None, 'mem_name': None, 'mem_type': None}
+
     def __init__(self, parse_tree, symbol_table, output_filename):
         self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
                         "EXPRESSION": self._expr_func, "ID": self._process_id}
@@ -69,6 +81,8 @@ class CodeGenerator():
                           '$t4': CodeGenerator._empty_reg_dict(), '$t5': CodeGenerator._empty_reg_dict(),
                           '$t6': CodeGenerator._empty_reg_dict(), '$t7': CodeGenerator._empty_reg_dict(),
                           '$t8': CodeGenerator._empty_reg_dict(), '$t9': CodeGenerator._empty_reg_dict()}
+        self.aux_reg_table = {'$v0': CodeGenerator._empty_aux_reg_dict(), '$v1': CodeGenerator._empty_aux_reg_dict(),
+                              '$a0': CodeGenerator._empty_aux_reg_dict(), '$a1': CodeGenerator._empty_aux_reg_dict()}
         self.var_queue = []
         self.var_name_generator = variable_name_generator()
         self.output_name = output_filename
@@ -112,14 +126,28 @@ class CodeGenerator():
             addr_reg = id_dict['addr_reg']
 
             if not addr_reg:
-                # instead of _find_free_register(), manually store addr to $s0 (ensuring preservation of value on stack)
-                addr_reg = self._find_free_register()
-                self._update_tables(id, addr_reg, id_dict['val_reg'], id_dict)
+                # Save $s0 value to stack
+                # Allocate stack space
+                self.output_string += asm_allocate_stack_space()
+
+                # We don't have to increment stack_offset since it would just be decremented at the end of this block
+                self.output_string += asm_save_reg_to_stack('$s0', 0)
+
+                addr_reg = '$s0'
+
+                # Load address to $s0
                 self.output_string += asm_load_mem_addr(id, addr_reg)
 
-            self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
+                # Write value from val_reg to RAM
+                self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
 
-            # Remove old references
+                # Reset $s0 to what it was before
+                self.output_string += asm_load_reg_from_stack('$s0', 0)
+            else:
+                # Write value from val_reg to RAM
+                self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
+
+            # Remove old references in symbol and register tables
             id_dict['val_reg'] = None
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
 
@@ -187,6 +215,7 @@ class CodeGenerator():
         # Debug
         print('Symbol Table: ', self.sym_table, '\n')
         print('Register Table: ', self.reg_table, '\n')
+        print('Auxiliary Register Table', self.aux_reg_table, '\n')
         print('Variable Queue: ', self.var_queue, '\n')
 
     def _read_id(self, tree_nodes):
@@ -194,6 +223,9 @@ class CodeGenerator():
         for ident in id_list:
             id = ident.children[0].token.pattern
 
+            # Eventually, read will NOT be handling initialization of variables, so
+            # we will not have to manually tell it to do an int
+            # We will be able to just run _process_id and check the type
             self.output_string += asm_read('int') # places input into $v0
 
             # id_type is redundant here (maybe not even assign it)
@@ -203,8 +235,15 @@ class CodeGenerator():
     def _write_id(self, tree_nodes):
         expr_lst = tree_nodes[1].children
         for expr in expr_lst:
-           reg, var_type = self._expr_func(expr.children)
-           self.output_string += asm_write(reg, var_type)
+            reg, var_type = self._expr_func(expr.children)
+            curr_v0 = self.aux_reg_table['$v0']['val']
+            if asm_check_syscode_write(var_type, curr_v0):
+                self.output_string += asm_set_syscode_write(var_type)
+                self.aux_reg_table['$v0']['id'] = None
+                self.aux_reg_table['$v0']['val'] = asm_get_syscode_write(var_type)
+                self.aux_reg_table['$v0']['mem_name'] = None
+                self.aux_reg_table['$v0']['mem_type'] = None
+            self.output_string += asm_write(reg, var_type)
     
     # Takes an id
     # Ensures that the id addr and val are initialized into registers

@@ -5,6 +5,7 @@ Testing
 - when primary is '( expression )'
 - when RHS of assignment is x + y + 2 or something like that
 - when RHS is a mix of variables assigned normally and through read
+- when there are more variables then
 _______________________________
 Queue for Recent Variables
 -When variables are loaded into registers, push them to queue
@@ -15,25 +16,36 @@ Queue for Recent Variables
   - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
  Compiler Flags
- -Debug flag (turn parser and compiler debugging on)
+ - Debug flag (turn parser and compiler debugging on)
+ - Dirty flag that causes compiler to not save off the s-registers and just overwrites them
+ - Levels of Optimization for Compiler
+   - O1: (Default) Code will be compiled in a way that the best programmer would write it
+     - Good register management
+     - Minimum read / writes to RAM
+   - O2: Things that would be beneficial, but annoying for a programmer to do
+     - Keeping one (or a few) memory addresses and using offsets from these addresses
+   - O3: Restructuring code
+     - Inlining functions
+     - Loop unrolling
+     - Recursion unrolling
+     - Evaluation of variables to see if insturctions can be moved around to better facilitate register management
  ______________________________
  Optimizations:
- - Keeping track of current variable values in sym_table to further reduce calls to read from RAM
+ - Keeping track of current variable values in sym_table to further reduce calls to read from RAM (O1)
    (Since initialization can be done with immediates instead of loading addresses and values)
    - Done for 'int'
- - Making use of more registers ($s's?)
- - Change Queue to be a more complete LinkedList
- - Allowing a register to track more than one variable (for instance, in situations of equality)
+ - Change Queue to be a more complete LinkedList (O1)
+ - Allowing a register to track more than one variable (for instance, in situations of equality)(O1)
    - The register would then just have to know it has two values, and save off both whenever the register is freed
- - Keep track of number in $v0, $v1, $a0, $a1, $ra
- - Write a way to evaluate if only the address of a variable is needed
+ - Add code to track what's in $a0, $a1, and $v0 (use these registers as potential places to store variables)
+ - Write a way to evaluate if only the address of a variable is needed (O2)
  ______________________________
  Errors
- - When we use imediates, we need to check if they are larger than 16-bit unsigned max
+ - None
  ______________________________
  Improvements
- - Pretty Print for sym_table, reg_table, and var_queue
- -  Abstract and merge _process_id and _assign_id more
+ - Pretty Print for sym_table, reg_table, aux_reg_table, and var_queue
+ - Abstract and merge _process_id and _assign_id more
     - these methods are very similar, except one throws a Semantic Error when it finds a variable that isn't initialized
  -  Helper function / class to make dictionaries for use with var_queue
  -  Make a module that houses all exceptions instead of being spread out across multiple files

@@ -1,5 +1,10 @@
 # _______________________Assembly________________________
 
+
+# Allocates space to the stack
+def asm_allocate_stack_space(space = 4):
+    return asm_add('$sp', '$sp', -space)
+
 # Pass in type information to indicate which syscall to use:
 # 5 - read int
 # 6 - read float
@@ -15,8 +20,37 @@ def asm_read(var_type):
         ret_asm += asm_reg_set('$v0', 7)
     else:
         ret_asm += asm_reg_set('$v0', 8)
-        
     return ret_asm + 'syscall\n'
+
+
+# Check current syscode if it's correct for the var_type passed
+def asm_check_syscode_write(var_type, val):
+    return (var_type == 'int' and val != 1) or (var_type == 'float' and val != 2) \
+           or (var_type == 'double' and val != 3) or (var_type == 'string' and val != 4)
+
+
+# Pass it a var_type
+# Return the necessary syscode to print
+def asm_get_syscode_write(var_type):
+    if var_type == 'int':
+        return 1
+    elif var_type == 'float':
+        return 2
+    elif var_type == 'double':
+        return 3
+    else:
+        return 4
+
+
+# Broke this off from write to optimize writes a little faster
+# var_type: The type of variable to write
+# 1 - print int, arg in $a0
+# 2 - print float, arg in $f12
+# 3 - print double, arg in $f12
+# 4 - print string, arg in $a0
+def asm_set_syscode_write(var_type):
+    return asm_reg_set('$v0', asm_get_syscode_write(var_type))
+
 
 # var_type is the type of the variable to print
 # reg is the register where the variable is stored
@@ -24,20 +58,16 @@ def asm_read(var_type):
 # 2 - print float, arg in $f12
 # 3 - print double, arg in $f12
 # 4 - print string, arg in $a0
-def asm_write(reg, var_type):
+def asm_write(var_reg, var_type):
     ret_asm = ''
     if var_type == 'int':
-        ret_asm += asm_reg_set('$v0', 1)
-        ret_asm += asm_reg_set('$a0', reg)
+        ret_asm += asm_reg_set('$a0', var_reg)
     elif var_type == 'float':
-        ret_asm += asm_reg_set('$v0', 2)
-        ret_asm += asm_reg_set('$f12', reg)
+        ret_asm += asm_reg_set('$f12', var_reg)
     elif var_type == 'double':
-        ret_asm += asm_reg_set('v0', 3)
-        ret_asm += asm_reg_set('f12', reg)
+        ret_asm += asm_reg_set('f12', var_reg)
     else:
-        ret_asm += asm_reg_set('v0', 4)
-        ret_asm += asm_reg_set('a0', reg)
+        ret_asm += asm_reg_set('a0', var_reg)
 
     return ret_asm + 'syscall\n'
 
@@ -83,9 +113,18 @@ def asm_write_mem(mem_name, addr_reg, var_reg, offset = 0):
     return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
 
 
-#Assumes mem_addr_reg holds RAM location of desired variable
+# Assumes mem_addr_reg holds RAM location of desired variable
 def asm_write_mem_addr(mem_addr_reg, var_reg, offset = 0):
     return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+
+
+def asm_save_reg_to_stack(reg, offset = 0):
+    return asm_write_mem_addr('$sp', reg, offset)
+
+
+def asm_load_reg_from_stack(reg, offset = 0):
+    return asm_read_mem_addr('$sp', reg, offset)
+
 
 # _______________________Helpers________________________
 
