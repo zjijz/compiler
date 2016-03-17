@@ -424,6 +424,29 @@ class CodeGenerator():
                 self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': None, 'mem_type': 'TEMP'})
 
                 # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
+                # This should never happen here, but just to be safe
+                try:
+                    id_dict = self.sym_table[temp_id]
+                    if not id_dict['val_reg']:
+                        name = self.sym_table[temp_id]['mem_name']
+                        # Load address if null
+                        addr_reg = self.sym_table[temp_id]['addr_reg']
+                        if not addr_reg:
+                            addr_reg = self._find_free_register()
+                            self.output_string += asm_load_mem_addr(name, addr_reg)
+                            self.var_queue.append({'reg': addr_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+
+                        result_reg = self._find_free_register()
+                        self.output_string += asm_read_mem_addr(addr_reg, result_reg)
+
+                        self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'VALUE'})
+                        self._update_tables(temp_id, addr_reg, result_reg)
+                    else:
+                        result_reg = id_dict['val_reg']
+                except KeyError:
+                    # KeyError means that self.sym_table[temp_id] does not exist, which means the variable
+                    # was never initilaized, which means we don't have to worry about it not being where we think it is
+                    pass
 
                 if oper == 'PLUS':
                     self.output_string += asm_add(result_reg, f_reg, s_reg)
@@ -463,6 +486,28 @@ class CodeGenerator():
                         ###########################################
 
                     # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
+                    try:
+                        id_dict = self.sym_table[temp_id]
+                        if not id_dict['val_reg']:
+                            name = self.sym_table[temp_id]['mem_name']
+                            # Load address if null
+                            addr_reg = self.sym_table[temp_id]['addr_reg']
+                            if not addr_reg:
+                                addr_reg = self._find_free_register()
+                                self.output_string += asm_load_mem_addr(name, addr_reg)
+                                self.var_queue.append({'reg': addr_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+
+                            result_reg = self._find_free_register()
+                            self.output_string += asm_read_mem_addr(addr_reg, result_reg)
+
+                            self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'VALUE'})
+                            self._update_tables(temp_id, addr_reg, result_reg)
+                        else:
+                            result_reg = id_dict['val_reg']
+                    except KeyError:
+                        # KeyError means that self.sym_table[temp_id] does not exist, which means the variable
+                        # was never initilaized, which means we don't have to worry about it not being where we think it is
+                        pass
 
                     if oper == 'PLUS':
                         self.output_string += asm_add(result_reg, result_reg, next_reg)
