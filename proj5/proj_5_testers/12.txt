@@ -1,0 +1,7 @@
+# Write multiple out (INTLITERALS)
+# Should output 11111111111111111111111111
+
+begin
+    x := 1;
+    write(x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x);
+end

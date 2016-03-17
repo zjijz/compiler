@@ -1,0 +1,9 @@
+# Assignment with Expression (Multiple vars and -)
+# Should output -15
+
+begin
+    x := 12;
+    y := 13;
+    z := 14;
+    write(x - y - z);
+end

@@ -1,0 +1,10 @@
+# Assignment with Expression (Multiple vars with +)
+# Should output 39
+
+begin
+    x := 12;
+    y := 13;
+    z := 14;
+    answer := x + y + z;
+    write(answer);
+end

@@ -1,0 +1,9 @@
+# Assignment with multiple Read variable and INTLITERALS
+# input should be 5,6,7
+# Should output 25
+
+begin
+    read(x,y,z);
+    y := x + 3 + y + 4 + z;
+    write(y);
+end

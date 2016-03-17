@@ -1,0 +1,7 @@
+# Tests INTLITERAL assignment
+# should print 12
+
+begin
+    x := 12;
+    write(x);
+end

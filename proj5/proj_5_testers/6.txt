@@ -1,0 +1,9 @@
+# Assignment with Expression (Using mix of var and INTLITERALS)
+# Should output -161
+
+begin
+    x := 12;
+    y := 13;
+    z := 14;
+    write(x - 40 + y + z - 200 + z + z + x);
+end

@@ -13,8 +13,9 @@ from assembly_helper import *
 
 # Register Table (Keys are register names, Values are Dicts themselves)
 #  'id': ID pattern
+#  'type' : var type (used only for TEMP when creating new sym_table entry)
 #  'mem_name': Variable name
-#  'mem_type': Variable type (address or value)
+#  'mem_type': Variable type (ADDRESS, VALUE, or TEMP)
 
 # Var_Queue
 #  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
@@ -46,6 +47,12 @@ def variable_name_generator():
         yield s
 
 
+def temp_var_id_generator():
+    s = ""
+    while True:
+        s = next_variable_name(s)
+        yield str('temp_' + s)
+
 class SemanticError(Exception):
     @staticmethod
     def raise_initialization_error(variable, line, col):
@@ -65,13 +72,13 @@ class CodeGenerator():
 
     @staticmethod
     def _empty_reg_dict():
-        return {'id': None, 'mem_name': None, 'mem_type': None}
+        return {'id': None, 'type': None, 'mem_name': None, 'mem_type': None}
 
     @staticmethod
     def _empty_aux_reg_dict():
         return {'id': None, 'val': None, 'mem_name': None, 'mem_type': None}
 
-    def __init__(self, parse_tree, symbol_table, output_filename):
+    def __init__(self, parse_tree, symbol_table, output_filename, is_safe):
         self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
                         "EXPRESSION": self._expr_func, "ID": self._process_id}
         self.tree = parse_tree
@@ -85,8 +92,10 @@ class CodeGenerator():
                               '$a0': CodeGenerator._empty_aux_reg_dict(), '$a1': CodeGenerator._empty_aux_reg_dict()}
         self.var_queue = []
         self.var_name_generator = variable_name_generator()
+        self.temp_id_generator = temp_var_id_generator()
         self.output_name = output_filename
         self.output_string = ''
+        self.safe_mode = is_safe;
 
     def compile(self):
         self._start()
@@ -112,37 +121,43 @@ class CodeGenerator():
         reg_pop = self.var_queue.pop(0)
 
         id = reg_pop['id']
-        id_dict = self.sym_table[id]
         reg = reg_pop['reg']
 
         # If the register stores an address, just update tables
         if reg_pop['mem_type'] == 'ADDRESS':
+            id_dict = self.sym_table[id]
             # Remove old references
             id_dict['addr_reg'] = None
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
-        else:
+        elif reg_pop['mem_type'] == 'VALUE':
+            id_dict = self.sym_table[id]
             # Save off variable to RAM
             # Try to find addr_reg, else free up a register
+            name = id_dict['mem_name']
             addr_reg = id_dict['addr_reg']
 
             if not addr_reg:
-                # Save $s0 value to stack
-                # Allocate stack space
-                self.output_string += asm_allocate_stack_space()
+                # If we are in safe mode, we need to save off the old value
+                if self.safe_mode:
+                    # Save $s0 value to stack
+                    # Allocate stack space
+                    self.output_string += asm_allocate_stack_space()
 
-                # We don't have to increment stack_offset since it would just be decremented at the end of this block
-                self.output_string += asm_save_reg_to_stack('$s0', 0)
+                    # We don't have to increment stack_offset since it would just be decremented at the end of this block
+                    self.output_string += asm_save_reg_to_stack('$s0', 0)
 
                 addr_reg = '$s0'
 
                 # Load address to $s0
-                self.output_string += asm_load_mem_addr(id, addr_reg)
+                self.output_string += asm_load_mem_addr(name, addr_reg)
 
                 # Write value from val_reg to RAM
                 self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
 
-                # Reset $s0 to what it was before
-                self.output_string += asm_load_reg_from_stack('$s0', 0)
+                # If we are in safe_mode, we need to restore the old value
+                if self.safe_mode:
+                    # Reset $s0 to what it was before
+                    self.output_string += asm_load_reg_from_stack('$s0', 0)
             else:
                 # Write value from val_reg to RAM
                 self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
@@ -150,7 +165,48 @@ class CodeGenerator():
             # Remove old references in symbol and register tables
             id_dict['val_reg'] = None
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
+        elif reg_pop['mem_type'] == 'TEMP': # mem_type = TEMP
+            reg_dict = self.reg_table[reg]
+            # If we get here, it means we have to add our temporary variable to the sym_table and write it as a .data
+            # variable
 
+            # Generate name
+            name = next(self.var_name_generator)
+
+            # Get address into $s0 to save off
+            ##############################################################
+            # If we are in safe mode, we need to save off the old value
+            if self.safe_mode:
+                # Save $s0 value to stack
+                # Allocate stack space
+                self.output_string += asm_allocate_stack_space()
+
+                # We don't have to increment stack_offset since it would just be decremented at the end of this block
+                self.output_string += asm_save_reg_to_stack('$s0', 0)
+
+            addr_reg = '$s0'
+
+            # Load address to $s0
+            self.output_string += asm_load_mem_addr(name, addr_reg)
+
+            # Write value from val_reg to RAM
+            self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
+
+            # If we are in safe_mode, we need to restore the old value
+            if self.safe_mode:
+                # Reset $s0 to what it was before
+                self.output_string += asm_load_reg_from_stack('$s0', 0)
+            ##############################################################
+
+            # Update reg_table
+            self.reg_table[reg] = CodeGenerator._empty_reg_dict()
+
+            # Update sym_table
+            # We can assume any variable being entered this way has, in some way, its value based on user input
+            self.sym_table[id] = {'type': reg_dict['type'], 'scope': None, 'mem_name': name, 'init_val': None,
+                                      'curr_val': None, 'addr_reg': None, 'val_reg': None}
+
+            # Update reg_table
         return reg
 
     # Will update tables to reflect the changes made to val_reg and addr_reg
@@ -357,6 +413,18 @@ class CodeGenerator():
             else: # Initiate result_reg
                 result_reg = self._find_free_register()
                 result_type = f_type
+
+                # Update reg_table manually
+                temp_id = next(self.temp_id_generator)
+                addr_reg_dict = self.reg_table[result_reg]
+                addr_reg_dict['id'] = temp_id
+                addr_reg_dict['type'] = result_type
+                addr_reg_dict['mem_name'] = None # don't assign it a name unless we need to make a .data variable
+                addr_reg_dict['mem_type'] = 'TEMP'
+                self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': None, 'mem_type': 'TEMP'})
+
+                # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
+
                 if oper == 'PLUS':
                     self.output_string += asm_add(result_reg, f_reg, s_reg)
                 elif oper == 'MINUS':
@@ -383,10 +451,23 @@ class CodeGenerator():
                         result_reg = self._find_free_register()
                         result_type = f_type
 
+                        ###########################################
+                        # Update reg_table manually
+                        temp_id = next(self.temp_id_generator)
+                        addr_reg_dict = self.reg_table[result_reg]
+                        addr_reg_dict['id'] = temp_id
+                        addr_reg_dict['type'] = result_type
+                        addr_reg_dict['mem_name'] = None # don't assign name until we make .data variable
+                        addr_reg_dict['mem_type'] = 'TEMP'
+                        self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': None, 'mem_type': 'TEMP'})
+                        ###########################################
+
+                    # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
+
                     if oper == 'PLUS':
-                        self.output_string += asm_add(result_reg, f_reg, s_reg)
+                        self.output_string += asm_add(result_reg, result_reg, next_reg)
                     elif oper == 'MINUS':
-                        self.output_string += asm_sub(result_reg, f_reg, s_reg)
+                        self.output_string += asm_sub(result_reg, result_reg, next_reg)
 
             # Add parts together
             if not result_reg:

@@ -17,7 +17,6 @@ Queue for Recent Variables
  ______________________________
  Compiler Flags
  - Debug flag (turn parser and compiler debugging on)
- - Dirty flag that causes compiler to not save off the s-registers and just overwrites them
  - Levels of Optimization for Compiler
    - O1: (Default) Code will be compiled in a way that the best programmer would write it
      - Good register management
@@ -49,4 +48,9 @@ Queue for Recent Variables
     - these methods are very similar, except one throws a Semantic Error when it finds a variable that isn't initialized
  -  Helper function / class to make dictionaries for use with var_queue
  -  Make a module that houses all exceptions instead of being spread out across multiple files
+
+ - change all update to reg_table to make use of type
+ - add a method that updates the reg_table only (for expr)
+ - add a method that updated the sym_table only (for free_register)
+ - abstract out the find_free_reg function for sacing address to $s0
 
