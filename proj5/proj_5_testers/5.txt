@@ -1,5 +1,5 @@
 # Assignment with Expression (Using subexpressions - many deep - no reads)
-# Should output
+# Should output 14
 
 begin
     x := 12;

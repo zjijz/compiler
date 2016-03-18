@@ -54,4 +54,6 @@ Queue for Recent Variables
  - add a method that updated the sym_table only (for free_register)
  - abstract out the find_free_reg function for sacing address to $s0
  - write a function to load variables/address into registers to allow for better code reuse
+ - change read_mem and write_mem to
+ - expr function needs to be fixed for efficiency
 

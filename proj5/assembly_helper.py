@@ -95,7 +95,6 @@ def asm_reg_set(f_reg, s_reg):
 
 # Loads a variable's memory address into a register
 def asm_load_mem_addr(mem_name, temp_reg):
-    print(mem_name, temp_reg)
     return 'la {:s}, {:s}\n'.format(temp_reg, mem_name)
 
 

@@ -166,6 +166,8 @@ class CodeGenerator():
             id_dict['val_reg'] = None
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
         elif reg_pop['mem_type'] == 'TEMP': # mem_type = TEMP
+            """
+            print('Found TEMP')
             reg_dict = self.reg_table[reg]
             # If we get here, it means we have to add our temporary variable to the sym_table and write it as a .data
             # variable
@@ -205,8 +207,7 @@ class CodeGenerator():
             # We can assume any variable being entered this way has, in some way, its value based on user input
             self.sym_table[id] = {'type': reg_dict['type'], 'scope': None, 'mem_name': name, 'init_val': None,
                                       'curr_val': None, 'addr_reg': None, 'val_reg': None}
-
-            # Update reg_table
+            """
         return reg
 
     # Will update tables to reflect the changes made to val_reg and addr_reg
@@ -387,146 +388,91 @@ class CodeGenerator():
         if len(tree_nodes) == 1: # then tree_nodes is a single PRIMARY
             return self._process_primary(tree_nodes[0])
         else: # PRIMARY +/- PRIMARY +/- ... +/- PRIMARY
-            # Keep a running total of all values that the compiler knows and can just add together
-            immediate = 0
-            immediate_type = None
+            # Do table updates since we are just saving and loading each time
+            # Initialize new temp variable
+            accum_id = next(self.temp_id_generator)
+            name = next(self.var_name_generator)
 
-            # Keep a register to store intermediate calculations (Only initialized if necessary)
-            result_reg = None
-            result_type = None
+            # Create sym_table entry
+            self.sym_table[accum_id] = {'type': 'int', 'scope': None, 'mem_name': name, 'init_val': None,
+                                        'curr_val': None, 'addr_reg': None, 'val_reg': None}
 
-            # Look at first three tree_nodes for the original operation
+            # Process first
             f_reg, f_type = self._process_primary(tree_nodes[0])
-            oper = tree_nodes[1].label
-            s_reg, s_type = self._process_primary(tree_nodes[2])
 
-            if f_type != s_type:
-                # New Semantic Error (Type Mismatch)
-                pass
+            val_type = f_type
+            addr_reg = self._find_free_register()
+            self.var_queue.append({'reg': addr_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+            self._update_tables(accum_id, addr_reg, None)
+            val_reg = self._find_free_register()
+            self.var_queue.append({'reg': val_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'VALUE'})
+            self._update_tables(accum_id, addr_reg, val_reg)
 
-            if type(f_reg) is int and type(s_reg) is int:
-                if oper == 'PLUS':
-                    immediate += f_reg + s_reg
-                elif oper == 'MINUS':
-                    immediate += f_reg - s_reg
-                immediate_type = f_type
-            else: # Initiate result_reg
-                result_reg = self._find_free_register()
-                result_type = f_type
+            # Equate
+            self.output_string += asm_reg_set(val_reg, f_reg)
 
-                # Update reg_table manually
-                temp_id = next(self.temp_id_generator)
-                addr_reg_dict = self.reg_table[result_reg]
-                addr_reg_dict['id'] = temp_id
-                addr_reg_dict['type'] = result_type
-                addr_reg_dict['mem_name'] = None # don't assign it a name unless we need to make a .data variable
-                addr_reg_dict['mem_type'] = 'TEMP'
-                self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': None, 'mem_type': 'TEMP'})
+            # Save off accum_id
+            self.output_string += asm_write_mem(name, addr_reg, val_reg)
 
-                # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
-                # This should never happen here, but just to be safe
-                try:
-                    id_dict = self.sym_table[temp_id]
-                    if not id_dict['val_reg']:
-                        name = self.sym_table[temp_id]['mem_name']
-                        # Load address if null
-                        addr_reg = self.sym_table[temp_id]['addr_reg']
-                        if not addr_reg:
-                            addr_reg = self._find_free_register()
-                            self.output_string += asm_load_mem_addr(name, addr_reg)
-                            self.var_queue.append({'reg': addr_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+            # Remove from var_queue
+            self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
 
-                        result_reg = self._find_free_register()
-                        self.output_string += asm_read_mem_addr(addr_reg, result_reg)
+            # Remove from reg_table
+            self.reg_table[val_reg] = CodeGenerator._empty_reg_dict()
+            self.reg_table[addr_reg] = CodeGenerator._empty_reg_dict()
 
-                        self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'VALUE'})
-                        self._update_tables(temp_id, addr_reg, result_reg)
-                    else:
-                        result_reg = id_dict['val_reg']
-                except KeyError:
-                    # KeyError means that self.sym_table[temp_id] does not exist, which means the variable
-                    # was never initilaized, which means we don't have to worry about it not being where we think it is
-                    pass
+            # Remove from sym_table
+            self.sym_table[accum_id]['val_reg'] = None
+            self.sym_table[accum_id]['addr_reg'] = None
 
-                if oper == 'PLUS':
-                    self.output_string += asm_add(result_reg, f_reg, s_reg)
-                elif oper == 'MINUS':
-                    self.output_string += asm_sub(result_reg, f_reg, s_reg)
+            for i in range(1, len(tree_nodes) - 1, 2):
+                # Load variable
+                add_reg, add_type = self._process_primary(tree_nodes[i+1])
 
-            # Look at each additional two to change the previous result
-            for i in range(3, len(tree_nodes) - 1, 2):
+                # Load accum_id
+                addr_reg = self._find_free_register()
+                self.var_queue.append({'reg': addr_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+                self._update_tables(accum_id, addr_reg, None)
+                val_reg = self._find_free_register()
+                self.var_queue.append({'reg': val_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'VALUE'})
+                self._update_tables(accum_id, addr_reg, val_reg)
+                self.output_string += asm_read_mem(name, addr_reg, val_reg)
+
+                # Operation
                 oper = tree_nodes[i].label
-                next_reg, next_type = self._process_primary(tree_nodes[i+1])
 
-                if (not immediate_type and immediate_type != next_type) \
-                        or (not result_type and result_type != next_type):
-                    # Raise Semantic Error (Type Mismatch)
-                    pass
-
-                if type(next_reg) is int:
-                    if oper == 'PLUS':
-                        immediate += next_reg
-                    elif oper == 'MINUS':
-                        immediate -= next_reg
-                    immediate_type = next_type
+                # Add each value to accum_id
+                ## NO TYPE CHECKING ##
+                if oper == 'PLUS':
+                    self.output_string += asm_add(val_reg, val_reg, add_reg)
                 else:
-                    if not result_reg: # result_reg needs to be initialized
-                        result_reg = self._find_free_register()
-                        result_type = f_type
+                    self.output_string += asm_sub(val_reg, val_reg, add_reg)
 
-                        ###########################################
-                        # Update reg_table manually
-                        temp_id = next(self.temp_id_generator)
-                        addr_reg_dict = self.reg_table[result_reg]
-                        addr_reg_dict['id'] = temp_id
-                        addr_reg_dict['type'] = result_type
-                        addr_reg_dict['mem_name'] = None # don't assign name until we make .data variable
-                        addr_reg_dict['mem_type'] = 'TEMP'
-                        self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': None, 'mem_type': 'TEMP'})
-                        ###########################################
+                # Save off accum_id after each add
+                self.output_string += asm_write_mem(name, addr_reg, val_reg)
 
-                    # Check if temp_id is in sym_table, if it is, get reg_value; if not, load it
-                    try:
-                        id_dict = self.sym_table[temp_id]
-                        if not id_dict['val_reg']:
-                            name = self.sym_table[temp_id]['mem_name']
-                            # Load address if null
-                            addr_reg = self.sym_table[temp_id]['addr_reg']
-                            if not addr_reg:
-                                addr_reg = self._find_free_register()
-                                self.output_string += asm_load_mem_addr(name, addr_reg)
-                                self.var_queue.append({'reg': addr_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+                # Remove from var_queue
+                self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
 
-                            result_reg = self._find_free_register()
-                            self.output_string += asm_read_mem_addr(addr_reg, result_reg)
+                # Remove from reg_table
+                self.reg_table[val_reg] = CodeGenerator._empty_reg_dict()
+                self.reg_table[addr_reg] = CodeGenerator._empty_reg_dict()
 
-                            self.var_queue.append({'reg': result_reg, 'id': temp_id, 'mem_name': name, 'mem_type': 'VALUE'})
-                            self._update_tables(temp_id, addr_reg, result_reg)
-                        else:
-                            result_reg = id_dict['val_reg']
-                    except KeyError:
-                        # KeyError means that self.sym_table[temp_id] does not exist, which means the variable
-                        # was never initilaized, which means we don't have to worry about it not being where we think it is
-                        pass
+                # Remove from sym_table
+                self.sym_table[accum_id]['val_reg'] = None
+                self.sym_table[accum_id]['addr_reg'] = None
 
-                    if oper == 'PLUS':
-                        self.output_string += asm_add(result_reg, result_reg, next_reg)
-                    elif oper == 'MINUS':
-                        self.output_string += asm_sub(result_reg, result_reg, next_reg)
+            # Load values back into registers
+            addr_reg = self._find_free_register()
+            self.var_queue.append({'reg': addr_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'ADDRESS'})
+            self._update_tables(accum_id, addr_reg, None)
+            val_reg = self._find_free_register()
+            self.var_queue.append({'reg': val_reg, 'id': accum_id, 'mem_name': name, 'mem_type': 'VALUE'})
+            self._update_tables(accum_id, addr_reg, val_reg)
+            self.output_string += asm_read_mem(name, addr_reg, val_reg)
 
-            # Add parts together
-            if not result_reg:
-                # simply set immediate to return
-                result_reg = immediate
-                result_type = immediate_type
-            elif immediate_type == result_type:
-                # add these together in the register
-                self.output_string += asm_add(result_reg, result_reg, immediate)
-            else:
-                # Throw semantic error (type mismatch)
-                pass
+            return val_reg, val_type
 
-            return result_reg, result_type
 
     # Takes a PRIMARY node
     # Processes the node to get the INTLITERAL, IDENT, or EXPRESSION
