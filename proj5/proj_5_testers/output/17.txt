@@ -1,0 +1,27 @@
+Compiling "proj_5_testers/tests/17.txt" into "proj_5_testers/compiled/17.asm" using "tokens.txt" for tokens
+
+Traceback (most recent call last):
+  File "compiler.py", line 28, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.safe_mode)
+  File "compiler.py", line 9, in compiler
+    CodeGenerator(*MLparser.parser(source, tokens), output, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 102, in compile
+    self._traverse(self.tree)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 112, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 112, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 109, in _traverse
+    self.func_factory[child.label](tree.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 295, in _write_id
+    reg, var_type = self._expr_func(expr.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 389, in _expr_func
+    return self._process_primary(tree_nodes[0])
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 488, in _process_primary
+    return self._process_id(primary_child.children[0].token)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 509, in _process_id
+    SemanticError.raise_initialization_error(id, token.line_num, token.col)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/code_generator.py", line 60, in raise_initialization_error
+    .format(line, col, variable))
+code_generator.SemanticError: Semantic error: Line num: 4, column num: 10
+	x not initialized before use.

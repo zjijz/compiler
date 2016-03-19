@@ -1,0 +1,29 @@
+Compiling "proj_5_testers/tests/15.txt" into "proj_5_testers/compiled/15.asm" using "tokens.txt" for tokens
+
+Traceback (most recent call last):
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/lexer.py", line 89, in lexer
+    match = next(m for m in (re.match(ptn, line[col:]) for ptn in re_list) if m)
+StopIteration
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "compiler.py", line 28, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.safe_mode)
+  File "compiler.py", line 9, in compiler
+    CodeGenerator(*MLparser.parser(source, tokens), output, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 70, in parser
+    curToken, t = program(next(G), G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 86, in program
+    curToken, tree_stmt_list = statement_list(next(G), G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 96, in statement_list
+    curToken, child_stmt = statement(curToken, G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 119, in statement
+    curToken, child_assign = assign(curToken, G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 126, in assign
+    curToken, child_ident = ident(curToken, G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 191, in ident
+    return next(G), tree("IDENT", [ID_Leaf(curToken)])
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/lexer.py", line 91, in lexer
+    raise LexerError("Bad token (line %d, column %d): %s" %(line_num, col, line[col:]))
+lexer.LexerError: Lexical error: Bad token (line 4, column 6): = 10;

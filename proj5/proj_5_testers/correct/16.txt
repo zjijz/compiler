@@ -1,0 +1,17 @@
+Compiling "proj_5_testers/16.txt" into "proj_5_testers/compiled/16.asm" using "tokens.txt" for tokens
+
+Traceback (most recent call last):
+  File "compiler.py", line 28, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.safe_mode)
+  File "compiler.py", line 9, in compiler
+    CodeGenerator(*MLparser.parser(source, tokens), output, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 70, in parser
+    curToken, t = program(next(G), G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 86, in program
+    curToken, tree_stmt_list = statement_list(next(G), G)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 98, in statement_list
+    raiseParserError("statement_list", ";", curToken)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj5/MLparser.py", line 79, in raiseParserError
+    %(symbolName, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
+MLparser.ParserError: Syntax error in <statement_list>, expected ";", actually is "write" 
+Line num: 5, column num: 4
