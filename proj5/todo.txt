@@ -1,12 +1,4 @@
-Testing
-- read multiple variables
-- write multiple variables
-- write multiple expressions
-- when primary is '( expression )'
-- when RHS of assignment is x + y + 2 or something like that
-- when RHS is a mix of variables assigned normally and through read
-- when there are more variables then
-_______________________________
+
 Queue for Recent Variables
 -When variables are loaded into registers, push them to queue
 -When you need to remove a variable from a register to make space,

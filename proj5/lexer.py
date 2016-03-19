@@ -1,16 +1,5 @@
 import re
-import sys
-
-class LexerError(Exception):
-    """
-    Exception to be thrown when the lexer encounters a bad token.
-    """
-    def __init__(self, msg):
-        self.msg = "Lexical error: " + msg
-
-    def __str__(self):
-        return str(self.msg)
-
+from errors import *
 
 class Token:
     """

@@ -1,49 +1,49 @@
 .data
 c:	.word	14	# z in original
 b:	.word	13	# y in original
-d:	.word	0	# temp_a in original
 a:	.word	12	# x in original
+d:	.word	0	# temp_a in original
 .text
-li $t1, 12
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-subi $t1, $t1, 40
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-addi $t1, $t1, 13
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-addi $t1, $t1, 14
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-subi $t1, $t1, 200
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-addi $t1, $t1, 14
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-addi $t1, $t1, 14
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
-addi $t1, $t1, 12
-la $t0, d
-sw $t1, 0($t0)
-la $t0, d
-lw $t1, 0($t0)
+li $t7, 12
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+subi $t7, $t7, 40
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+addi $t7, $t7, 13
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+addi $t7, $t7, 14
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+subi $t7, $t7, 200
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+addi $t7, $t7, 14
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+addi $t7, $t7, 14
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
+addi $t7, $t7, 12
+la $t8, d
+sw $t7, 0($t8)
+la $t8, d
+lw $t7, 0($t8)
 li $v0, 1
-move $a0, $t1
+move $a0, $t7
 syscall

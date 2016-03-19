@@ -1,6 +1,7 @@
 from tree import *
 from MLparser import *
 from assembly_helper import *
+from errors import *
 
 # Symbol Table (Keys are ID pattern, Values are Dicts themselve)
 #  'type': Data type
@@ -13,9 +14,8 @@ from assembly_helper import *
 
 # Register Table (Keys are register names, Values are Dicts themselves)
 #  'id': ID pattern
-#  'type' : var type (used only for TEMP when creating new sym_table entry)
 #  'mem_name': Variable name
-#  'mem_type': Variable type (ADDRESS, VALUE, or TEMP)
+#  'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
 
 # Var_Queue
 #  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
@@ -52,18 +52,6 @@ def temp_var_id_generator():
     while True:
         s = next_variable_name(s)
         yield str('temp_' + s)
-
-class SemanticError(Exception):
-    @staticmethod
-    def raise_initialization_error(variable, line, col):
-        raise SemanticError('Semantic error: Line num: {:d}, column num: {:d}\n\t{:s} not initialized before use.'\
-                            .format(line, col, variable))
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
 
 
 class CodeGenerator():
@@ -165,49 +153,9 @@ class CodeGenerator():
             # Remove old references in symbol and register tables
             id_dict['val_reg'] = None
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
-        elif reg_pop['mem_type'] == 'TEMP': # mem_type = TEMP
-            """
-            print('Found TEMP')
-            reg_dict = self.reg_table[reg]
-            # If we get here, it means we have to add our temporary variable to the sym_table and write it as a .data
-            # variable
-
-            # Generate name
-            name = next(self.var_name_generator)
-
-            # Get address into $s0 to save off
-            ##############################################################
-            # If we are in safe mode, we need to save off the old value
-            if self.safe_mode:
-                # Save $s0 value to stack
-                # Allocate stack space
-                self.output_string += asm_allocate_stack_space()
-
-                # We don't have to increment stack_offset since it would just be decremented at the end of this block
-                self.output_string += asm_save_reg_to_stack('$s0', 0)
-
-            addr_reg = '$s0'
-
-            # Load address to $s0
-            self.output_string += asm_load_mem_addr(name, addr_reg)
-
-            # Write value from val_reg to RAM
-            self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
-
-            # If we are in safe_mode, we need to restore the old value
-            if self.safe_mode:
-                # Reset $s0 to what it was before
-                self.output_string += asm_load_reg_from_stack('$s0', 0)
-            ##############################################################
-
-            # Update reg_table
-            self.reg_table[reg] = CodeGenerator._empty_reg_dict()
-
-            # Update sym_table
-            # We can assume any variable being entered this way has, in some way, its value based on user input
-            self.sym_table[id] = {'type': reg_dict['type'], 'scope': None, 'mem_name': name, 'init_val': None,
-                                      'curr_val': None, 'addr_reg': None, 'val_reg': None}
-            """
+        else: # mem_type = TYPE[...]
+            # Create sym_table entry
+            pass
         return reg
 
     # Will update tables to reflect the changes made to val_reg and addr_reg

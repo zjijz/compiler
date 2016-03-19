@@ -17,7 +17,7 @@ Grammar:
 
 from tree import *
 from lexer import *
-#import re
+from errors import *
 
 #######################
 # For debugging
@@ -36,13 +36,6 @@ def add_debug(fn):
     return debugged_fn if debug else fn
 
 #########################
-
-class ParserError(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
 
 class ID_Leaf(tree):
     def __init__(self, token):

@@ -17,12 +17,18 @@ do
 
     # Run MIPS on file and input
     cat proj_5_testers/input/$name.txt | java -jar ~/mars4_5.jar proj_5_testers/compiled/$name.asm >> proj_5_testers/output/$name.txt
+  elif grep --quiet Lexical proj_5_testers/output/$name.txt; then
+    echo "Lexical Error" > proj_5_testers/output/$name.txt
+  elif grep --quiet Syntax proj_5_testers/output/$name.txt; then
+    echo "Syntax Error" > proj_5_testers/output/$name.txt
+  elif grep --quiet Syntax proj_5_testers/output/$name.txt; then
+    echo "Semantic Error" > proj_5_testers/output/$name.txt
+  fi
 
-    # Check output
-    if ! diff proj_5_testers/output/$name.txt proj_5_testers/correct/$name.txt; then
-        echo "$name failed"
-    else
-        echo "$name passed"
-    fi
+  # Check output
+  if ! diff proj_5_testers/output/$name.txt proj_5_testers/correct/$name.txt; then
+    echo "$name failed"
+  else
+    echo "$name passed"
   fi
 done
