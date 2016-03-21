@@ -1,4 +1,7 @@
 begin
-    string s;
-    s := "Bob said: "hi""
+    bool x;
+    x := 3 == 4;
+    5 >= 2
+    1 == 2
+    2 != 3
 end
