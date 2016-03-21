@@ -1,0 +1,4 @@
+begin
+    string s;
+    s := "Bob said: "hi""
+end

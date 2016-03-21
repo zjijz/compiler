@@ -1,0 +1,15 @@
+<program>		->	begin <statement list> end
+<statement list>	->	<statement>; { <statement>; }
+<statement>		->	<assignment> |
+				<declaration> |
+				read( <id list> ) |
+				write( <expr list> )
+<declaration>		->	TYPE <ident>
+<assignment>		->	<ident> := <expression>
+<id list>		->	<ident> {, <ident>}
+<expr list>		->	<expression> {, <expression> }
+<expression>		->	<primary> {<arith op> <primary> }
+<primary>		->	( <expression> ) | <ident> | INTLITERAL |
+				BOOLLITERAL | STRINGLITERAL
+<ident>			->	ID
+<arith op>		->	+ | - | * | / | %
