@@ -1,4 +1,3 @@
-
 Queue for Recent Variables
 -When variables are loaded into registers, push them to queue
 -When you need to remove a variable from a register to make space,
@@ -8,7 +7,6 @@ Queue for Recent Variables
   - LinkedList to be able to easily move values already on list when seeing them?
  ______________________________
  Compiler Flags
- - Debug flag (turn parser and compiler debugging on)
  - Levels of Optimization for Compiler
    - O1: (Default) Code will be compiled in a way that the best programmer would write it
      - Good register management
@@ -39,7 +37,6 @@ Queue for Recent Variables
  - Abstract and merge _process_id and _assign_id more
     - these methods are very similar, except one throws a Semantic Error when it finds a variable that isn't initialized
  -  Helper function / class to make dictionaries for use with var_queue
- -  Make a module that houses all exceptions instead of being spread out across multiple files
 
  - change all update to reg_table to make use of type
  - add a method that updates the reg_table only (for expr)

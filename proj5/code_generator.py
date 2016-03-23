@@ -18,11 +18,11 @@ from errors import *
 #  'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
 
 # Var_Queue
-#  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"} dict
+#  Holds a {'reg': "...", 'id': "...", 'mem_name': "...", 'mem_type': "VALUE"|"ADDRESS"|"TYPE[...]} dict
 #  Push to back, pop from front
 
-# Auxiliiary Reg Table (Keeps track registers not used for variables
-# Keeps track of $v0, $v1, $a0, $a1
+# Auxiliiary Reg Table (Keeps track registers not used for variables)
+# Keeps track of $v0, $v1, $a0, $a1, $s0
 # Each value has:
 # - 'id': ID pattern
 # - 'val': current integer value in register
@@ -54,19 +54,21 @@ def temp_var_id_generator():
         yield str('temp_' + s)
 
 
-class CodeGenerator():
-    """Object that takes a parse tree, symbol table, and output file,
-    and has methods to compile the parse tree to asm"""
+class CodeGenerator:
+    """
+    Object that takes a parse tree, symbol table, and output file,
+    and has methods to compile the parse tree to asm
+    """
 
     @staticmethod
     def _empty_reg_dict():
-        return {'id': None, 'type': None, 'mem_name': None, 'mem_type': None}
+        return {'id': None, 'mem_name': None, 'mem_type': None}
 
     @staticmethod
     def _empty_aux_reg_dict():
         return {'id': None, 'val': None, 'mem_name': None, 'mem_type': None}
 
-    def __init__(self, parse_tree, symbol_table, output_filename, is_safe):
+    def __init__(self, parse_tree, symbol_table, output_filename, is_debug, is_safe):
         self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
                         "EXPRESSION": self._expr_func, "ID": self._process_id}
         self.tree = parse_tree
@@ -83,7 +85,8 @@ class CodeGenerator():
         self.temp_id_generator = temp_var_id_generator()
         self.output_name = output_filename
         self.output_string = ''
-        self.safe_mode = is_safe;
+        self.debug_mode = is_debug
+        self.safe_mode = is_safe
 
     def compile(self):
         self._start()
@@ -100,6 +103,29 @@ class CodeGenerator():
                     self._traverse(child)
 
     def _find_free_register(self):
+        def save_using_s0(name, var_reg):
+            # If we are in safe mode, we need to save off the old value
+            if self.safe_mode:
+                # Save $s0 value to stack
+                # Allocate stack space
+                self.output_string += asm_allocate_stack_space()
+
+                # We don't have to increment stack_offset since it would just be decremented at the end of this block
+                self.output_string += asm_save_reg_to_stack('$s0', 0)
+
+            addr_reg = '$s0'
+
+            # Load address to $s0
+            self.output_string += asm_load_mem_addr(name, addr_reg)
+
+            # Write value from val_reg to RAM
+            self.output_string += asm_write_mem_addr(addr_reg, var_reg)
+
+            # If we are in safe_mode, we need to restore the old value
+            if self.safe_mode:
+                # Reset $s0 to what it was before
+                self.output_string += asm_load_reg_from_stack('$s0', 0)
+
         # Look for open register
         for reg in self.reg_table:
             if not self.reg_table[reg]['id']:
@@ -125,29 +151,9 @@ class CodeGenerator():
             addr_reg = id_dict['addr_reg']
 
             if not addr_reg:
-                # If we are in safe mode, we need to save off the old value
-                if self.safe_mode:
-                    # Save $s0 value to stack
-                    # Allocate stack space
-                    self.output_string += asm_allocate_stack_space()
-
-                    # We don't have to increment stack_offset since it would just be decremented at the end of this block
-                    self.output_string += asm_save_reg_to_stack('$s0', 0)
-
-                addr_reg = '$s0'
-
-                # Load address to $s0
-                self.output_string += asm_load_mem_addr(name, addr_reg)
-
-                # Write value from val_reg to RAM
-                self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
-
-                # If we are in safe_mode, we need to restore the old value
-                if self.safe_mode:
-                    # Reset $s0 to what it was before
-                    self.output_string += asm_load_reg_from_stack('$s0', 0)
+                save_using_s0(name, reg_pop['reg'])
             else:
-                # Write value from val_reg to RAM
+                # Write value from reg to RAM
                 self.output_string += asm_write_mem_addr(addr_reg, reg_pop['reg'])
 
             # Remove old references in symbol and register tables
@@ -155,6 +161,8 @@ class CodeGenerator():
             self.reg_table[reg] = CodeGenerator._empty_reg_dict()
         else: # mem_type = TYPE[...]
             # Create sym_table entry
+            # Save variable to memory
+
             pass
         return reg
 
@@ -218,10 +226,9 @@ class CodeGenerator():
         fp.close()
 
         # Debug
-        print('Symbol Table: ', self.sym_table, '\n')
-        print('Register Table: ', self.reg_table, '\n')
-        print('Auxiliary Register Table', self.aux_reg_table, '\n')
-        print('Variable Queue: ', self.var_queue, '\n')
+        if self.debug_mode:
+            print('\n', 'Symbol Table: ', self.sym_table, '\n\n', 'Register Table: ', self.reg_table, '\n\n',
+                  'Auxiliary Register Table', self.aux_reg_table, '\n\n', 'Variable Queue: ', self.var_queue, '\n')
 
     def _read_id(self, tree_nodes):
         id_list = tree_nodes[1].children

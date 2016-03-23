@@ -18,174 +18,165 @@ Grammar:
 from tree import *
 from lexer import *
 from errors import *
+from types import MethodType
 
-#######################
-# For debugging
-debug = False
-recursion_level = 0
 
-def add_debug(fn):
-    def debugged_fn(curToken, G):
-        global recursion_level
-        print(" "*recursion_level + "Entering: %s (%s)" % (fn.__name__, curToken))
-        recursion_level += 3
-        R = fn(curToken, G)
-        recursion_level -= 3
-        print(" "*recursion_level + "Leaving: %s" % (fn.__name__))
-        return R
-    return debugged_fn if debug else fn
+def add_class_debug(klass):
+    # Creates a subclass of klass that changes all method calls to add_debug(func) if debug_flag = True
+    class DebuggedClass(klass):
+        @staticmethod
+        def add_debug(fn):
+            def debugged_fn(self, curToken, G):
+                print(" "*self.recursion_level + "Entering: %s (%s)" % (fn.__name__, curToken))
+                self.recursion_level += 3
+                R = fn(self, curToken, G)
+                self.recursion_level -= 3
+                print(" "*self.recursion_level + "Leaving: %s" % (fn.__name__))
+                return R
+            return debugged_fn
 
-#########################
+        def __init__(self, *args, **kwargs):
+            self.debug_flag = False
+            super().__init__(*args, **kwargs)
+            for item in dir(self):
+                if callable(getattr(self, item)) and '__' not in item and 'add_debug' not in item:
+                    func = self.__getattribute__(item).__func__
+                    func = DebuggedClass.add_debug(func) if self.debug_flag else func
+                    setattr(self, item, MethodType(func, self))
+    return DebuggedClass
 
-class ID_Leaf(tree):
-    def __init__(self, token):
-        self.token = token
-        super().__init__('ID')
+@add_class_debug
+class Parser:
+    def __init__(self, isDebug):
+        self.symbol_table = {}
+        self.debug_flag = isDebug
+        self.recursion_level = 0
 
-class INTLITERAL_Leaf(tree):
-    def __init__(self, token):
-        self.token = token
-        super().__init__('INTLITERAL')
+    # Parsing code
+    def parse(self, source_file, token_file):
+        """
+        source_file: A program written in the ML langauge.
+        returns True if the code is syntactically correct.
+        Throws a ParserError otherwise.
+        """
+        self.symbol_table.clear()
+        G = Lexer(source_file, token_file).lex()
+        curToken, t = self.program(next(G), G)
+        if (curToken.name != "$"):
+            raise ParserError.raise_redundant_tokens_error('There are redundant tokens at the end of the program, '
+                              'starting with: %s\nLine num: %d, column num: %d'
+                              %(curToken.line, curToken.line_num, curToken.col))
+        return t, self.symbol_table
 
-#########################
+    # <program> -> begin <statement_list> end
+    def program(self, curToken, G):
+        if curToken.name != "BEGIN":
+            raise ParserError.raise_parse_error("program", "begin", curToken)
+        curToken, tree_stmt_list = self.statement_list(next(G), G)
+        if curToken.name != "END":
+            raise ParserError.raise_parse_error("program", "end", curToken)
+        return next(G), tree("PROGRAM", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
-symbol_table = {}
+    # <statement_list> -> <statement>; { <statement>; }
+    def statement_list(self, curToken, G):
+        children_stmt_list = []
+        while True:
+            curToken, child_stmt = self.statement(curToken, G)
+            if curToken.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("statement_list", ";", curToken)
+            children_stmt_list.append(child_stmt)
+            curToken = next(G)
+            if curToken.name not in ("READ", "WRITE", "ID"):
+                return curToken, tree("STATEMENT_LIST", children_stmt_list)
 
-# Parsing code
-def parser(source_file, token_file):
-    """
-    source_file: A program written in the ML langauge.
-    returns True if the code is syntactically correct.
-    Throws a ParserError otherwise.
-    """
-    symbol_table.clear()
-    G = lexer(source_file, token_file)
-    curToken, t = program(next(G), G)
-    if (curToken.name != "$"):
-        raise ParserError('There are redundant tokens at the end of the program, '
-                          'starting with: %s\nLine num: %d, column num: %d'
-                          %(curToken.line, curToken.line_num, curToken.col))
-    return t, symbol_table
+    # <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
+    def statement(self, curToken, G):
+        if curToken.name in ("READ", "WRITE"):
+            tokenName = curToken.name
+            curToken = next(G)
+            if curToken.name != "LPAREN":
+                raise ParserError.raise_parse_error("statement", '(', curToken)
+            curToken, child_id_list_or_expr_list = self.id_list(next(G), G) if tokenName == "READ" else self.expr_list(next(G), G)
+            if curToken.name != "RPAREN":
+                raise ParserError.raise_parse_error("statement", ')', curToken)
+            return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
+        # Also done to make this more explicit
+        # if not in read, write, then it is assign (or assign should throw error)
+        else:
+            curToken, child_assign = self.assign(curToken, G)
+            return curToken, tree("STATEMENT", [child_assign])
+    ################### possible one line optimization ###################
 
-def raiseParserError(symbolName, expectedTokenStr, actualToken):
-    raise ParserError('Syntax error in <%s>, expected "%s", actually is "%s" \nLine num: %d, column num: %d'
-                      %(symbolName, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
+    # <assign> -> <ident> := <expression>
+    def assign(self, curToken, G):
+        curToken, child_ident = self.ident(curToken, G)
+        if curToken.name != "ASSIGNOP":
+            raise ParserError.raise_parse_error("assign", ":=", curToken)
+        curToken, child_expr = self.expression(next(G), G)
+        return curToken, tree("ASSIGN", [child_ident, child_expr])
 
-@add_debug
-# <program> -> begin <statement_list> end
-def program(curToken, G):
-    if curToken.name != "BEGIN":
-        raise raiseParserError("program", "begin", curToken)
-    curToken, tree_stmt_list = statement_list(next(G), G)
-    if curToken.name != "END":
-        raiseParserError("program", "end", curToken)
-    return next(G), tree("PROGRAM", [tree("BEGIN"), tree_stmt_list, tree("END")])
+    # <id_list> -> <ident> {, <ident>}
+    def id_list(self, curToken, G):
+        children_id_list = []
+        while True:
+            curToken, child_ident = self.ident(curToken, G)
+            children_id_list.append(child_ident)
+            if curToken.name != "COMMA":
+                return curToken, tree("ID_LIST", children_id_list)
+            curToken = next(G)
 
-@add_debug
-# <statement_list> -> <statement>; { <statement>; }
-def statement_list(curToken, G):
-    children_stmt_list = []
-    while True:
-        curToken, child_stmt = statement(curToken, G)
-        if curToken.name != "SEMICOLON":
-            raiseParserError("statement_list", ";", curToken)
-        children_stmt_list.append(child_stmt)
-        curToken = next(G)
-        if curToken.name not in ("READ", "WRITE", "ID"):
-            return curToken, tree("STATEMENT_LIST", children_stmt_list)
+    # <expr_list> -> <expression> {, <expression>}
+    def expr_list(self, curToken, G):
+        children_expr_list = []
+        while True:
+            curToken, child_expr = self.expression(curToken, G)
+            children_expr_list.append(child_expr)
+            if curToken.name != "COMMA":
+                return curToken, tree("EXPR_LIST", children_expr_list)
+            curToken = next(G)
 
-@add_debug
-# <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
-def statement(curToken, G):
-    if curToken.name in ("READ", "WRITE"):
-        tokenName = curToken.name
-        curToken = next(G)
-        if curToken.name != "LPAREN":
-            raiseParserError("statement", '(', curToken)
-        curToken, child_id_list_or_expr_list = id_list(next(G), G) if tokenName == "READ" else expr_list(next(G), G)
-        if curToken.name != "RPAREN":
-            raiseParserError("statement", ')', curToken)
-        return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
-    # Also done to make this more explicit
-    # if not in read, write, then it is assign (or assign should throw error)
-    else:
-        curToken, child_assign = assign(curToken, G)
-        return curToken, tree("STATEMENT", [child_assign])
-################### possible one line optimization ###################
+    # <expression> -> <primary> {<arith_op> <primary>}
+    def expression(self, curToken, G):
+        children_expr = []
+        while True:
+            curToken, child_primary = self.primary(curToken, G)
+            children_expr.append(child_primary)
+            if curToken.t_class != "ARITHOP":
+                return curToken, tree("EXPRESSION", children_expr)
+            curToken, child_arith_op = self.arith_op(curToken, G)
+            children_expr.append(child_arith_op)
 
-@add_debug
-# <assign> -> <ident> := <expression>
-def assign(curToken, G):
-    curToken, child_ident = ident(curToken, G)
-    if curToken.name != "ASSIGNOP":
-        raiseParserError("assign", ":=", curToken)
-    curToken, child_expr = expression(next(G), G)
-    return curToken, tree("ASSIGN", [child_ident, child_expr])
+    # <primary> -> (<expression>) | <ident> | INTLITERAL
+    def primary(self, curToken, G):
+        if curToken.name == "LPAREN":
+            curToken, child_expr = self.expression(next(G), G)
+            if curToken.name != "RPAREN":
+                raise ParserError.raise_parse_error("primary", ")", curToken)
+            return next(G), tree("PRIMARY", [child_expr])
+        elif curToken.name == "ID":
+            curToken, child_ident = self.ident(curToken, G)
+            return curToken, tree("PRIMARY", [child_ident])
+        # I flipped this to a positive check just to make
+        # it slightly clearer
+        elif curToken.name == "INTLIT":
+            t = tree('INTLITERAL')
+            t.token = curToken
+            return next(G), tree("PRIMARY", [t])
+        else:
+            raise ParserError.raise_parse_error('primary', "INTLITERAL", curToken)
 
-@add_debug
-# <id_list> -> <ident> {, <ident>}
-def id_list(curToken, G):
-    children_id_list = []
-    while True:
-        curToken, child_ident = ident(curToken, G)
-        children_id_list.append(child_ident)
-        if curToken.name != "COMMA":
-            return curToken, tree("ID_LIST", children_id_list)
-        curToken = next(G)
+    # <ident> -> ID
+    def ident(self, curToken, G):
+        if curToken.name != "ID":
+            raise ParserError.raise_parse_error("ident", "ID", curToken)
+        self.symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
+                                          'curr_val': None, 'addr_reg': None, 'val_reg': None}
+        t = tree('ID')
+        t.token = curToken
+        return next(G), tree("IDENT", [t])
 
-@add_debug
-# <expr_list> -> <expression> {, <expression>}
-def expr_list(curToken, G):
-    children_expr_list = []
-    while True:
-        curToken, child_expr = expression(curToken, G)
-        children_expr_list.append(child_expr)
-        if curToken.name != "COMMA":
-            return curToken, tree("EXPR_LIST", children_expr_list)
-        curToken = next(G)
-
-@add_debug
-# <expression> -> <primary> {<arith_op> <primary>}
-def expression(curToken, G):
-    children_expr = []
-    while True:
-        curToken, child_primary = primary(curToken, G)
-        children_expr.append(child_primary)
+    # <arith_op> -> + | -
+    def arith_op(self, curToken, G):
         if curToken.t_class != "ARITHOP":
-            return curToken, tree("EXPRESSION", children_expr)
-        curToken, child_arith_op = arith_op(curToken, G)
-        children_expr.append(child_arith_op)
-
-@add_debug
-# <primary> -> (<expression>) | <ident> | INTLITERAL
-def primary(curToken, G):
-    if curToken.name == "LPAREN":
-        curToken, child_expr = expression(next(G), G)
-        if curToken.name != "RPAREN":
-            raiseParserError("primary", ")", curToken)
-        return next(G), tree("PRIMARY", [child_expr])
-    elif curToken.name == "ID":
-        curToken, child_ident = ident(curToken, G)
-        return curToken, tree("PRIMARY", [child_ident])
-    # I flipped this to a positive check just to make
-    # it slightly clearer
-    elif curToken.name == "INTLIT":
-        return next(G), tree("PRIMARY", [INTLITERAL_Leaf(curToken)])
-    else:
-        raiseParserError('primary', "INTLITERAL", curToken)
-
-@add_debug
-# <ident> -> ID
-def ident(curToken, G):
-    if curToken.name != "ID":
-        raiseParserError("ident", "ID", curToken)
-    symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
-                                      'curr_val': None, 'addr_reg': None, 'val_reg': None}
-    return next(G), tree("IDENT", [ID_Leaf(curToken)])
-
-@add_debug
-# <arith_op> -> + | -
-def arith_op(curToken, G):
-    if curToken.t_class != "ARITHOP":
-        raiseParserError("arith_op", "ARITHOP", curToken)
-    return next(G), tree(curToken.name)
+            raise ParserError.raise_parse_error("arith_op", "ARITHOP", curToken)
+        return next(G), tree(curToken.name)
