@@ -19,7 +19,7 @@ Queue for Recent Variables
      - Recursion unrolling
      - Evaluation of variables to see if insturctions can be moved around to better facilitate register management
  ______________________________
- Optimizations:
+ Optimizations
  - Keeping track of current variable values in sym_table to further reduce calls to read from RAM (O1)
    (Since initialization can be done with immediates instead of loading addresses and values)
    - Done for 'int'
