@@ -3,16 +3,22 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
-   <program> -> begin <statement_list> end
-   <statement_list> -> <statement>; { <statement>; }
-   <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
-   <assign> -> <ident> := <expression>
-   <id_list> -> <ident> {, <ident>}
-   <expr_list> -> <expression> {, <expression>}
-   <expression> -> <primary> {<arith_op> <primary>}
-   <primary> -> (<expression>) | <ident> | INTLITERAL
-   <ident> -> ID
-   <arith_op> -> + | -
+    <program>		->	begin <statement list> end
+    <statement list>->	<statement>; { <statement>; }
+    <statement>		->	<assignment> |
+                        <declaration> |
+                        read( <id list> ) |
+                        write( <expr list> )
+    <declaration>	->	TYPE <ident>
+    <assignment>	->	<ident> := <expression>
+    <id list>		->	<ident> {, <ident>}
+    <expr list>		->	<expression> {, <expression> }
+    <expression>	->	<primary> {<arith op> <primary> }
+    <primary>		->	( <expression> ) | <ident> | INTLITERAL |
+                        BOOLLITERAL | STRINGLITERAL
+    <ident>			->	ID
+    <arith op>		->	+ | - | * | / | %
+
 """
 
 from tree import *
@@ -89,7 +95,7 @@ class Parser:
             if curToken.name not in ("READ", "WRITE", "ID"):
                 return curToken, tree("STATEMENT_LIST", children_stmt_list)
 
-    # <statement> -> <assign> | read( <id_list> ) | write( <expr_list> )
+    # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
     def statement(self, curToken, G):
         if curToken.name in ("READ", "WRITE"):
             tokenName = curToken.name
@@ -101,11 +107,21 @@ class Parser:
                 raise ParserError.raise_parse_error("statement", ')', curToken)
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
         # Also done to make this more explicit
-        # if not in read, write, then it is assign (or assign should throw error)
-        else:
+        # if not in read, write, then it is assign or type
+        if curToken.t_class == "TYPE":
+            curToken, child_declaration = self.declaration(curToken, G)
+            return curToken, tree("STATEMENT", [child_declaration])
+        if curToken.t_class == "ID":
             curToken, child_assign = self.assign(curToken, G)
             return curToken, tree("STATEMENT", [child_assign])
-    ################### possible one line optimization ###################
+        raise ParserError.raise_parse_error("statement", 'TYPE or ID', curToken)
+
+    # <declaration>	-> TYPE <ident>
+    def declaration(self, curToken, G):
+        curToken, child_ident = self.ident(curToken, G)
+        t = tree("TYPE")
+        t.token = curToken
+        return curToken, tree("DECLARATION", [t, child_ident])
 
     # <assign> -> <ident> := <expression>
     def assign(self, curToken, G):
@@ -146,7 +162,7 @@ class Parser:
             curToken, child_arith_op = self.arith_op(curToken, G)
             children_expr.append(child_arith_op)
 
-    # <primary> -> (<expression>) | <ident> | INTLITERAL
+    # <primary> -> (<expression>) | <ident> | INTLITERAL | BOOLLITERAL | STRINGLITERAL
     def primary(self, curToken, G):
         if curToken.name == "LPAREN":
             curToken, child_expr = self.expression(next(G), G)
@@ -158,17 +174,19 @@ class Parser:
             return curToken, tree("PRIMARY", [child_ident])
         # I flipped this to a positive check just to make
         # it slightly clearer
-        elif curToken.name == "INTLIT":
-            t = tree('INTLITERAL')
+        elif curToken.name in ("INTLIT", "BOOLLIT", "STRINGLIT"):
+            t = tree(curToken.name)
             t.token = curToken
             return next(G), tree("PRIMARY", [t])
         else:
-            raise ParserError.raise_parse_error('primary', "INTLITERAL", curToken)
+            raise ParserError.raise_parse_error('primary', "ID or LITERALS", curToken)
 
     # <ident> -> ID
     def ident(self, curToken, G):
         if curToken.name != "ID":
             raise ParserError.raise_parse_error("ident", "ID", curToken)
+        
+        ########## add entries to symbol table at the second pass in code gen
         self.symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
                                           'curr_val': None, 'addr_reg': None, 'val_reg': None}
         t = tree('ID')
