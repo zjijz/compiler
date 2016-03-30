@@ -31,6 +31,23 @@ Grammar:
     <bool op>       ->  and | or | not
     <arith op>		->	+ | - | * | / | %
 
+    From class:
+    <expression>    ->  <expression_a>
+                        | <expression_b>
+    <expression_a>	->	<term_a> { <add op> <term_a> }
+    <term_a>        ->  <fact_a> { <mul op> <fact_a> }
+    <fact_a>        ->  ( <expressin_a> )
+                        | <ident>
+                        | INTLIT
+                        | FLOATLIT
+    <expression_b>  ->  <term_b> { or <term_b> }
+                        | <relationship>
+    <term_b>        ->  <fact_b> { and <fact_b> }
+    <fact_b>        ->  ( <expression_b> )
+                        | <ident>
+                        | BOOLLIT
+    <relationship>  ->  <expression_a> <rel op> <expression_a> { <rel op> <expression_b> }
+
 """
 
 from tree import *
