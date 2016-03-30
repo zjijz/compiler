@@ -1,0 +1,10 @@
+# Assignment with Read variable
+# input should be 5
+# Should output 40
+
+begin
+    int x;
+    read(x);
+    int y := x + 35;
+    write(y);
+end

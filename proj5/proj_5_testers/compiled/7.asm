@@ -1,17 +1,17 @@
 .data
-b:	.word	0	# y in original
 a:	.word	0	# x in original
+b:	.word	0	# y in original
 .text
 li $v0, 5
 syscall
-la $s4, a
-lw $t9, 0($s4)
-move $t9, $v0
-move $s1, $t9
-addi $s1, $s1, 35
-la $s3, b
-lw $t7, 0($s3)
-move $t7, $s1
+la $t1, a
+lw $s5, 0($t1)
+move $s5, $v0
+move $t5, $s5
+addi $t5, $t5, 35
+la $t4, b
+lw $t2, 0($t4)
+move $t2, $t5
 li $v0, 1
-move $a0, $t7
+move $a0, $t2
 syscall

@@ -11,6 +11,7 @@ from errors import *
 #  'curr_val': current value (None if used in an operation with a variable from READ)
 #  'addr_reg': temporary register with memory address
 #  'val_reg': temporary register with value
+#  'used': Boolean value if the variable is used and should be outputted in the assembly file
 
 # Register Table (Keys are register names, Values are Dicts themselves)
 #  'id': ID pattern
@@ -150,7 +151,7 @@ class CodeGenerator:
         self._traverse(self.tree)
         self._finish()
 
-    def _create_register_pool(self, type_s):
+    def _create_register_pool(self, type_s = 'normal'):
         pool = []
 
         if type_s == 'aux':
@@ -196,7 +197,7 @@ class CodeGenerator:
 
         return pool
 
-    def _init_reg_table(self, type_s):
+    def _init_reg_table(self, type_s = 'normal'):
         dict = {}
         if type_s == 'aux':
             for reg in self.aux_reg_pool:
@@ -355,7 +356,8 @@ class CodeGenerator:
         # Debug
         if self.debug_mode:
             print('\n', 'Symbol Table: ', self.sym_table, '\n\n', 'Register Table: ', self.reg_table, '\n\n',
-                  'Auxiliary Register Table', self.aux_reg_table, '\n\n', 'Variable Queue: ', self.var_queue, '\n')
+                  'Auxiliary Register Table', self.aux_reg_table, '\n\n', 'Variable Queue: ', self.var_queue, '\n\n'
+                  'FLoat Register Table', self.float_reg_table, '\n')
 
     # Takes a list of id's and writes required code to read input into each
     def _read_id(self, tree_nodes):

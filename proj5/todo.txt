@@ -36,7 +36,7 @@ Queue for Recent Variables
  - None
  ______________________________
  Improvements
- - Pretty Print for sym_table, reg_table, aux_reg_table, and var_queue
+ - Pretty Print for sym_table, reg_table, aux_reg_table, float_reg_table, and var_queue
  - Helper function / class to make dictionaries for use with var_queue
  ______________________________
  Project 6
@@ -51,4 +51,9 @@ Queue for Recent Variables
  - Relational ops
  - New arithmetic ops (unary negation, *, /, %)
  - Mixed int and float expressions (casting int to float implicitly)
-
+______________________________
+Features
+- Static analysis of integers
+- Dynanmic register management
+- Safe mode and unsafe mode (unsafe mode uses registers that are normally supposed to be saved without saving them off)
+- Debug mode that shows debugging on the parser and prints out the code generator tables
