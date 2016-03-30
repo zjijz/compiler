@@ -31,6 +31,8 @@ Grammar:
     <bool op>       ->  and | or | not
     <arith op>		->	+ | - | * | / | %
 
+
+    ***********************BAD***********************
     From class:
     <expression>    ->  <expression_a>
                         | <expression_b>
@@ -48,6 +50,25 @@ Grammar:
                         | BOOLLIT
     <relationship>  ->  <expression_a> <rel op> <expression_a> { <rel op> <expression_b> }
 
+    # Test
+    <expression>    ->  <expr_a>
+                        | <expr_b>
+    <expr_a>        ->  <unary_op> <expr_b>
+    <expr_b>        ->  <term> { <add_op> <term> }
+    <term>          ->  <fact> { <mul_op> <fact> }
+    <fact>          ->  ( <expression> )
+                        | <relationship>
+                        | <ident>
+                        | INTLIT
+                        | FLOATLIT
+                        | BOOLLIT
+                        | STRINGLIT
+    <relationship>  ->  <expression> <rel_op> <expression> { <rel_op> <expression> }
+
+    <unary_op>        ->  + | - | not
+    <add_op>          ->  + | - | or
+    <mul_op>          ->  * | / | % | and
+    <rel_op>          ->  == | != | <= | >= | < | >
 """
 
 from tree import *
