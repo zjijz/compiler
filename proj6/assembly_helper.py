@@ -5,6 +5,7 @@
 def asm_allocate_stack_space(space = 4):
     return asm_add('$sp', '$sp', -space)
 
+
 # Pass in type information to indicate which syscall to use:
 # 5 - read int
 # 6 - read float
@@ -65,12 +66,15 @@ def asm_write(var_reg, var_type):
     elif var_type == 'float':
         ret_asm += asm_reg_set('$f12', var_reg)
     elif var_type == 'double':
-        ret_asm += asm_reg_set('f12', var_reg)
+        ret_asm += asm_reg_set('$f12', var_reg)
     else:
-        ret_asm += asm_reg_set('a0', var_reg)
+        ret_asm += asm_reg_set('$a0', var_reg)
 
     return ret_asm + 'syscall\n'
 
+
+# Used to add two values
+# Includes override for immediates
 def asm_add(r_reg, f_reg, s_reg):
     if type(s_reg) is int:
         return 'addi {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
@@ -78,6 +82,8 @@ def asm_add(r_reg, f_reg, s_reg):
         return 'add {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
+# Used to subtract two values
+# Includes override for immediates
 def asm_sub(r_reg, f_reg, s_reg):
     if type(s_reg) is int:
         return 'subi {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
@@ -85,6 +91,22 @@ def asm_sub(r_reg, f_reg, s_reg):
         return 'sub {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
 
+# Result stored in hi and lo
+# First 32 bits in lo
+# Second 32 bits (overflow) are in hi
+def asm_multiply(f_reg, s_reg):
+    if type(s_reg) is int:
+        return 'multi {:s}, {:d}\n'.format(f_reg, s_reg)
+    else:
+        return 'mult {:s}, {:s}\n'.format(f_reg, s_reg)
+
+
+# Stores result in lo register
+def asm_multiply_int(r_reg, f_reg, s_reg):
+    return 'mul {:s}, {:s}, {:s}'.format(r_reg, f_reg, s_reg)
+
+
+# Load a value from one register to another
 def asm_reg_set(f_reg, s_reg):
     # This branches if s_reg is a register (i.e. string) or an immediate (i.e. int)
     if type(s_reg) is int:
@@ -99,32 +121,33 @@ def asm_load_mem_addr(mem_name, temp_reg):
 
 
 # Assumes mem_name address isn't in memory already
-def asm_read_mem(mem_name, addr_reg, dest_reg, offset = 0):
+def asm_load_mem_var(mem_name, addr_reg, dest_reg, offset = 0):
     return 'la {:s}, {:s}\nlw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, dest_reg, offset, addr_reg)
 
 
 # Assumes mem_addr_reg holds RAM location of desired variable
-def asm_read_mem_addr(mem_addr_reg, dest_reg, offset = 0):
+def asm_load_mem_var_from_addr(mem_addr_reg, dest_reg, offset = 0):
     return 'lw {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
 
 
 # Assumes mem_name address isn't in memory already
-def asm_write_mem(mem_name, addr_reg, var_reg, offset = 0):
+def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
     return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
 
 
 # Assumes mem_addr_reg holds RAM location of desired variable
-def asm_write_mem_addr(mem_addr_reg, var_reg, offset = 0):
+def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
     return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
 
 
-def asm_save_reg_to_stack(reg, offset = 0):
-    return asm_write_mem_addr('$sp', reg, offset)
-
-
+# Load variable from stack
 def asm_load_reg_from_stack(reg, offset = 0):
     return asm_read_mem_addr('$sp', reg, offset)
 
+
+# Save variable to stack
+def asm_save_reg_to_stack(reg, offset = 0):
+    return asm_write_mem_addr('$sp', reg, offset)
 
 # _______________________Helpers________________________
 
@@ -153,3 +176,4 @@ def asm_sub_rep(r_reg, *regs):
     for i in [2..len(regs)]:
         ret_asm += asm_sub(r_reg, r_reg, regs[i])
     return ret_asm
+

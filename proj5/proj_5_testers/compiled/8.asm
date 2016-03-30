@@ -1,50 +1,28 @@
 .data
-c:	.word	0	# z in original
 a:	.word	0	# x in original
+c:	.word	0	# z in original
 b:	.word	0	# y in original
-d:	.word	0	# temp_a in original
 .text
 li $v0, 5
 syscall
-la $t9, a
-lw $t6, 0($t9)
-move $t6, $v0
+la $t8, a
+lw $s4, 0($t8)
+move $s4, $v0
 li $v0, 5
 syscall
-la $t2, b
-lw $t5, 0($t2)
+la $s2, b
+lw $t7, 0($s2)
+move $t7, $v0
+li $v0, 5
+syscall
+la $t3, c
+lw $t5, 0($t3)
 move $t5, $v0
-li $v0, 5
-syscall
-la $t1, c
-lw $t4, 0($t1)
-move $t4, $v0
-move $t0, $t6
-la $t8, d
-sw $t0, 0($t8)
-la $t8, d
-lw $t0, 0($t8)
-addi $t0, $t0, 3
-la $t8, d
-sw $t0, 0($t8)
-la $t8, d
-lw $t0, 0($t8)
-add $t0, $t0, $t5
-la $t8, d
-sw $t0, 0($t8)
-la $t8, d
-lw $t0, 0($t8)
-addi $t0, $t0, 4
-la $t8, d
-sw $t0, 0($t8)
-la $t8, d
-lw $t0, 0($t8)
-add $t0, $t0, $t4
-la $t8, d
-sw $t0, 0($t8)
-la $t8, d
-lw $t0, 0($t8)
-move $t5, $t0
+move $s1, $s4
+add $s1, $s1, $t7
+add $s1, $s1, $t5
+addi $s1, $s1, 7
+move $t7, $s1
 li $v0, 1
-move $a0, $t5
+move $a0, $t7
 syscall

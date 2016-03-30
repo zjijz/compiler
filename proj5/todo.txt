@@ -1,7 +1,4 @@
 Queue for Recent Variables
--When variables are loaded into registers, push them to queue
--When you need to remove a variable from a register to make space,
- the one you remove is whatever the queue pops
 -Could optimize this to better keep variables in registers to minimize
  read/write to RAM
   - LinkedList to be able to easily move values already on list when seeing them?
@@ -28,21 +25,30 @@ Queue for Recent Variables
    - The register would then just have to know it has two values, and save off both whenever the register is freed
  - Add code to track what's in $a0, $a1, and $v0 (use these registers as potential places to store variables)
  - Write a way to evaluate if only the address of a variable is needed (O2)
+ - When variables are initialized using read, they are loaded into memory, even though they don't need to be
+    - because value is null before
+ - Analyzer that looks at an expression and removes unnecessary parenthesis
+    - merges expression siblings with addition or subtraction between the two
+ - Add a 'used' field to the symbol table that allows a variable that was never used to not be written to .data section
+    - i.e. when an immediate is able to be traced
  ______________________________
  Errors
  - None
  ______________________________
  Improvements
  - Pretty Print for sym_table, reg_table, aux_reg_table, and var_queue
- - Abstract and merge _process_id and _assign_id more
-    - these methods are very similar, except one throws a Semantic Error when it finds a variable that isn't initialized
- -  Helper function / class to make dictionaries for use with var_queue
-
- - change all update to reg_table to make use of type
- - add a method that updates the reg_table only (for expr)
- - add a method that updated the sym_table only (for free_register)
- - abstract out the find_free_reg function for sacing address to $s0
- - write a function to load variables/address into registers to allow for better code reuse
- - change read_mem and write_mem to
- - expr function needs to be fixed for efficiency
+ - Helper function / class to make dictionaries for use with var_queue
+ ______________________________
+ Project 6
+ - Bool type (statically analyzed)
+ - String type (rewrite find_free_register and update_tables to update all sym table entries with the same mem_name)
+    - Statically analyze strings, and allow for more than one variable to be mapped to the same 'string'
+ - Float type
+    - build a home-brew decimal to float to normal binary represenation to use float immediates
+    - use $1 ($at) for loading the value using li
+    - then use move to move it to a float register
+ - Bool ops
+ - Relational ops
+ - New arithmetic ops (unary negation, *, /, %)
+ - Mixed int and float expressions (casting int to float implicitly)
 

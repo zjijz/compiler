@@ -5,18 +5,30 @@ Parser for the Micro-language.
 Grammar:
     <program>		->	begin <statement list> end
     <statement list>->	<statement>; { <statement>; }
-    <statement>		->	<assignment> |
-                        <declaration> |
-                        read( <id list> ) |
-                        write( <expr list> )
-    <declaration>	->	TYPE <ident>
+    <statement>		->	<assignment>
+                        | <declaration>
+                        | read( <id list> )
+                        | write( <expr list> )
+    <declaration>	->	TYPE <dec list>
+    <dec list>      ->  <dec term> { , <dec term> }
+    <dec term>      ->  <ident> [ := <expression> ] **ALlowed only once
     <assignment>	->	<ident> := <expression>
     <id list>		->	<ident> {, <ident>}
-    <expr list>		->	<expression> {, <expression> }
-    <expression>	->	<primary> {<arith op> <primary> }
-    <primary>		->	( <expression> ) | <ident> | INTLITERAL |
-                        BOOLLITERAL | STRINGLITERAL
+    <expr list>		->	<expression> { , <expression> }
+    <expression>	->	<primary> { <gen op> <primary> }
+                        | - <primary>
+    <primary>		->	( <expression> )
+                        | <ident>
+                        | INTLIT
+                        | BOOLLIT
+                        | STRINGLIT
+                        | FLOATLIT
     <ident>			->	ID
+    <gen op>        ->  <arith op>
+                        | <rel op>
+                        | <bool op>
+    <rel op>        ->  == | != | <= | >= | < | >
+    <bool op>       ->  and | or | not
     <arith op>		->	+ | - | * | / | %
 
 """
@@ -185,7 +197,7 @@ class Parser:
     def ident(self, curToken, G):
         if curToken.name != "ID":
             raise ParserError.raise_parse_error("ident", "ID", curToken)
-        
+
         ########## add entries to symbol table at the second pass in code gen
         self.symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
                                           'curr_val': None, 'addr_reg': None, 'val_reg': None}
