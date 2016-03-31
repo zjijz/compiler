@@ -24,6 +24,15 @@ Grammar:
                         | STRINGLIT
                         | FLOATLIT
     <ident>			->	ID
+    
+    ExpBool   -> TermBool { or TermBool }         
+    TermBool  -> FactBool { and FactBool }
+    FactBool  -> BOOLIT | ( ExpBool ) | ExpArith R
+    R         -> RELATIONOP ExpArith | lambda
+    ExpArith  -> TermArith { + TermArith }    # Slightly misleading name -- we need to consider all ids to be under this.
+    TermArith -> FactArith { * Fact Arith }
+    FactArith -> id | INTLIT | (ExpArith) 
+    
     <gen op>        ->  <arith op>
                         | <rel op>
                         | <bool op>
@@ -166,12 +175,30 @@ class Parser:
             return curToken, tree("STATEMENT", [child_assign])
         raise ParserError.raise_parse_error("statement", 'TYPE or ID', curToken)
 
-    # <declaration>	-> TYPE <ident>
+    # <declaration>	->	TYPE <dec list>
     def declaration(self, curToken, G):
+        type_tree = tree("TYPE")
+        type_tree.token = curToken
+        curToken, child_dec_list = self.dec_list(next(G), G)
+        return curToken, tree("DECLARATION", [type_tree, child_dec_list])
+
+    # <dec list> -> <dec term> { , <dec term> }
+    def dec_list(self, curToken, G):
+        children_dec_term = []
+        while True:
+            curToken, child_dec_term = self.dec_term(curToken, G)
+            children_dec_term.append(child_dec_term)
+            if curToken.name != "COMMA":
+                return curToken, tree("DEC_LIST", children_dec_term)
+            curToken = next(G)
+
+    # <dec term> -> <ident> [ := <expression> ] **ALlowed only once
+    def dec_term(self, curToken, G):
         curToken, child_ident = self.ident(curToken, G)
-        t = tree("TYPE")
-        t.token = curToken
-        return curToken, tree("DECLARATION", [t, child_ident])
+        if curToken.name == "ASSIGNOP":
+            curToken, child_expr = self.expression(next(G), G)
+            return curToken, tree("DEC_TERM", [child_ident, child_expr])
+        return curToken, tree("DEC_TERM", [child_ident])
 
     # <assign> -> <ident> := <expression>
     def assign(self, curToken, G):
