@@ -11,23 +11,21 @@ Grammar:
                         | write( <expr list> )
     <declaration>	->	TYPE <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
-    <dec term>      ->  <ident> [ := <expression> ] **ALlowed only once
-    <assignment>	->	<ident> := <expression>
+    <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
+    <assignment>	->	<ident> := <expr_bool>
     <id list>		->	<ident> {, <ident>}
-    <expr list>		->	<expr_unary> { , <expr_unary> }
-    <expr_unary>	->	<unary_op> <expression>
-                        | <expression>
-    <expression>    ->  <exp_a>
-                        | <exp_b>
+    <expr list>		->	<expr_bool> { , <expr_bool> }
 
-    <exp_a>         ->  <term_a> { <add_op> <term_a> }
-    <term_a>        ->  <fact_a> { <mul_op> <fact_a> }
-    <fact_a>        ->  <ident> | INTLIT | FLOATLIT | STRINGLIT | ( <exp_a> )
-    <exp_b>         ->  <term_b> { or <term_bool> }
-    <term_b>        ->  <fact_b> { and <fact_b> }
-    <fact_b>        ->  BOOLIT | ( <exp_b> ) | <exp_a> <relation_a> | <exp_b> <relation_b>
-    <relation_a>    ->  <rel_op> <exp_a> | lambda
-    <relation_b>    ->  <equal_op> <exp_b>
+    <expr_bool>     ->  <term_bool> { or <term_bool> }
+    <term_bool>     ->  <expr_eq> { and <expr_eq> }
+    <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
+    <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+
+    <expr_arith>    ->  <term_arith> { <add_op> <term_arith> }
+    <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
+    <fact_arith>    ->  <unary_op> <term_unary>
+                        | <term_unary>
+    <term_unary>    ->  INTLIT | FLOATLIT | STRINGLIT | <ident> | (expr_bool)
 
     # Everything under this needs to store the token in the tree node
     <ident>			->	ID
