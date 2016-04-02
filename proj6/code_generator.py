@@ -104,6 +104,11 @@ class CodeGenerator:
     def _empty_aux_reg_dict():
         return {'id': None, 'val': None, 'mem_type': None}
 
+    @staticmethod
+    def _empty_sym_table():
+        return {'type': None, 'scope': None, 'mem_name': None, 'init_val': None,
+                'curr_val': None, 'addr_reg': None, 'val_reg': None, 'used': False}
+
     def __init__(self, parse_tree, symbol_table, output_filename, is_debug, is_safe):
         # Compiler Flags
         self.debug_mode = is_debug
