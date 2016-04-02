@@ -6,12 +6,13 @@ class tree:
     with zero or more trees as children
     """
 
-    def __init__(self, label, children = None):
+    def __init__(self, label, children = None, token = None):
         """
         Tree constructor
         """
         self.label = label
         self.children = children if children != None else []
+        self.token = token
 
     def _str_helper(self):
 
