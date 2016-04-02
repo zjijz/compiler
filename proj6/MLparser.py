@@ -14,70 +14,31 @@ Grammar:
     <dec term>      ->  <ident> [ := <expression> ] **ALlowed only once
     <assignment>	->	<ident> := <expression>
     <id list>		->	<ident> {, <ident>}
-    <expr list>		->	<expression> { , <expression> }
-    <expression>	->	<primary> { <gen op> <primary> }
-                        | - <primary>
-    <primary>		->	( <expression> )
-                        | <ident>
-                        | INTLIT
-                        | BOOLLIT
-                        | STRINGLIT
-                        | FLOATLIT
-    <ident>			->	ID
-    
-    ExpBool   -> TermBool { or TermBool }         
-    TermBool  -> FactBool { and FactBool }
-    FactBool  -> BOOLIT | ( ExpBool ) | ExpArith R
-    R         -> RELATIONOP ExpArith | lambda
-    ExpArith  -> TermArith { + TermArith }    # Slightly misleading name -- we need to consider all ids to be under this.
-    TermArith -> FactArith { * Fact Arith }
-    FactArith -> id | INTLIT | (ExpArith) 
-    
-    <gen op>        ->  <arith op>
-                        | <rel op>
-                        | <bool op>
-    <rel op>        ->  == | != | <= | >= | < | >
-    <bool op>       ->  and | or | not
-    <arith op>		->	+ | - | * | / | %
+    <expr list>		->	<expr_unary> { , <expr_unary> }
+    <expr_unary>	->	<unary_op> <expression>
+                        | <expression>
+    <expression>    ->  <exp_a>
+                        | <exp_b>
 
-
-    ***********************BAD***********************
-    From class:
-    <expression>    ->  <expression_a>
-                        | <expression_b>
-    <expression_a>	->	<term_a> { <add op> <term_a> }
-    <term_a>        ->  <fact_a> { <mul op> <fact_a> }
-    <fact_a>        ->  ( <expressin_a> )
-                        | <ident>
-                        | INTLIT
-                        | FLOATLIT
-    <expression_b>  ->  <term_b> { or <term_b> }
-                        | <relationship>
+    <exp_a>         ->  <term_a> { <add_op> <term_a> }
+    <term_a>        ->  <fact_a> { <mul_op> <fact_a> }
+    <fact_a>        ->  <ident> | INTLIT | FLOATLIT | STRINGLIT | ( <exp_a> )
+    <exp_b>         ->  <term_b> { or <term_bool> }
     <term_b>        ->  <fact_b> { and <fact_b> }
-    <fact_b>        ->  ( <expression_b> )
-                        | <ident>
-                        | BOOLLIT
-    <relationship>  ->  <expression_a> <rel op> <expression_a> { <rel op> <expression_b> }
+    <fact_b>        ->  BOOLIT | ( <exp_b> ) | <exp_a> <relation_a> | <exp_b> <relation_b>
+    <relation_a>    ->  <rel_op> <exp_a> | lambda
+    <relation_b>    ->  <equal_op> <exp_b>
 
-    # Test
-    <expression>    ->  <expr_a>
-                        | <expr_b>
-    <expr_a>        ->  <unary_op> <expr_b>
-    <expr_b>        ->  <term> { <add_op> <term> }
-    <term>          ->  <fact> { <mul_op> <fact> }
-    <fact>          ->  ( <expression> )
-                        | <relationship>
-                        | <ident>
-                        | INTLIT
-                        | FLOATLIT
-                        | BOOLLIT
-                        | STRINGLIT
-    <relationship>  ->  <expression> <rel_op> <expression> { <rel_op> <expression> }
-
-    <unary_op>        ->  + | - | not
-    <add_op>          ->  + | - | or
-    <mul_op>          ->  * | / | % | and
-    <rel_op>          ->  == | != | <= | >= | < | >
+    # Everything under this needs to store the token in the tree node
+    <ident>			->	ID
+    # Order is operator preference
+    <unary_op>      ->  + | - | not
+    <mul_op>        ->  * | / | %
+    <add_op>		->	+ | -
+    <rel_op>        ->  <= | >= | < | >
+    <equal_op>      ->  == | !=
+    <log_mul_op>    ->  and
+    <log_add_op>    ->  or
 """
 
 from tree import *
