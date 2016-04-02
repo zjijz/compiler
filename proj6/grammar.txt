@@ -1,15 +1,36 @@
 <program>		->	begin <statement list> end
-<statement list>	->	<statement>; { <statement>; }
-<statement>		->	<assignment> |
-				<declaration> |
-				read( <id list> ) |
-				write( <expr list> )
-<declaration>		->	TYPE <ident>
-<assignment>		->	<ident> := <expression>
+<statement list>->	<statement>; { <statement>; }
+<statement>		->	<assignment>
+                    | <declaration>
+                    | read( <id list> )
+                    | write( <expr list> )
+<declaration>	->	<type> <dec list>
+<dec list>      ->  <dec term> { , <dec term> }
+<dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
+<assignment>	->	<ident> := <expr_bool>
 <id list>		->	<ident> {, <ident>}
-<expr list>		->	<expression> {, <expression> }
-<expression>		->	<primary> {<arith op> <primary> }
-<primary>		->	( <expression> ) | <ident> | INTLITERAL |
-				BOOLLITERAL | STRINGLITERAL
+<expr list>		->	<expr_bool> { , <expr_bool> }
+
+<expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
+<term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
+<expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
+<expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+
+<expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
+<term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
+<fact_arith>    ->  <unary_op> <term_unary>
+                    | <unary_add_op> <term_unary> | <term_unary>
+<term_unary>    ->  <literals> | <ident> | (expr_bool)
+
+# Everything under this needs to store the token in the tree node
+<type>          ->  INT | FLOAT | STRING | BOOL
 <ident>			->	ID
-<arith op>		->	+ | - | * | / | %
+# Order is operator preference
+<literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
+<unary_op>      ->  LOG_NEGATION
+<mul_op>        ->  MULTIPLY | DIVIDE | MODULO
+<add_op>		->	ADD | MINUS
+<rel_op>        ->  LESS_EQUAL | GREATER_EQUAL | LESS | GREATER
+<equal_op>      ->  EQUAL | NOT_EQUAL
+<log_and>       ->  LOG_AND
+<log_or>        ->  LOG_OR
