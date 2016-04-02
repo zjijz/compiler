@@ -33,6 +33,14 @@ from errors import *
 #   'id': ID pattern
 #   'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
 
+# Array Sym Table
+# Keeps track of arrays/strings
+# - Keys are the array or string
+# - 'mem_name': MIPs variable name
+# - 'type': output type (.ascii, .asciiz, or array type (=.word))
+# - 'addr_reg': register that holds address to oth index
+# - 'used: True | False
+
 # Courtesy of Dr. Karro
 def next_variable_name(curr_name):
    curr_name_len = len(curr_name)
@@ -120,7 +128,10 @@ class CodeGenerator:
 
         # Stuff from Parser
         self.tree = parse_tree
-        self.sym_table = symbol_table
+
+        # Symbol Tables
+        self.sym_table = {}
+        self.array_sym_table = {}
 
         # Registers
         self.reg_pool = self._create_register_pool()
@@ -339,17 +350,29 @@ class CodeGenerator:
         for id in self.sym_table:
             id_dict = self.sym_table[id]
 
-            type = id_dict['type']
-            scope = id_dict['scope']
-            name = id_dict['mem_name']
-            init_val = id_dict['init_val']
+            if id_dict['used']:
+                type = id_dict['type']
+                scope = id_dict['scope']
+                name = id_dict['mem_name']
+                init_val = id_dict['init_val']
 
-            # Variables can only be integers right now
-            # CHANGE THIS WHEN MORE TYPES ARE ADDED
-            o_type = '.word'
+                # Variables can be:
+                # - ints, floats (words)
+                # - booleans -> static analysis with strings
+                # - stirngs -> different sym table
+                o_type = '.word'
 
-            data_section += '{:s}:\t{:s}\t{:d}\t# {:s} in original\n'\
-                            .format(name, o_type, init_val if init_val else 0, id)
+                data_section += '{:s}:\t{:s}\t{:d}\t# {:s} in original\n'\
+                                .format(name, o_type, init_val if init_val else 0, id)
+
+        for string in self.array_sym_table:
+            id_dict = self.array_sym_table[string]
+
+            if id_dict['used']:
+                name = id_dict['mem_name']
+                o_type = id_dict['type']
+
+                data_section += '{:s}:\t{:s}\t{:s}\t'.format(name, o_type, string)
 
         self.output_string = data_section + self.output_string
 

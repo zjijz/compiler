@@ -51,6 +51,11 @@ Queue for Recent Variables
  - Relational ops
  - New arithmetic ops (unary negation, *, /, %)
  - Mixed int and float expressions (casting int to float implicitly)
+
+ - Make sure assignment no longer declares variables
+ - Change all references to the symbol table to do a try/catch and throw a Semantic not declared error instead of KeyError
+    - Abstract this call to a function
+ - Rewrite <expression> and <primary> to be <exp_b>, <exp_eq>, <exp_rel>, <exp_a>, <term_b>, <term_a>, <fact_a>, <exp_u>, <term_u>
 ______________________________
 Features
 - Static analysis of integers
