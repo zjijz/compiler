@@ -9,37 +9,36 @@ Grammar:
                         | <declaration>
                         | read( <id list> )
                         | write( <expr list> )
-
-    <id list>		->	<ident> {, <ident>}
-    <expr list>		->	<expr_bool> { , <expr_bool> }
-
-    <declaration>	->	TYPE <dec list>
+    <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
     <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
     <assignment>	->	<ident> := <expr_bool>
+    <id list>		->	<ident> {, <ident>}
+    <expr list>		->	<expr_bool> { , <expr_bool> }
 
-
-    <expr_bool>     ->  <term_bool> { or <term_bool> }
-    <term_bool>     ->  <expr_eq> { and <expr_eq> }
+    <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
+    <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
     <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
     <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
 
-    <expr_arith>    ->  <term_arith> { <add_op> <term_arith> }
+    <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
     <fact_arith>    ->  <unary_op> <term_unary>
-                        | <term_unary>
-    <term_unary>    ->  INTLIT | FLOATLIT | STRINGLIT | <ident> | (expr_bool)
+                        | <unary_add_op> <term_unary> | <term_unary>
+    <term_unary>    ->  <literals> | <ident> | (expr_bool)
 
     # Everything under this needs to store the token in the tree node
+    <type>          ->  INT | FLOAT | STRING | BOOL
     <ident>			->	ID
     # Order is operator preference
-    <unary_op>      ->  + | - | not
-    <mul_op>        ->  * | / | %
-    <add_op>		->	+ | -
-    <rel_op>        ->  <= | >= | < | >
-    <equal_op>      ->  == | !=
-    <log_mul_op>    ->  and
-    <log_add_op>    ->  or
+    <literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
+    <unary_op>      ->  LOG_NEGATION
+    <mul_op>        ->  MULTIPLY | DIVIDE | MODULO
+    <add_op>		->	ADD | MINUS
+    <rel_op>        ->  LESS_EQUAL | GREATER_EQUAL | LESS | GREATER
+    <equal_op>      ->  EQUAL | NOT_EQUAL
+    <log_and>       ->  LOG_AND
+    <log_or>        ->  LOG_OR
 """
 
 from tree import *
@@ -53,10 +52,10 @@ def add_class_debug(klass):
     class DebuggedClass(klass):
         @staticmethod
         def add_debug(fn):
-            def debugged_fn(self, curToken, G):
-                print(" "*self.recursion_level + "Entering: %s (%s)" % (fn.__name__, curToken))
+            def debugged_fn(self, cur_token, G):
+                print(" "*self.recursion_level + "Entering: %s (%s)" % (fn.__name__, cur_token))
                 self.recursion_level += 3
-                R = fn(self, curToken, G)
+                R = fn(self, cur_token, G)
                 self.recursion_level -= 3
                 print(" "*self.recursion_level + "Leaving: %s" % (fn.__name__))
                 return R
@@ -88,152 +87,206 @@ class Parser:
         """
         self.symbol_table.clear()
         G = Lexer(source_file, token_file).lex()
-        curToken, t = self.program(next(G), G)
-        if (curToken.name != "$"):
+        cur_token, t = self.program(next(G), G)
+        if (cur_token.name != "$"):
             raise ParserError.raise_redundant_tokens_error('There are redundant tokens at the end of the program, '
                               'starting with: %s\nLine num: %d, column num: %d'
-                              %(curToken.line, curToken.line_num, curToken.col))
+                              %(cur_token.line, cur_token.line_num, cur_token.col))
         return t, self.symbol_table
 
     # <program> -> begin <statement_list> end
-    def program(self, curToken, G):
-        if curToken.name != "BEGIN":
-            raise ParserError.raise_parse_error("program", "begin", curToken)
-        curToken, tree_stmt_list = self.statement_list(next(G), G)
-        if curToken.name != "END":
-            raise ParserError.raise_parse_error("program", "end", curToken)
+    def program(self, cur_token, G):
+        if cur_token.name != "BEGIN":
+            raise ParserError.raise_parse_error("program", "begin", cur_token)
+        cur_token, tree_stmt_list = self.statement_list(next(G), G)
+        if cur_token.name != "END":
+            raise ParserError.raise_parse_error("program", "end", cur_token)
         return next(G), tree("PROGRAM", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
     # <statement_list> -> <statement>; { <statement>; }
-    def statement_list(self, curToken, G):
+    def statement_list(self, cur_token, G):
         children_stmt_list = []
         while True:
-            curToken, child_stmt = self.statement(curToken, G)
-            if curToken.name != "SEMICOLON":
-                raise ParserError.raise_parse_error("statement_list", ";", curToken)
+            cur_token, child_stmt = self.statement(cur_token, G)
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
-            curToken = next(G)
-            if curToken.name not in ("READ", "WRITE", "ID"):
-                return curToken, tree("STATEMENT_LIST", children_stmt_list)
+            cur_token = next(G)
+            if cur_token.name not in ("READ", "WRITE", "ID"):
+                return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
     # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
-    def statement(self, curToken, G):
-        if curToken.name in ("READ", "WRITE"):
-            tokenName = curToken.name
-            curToken = next(G)
-            if curToken.name != "LPAREN":
-                raise ParserError.raise_parse_error("statement", '(', curToken)
-            curToken, child_id_list_or_expr_list = self.id_list(next(G), G) if tokenName == "READ" else self.expr_list(next(G), G)
-            if curToken.name != "RPAREN":
-                raise ParserError.raise_parse_error("statement", ')', curToken)
+    def statement(self, cur_token, G):
+        if cur_token.name in ("READ", "WRITE"):
+            tokenName = cur_token.name
+            cur_token = next(G)
+            if cur_token.name != "LPAREN":
+                raise ParserError.raise_parse_error("STATEMENT", '(', cur_token)
+            cur_token, child_id_list_or_expr_list = self.id_list(next(G), G) if tokenName == "READ" else self.expr_list(next(G), G)
+            if cur_token.name != "RPAREN":
+                raise ParserError.raise_parse_error("STATEMENT", ')', cur_token)
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
         # Also done to make this more explicit
         # if not in read, write, then it is assign or type
-        if curToken.t_class == "TYPE":
-            curToken, child_declaration = self.declaration(curToken, G)
-            return curToken, tree("STATEMENT", [child_declaration])
-        if curToken.t_class == "ID":
-            curToken, child_assign = self.assign(curToken, G)
-            return curToken, tree("STATEMENT", [child_assign])
-        raise ParserError.raise_parse_error("statement", 'TYPE or ID', curToken)
+        if cur_token.t_class == "TYPE":
+            cur_token, child_declaration = self.declaration(cur_token, G)
+            return cur_token, tree("STATEMENT", [child_declaration])
+        if cur_token.t_class == "ID":
+            cur_token, child_assign = self.assign(cur_token, G)
+            return cur_token, tree("STATEMENT", [child_assign])
+        raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID', cur_token)
 
-    # <declaration>	->	TYPE <dec list>
-    def declaration(self, curToken, G):
-        type_tree = tree("TYPE")
-        type_tree.token = curToken
-        curToken, child_dec_list = self.dec_list(next(G), G)
-        return curToken, tree("DECLARATION", [type_tree, child_dec_list])
+    # <declaration>	-> <type> <dec list>
+    def declaration(self, cur_token, G):
+        if cur_token.t_class != "TYPE":
+            raise ParserError.raise_parse_error("DECLARATION", "TYPE", cur_token)
+        type_tree = tree("TYPE", [], cur_token)
+        cur_token, child_dec_list = self.dec_list(next(G), G)
+        return cur_token, tree("DECLARATION", [type_tree, child_dec_list])
 
     # <dec list> -> <dec term> { , <dec term> }
-    def dec_list(self, curToken, G):
+    def dec_list(self, cur_token, G):
         children_dec_term = []
         while True:
-            curToken, child_dec_term = self.dec_term(curToken, G)
+            cur_token, child_dec_term = self.dec_term(cur_token, G)
             children_dec_term.append(child_dec_term)
-            if curToken.name != "COMMA":
-                return curToken, tree("DEC_LIST", children_dec_term)
-            curToken = next(G)
+            if cur_token.name != "COMMA":
+                return cur_token, tree("DEC_LIST", children_dec_term)
+            cur_token = next(G)
 
     # <dec term> -> <ident> [ := <expression> ] **ALlowed only once
-    def dec_term(self, curToken, G):
-        curToken, child_ident = self.ident(curToken, G)
-        if curToken.name == "ASSIGNOP":
-            curToken, child_expr = self.expression(next(G), G)
-            return curToken, tree("DEC_TERM", [child_ident, child_expr])
-        return curToken, tree("DEC_TERM", [child_ident])
+    def dec_term(self, cur_token, G):
+        cur_token, child_ident = self.ident(cur_token, G)
+        if cur_token.name == "ASSIGNOP":
+            cur_token, child_expr = self.expression(next(G), G)
+            return cur_token, tree("DEC_TERM", [child_ident, child_expr])
+        return cur_token, tree("DEC_TERM", [child_ident])
 
-    # <assign> -> <ident> := <expression>
-    def assign(self, curToken, G):
-        curToken, child_ident = self.ident(curToken, G)
-        if curToken.name != "ASSIGNOP":
-            raise ParserError.raise_parse_error("assign", ":=", curToken)
-        curToken, child_expr = self.expression(next(G), G)
-        return curToken, tree("ASSIGN", [child_ident, child_expr])
+    # <assignment> -> <ident> := <expr_bool>
+    def assign(self, cur_token, G):
+        cur_token, child_ident = self.ident(cur_token, G)
+        if cur_token.name != "ASSIGNOP":
+            raise ParserError.raise_parse_error("ASSIGN", ":=", cur_token)
+        cur_token, child_expr_bool = self.expr_bool(next(G), G)
+        return cur_token, tree("ASSIGN", [child_ident, child_expr_bool])
 
     # <id_list> -> <ident> {, <ident>}
-    def id_list(self, curToken, G):
+    def id_list(self, cur_token, G):
         children_id_list = []
         while True:
-            curToken, child_ident = self.ident(curToken, G)
+            cur_token, child_ident = self.ident(cur_token, G)
             children_id_list.append(child_ident)
-            if curToken.name != "COMMA":
-                return curToken, tree("ID_LIST", children_id_list)
-            curToken = next(G)
+            if cur_token.name != "COMMA":
+                return cur_token, tree("ID_LIST", children_id_list)
+            cur_token = next(G)
 
-    # <expr_list> -> <expression> {, <expression>}
-    def expr_list(self, curToken, G):
+    # <expr list> -> <expr_bool> { , <expr_bool> }
+    def expr_list(self, cur_token, G):
         children_expr_list = []
         while True:
-            curToken, child_expr = self.expression(curToken, G)
-            children_expr_list.append(child_expr)
-            if curToken.name != "COMMA":
-                return curToken, tree("EXPR_LIST", children_expr_list)
-            curToken = next(G)
+            cur_token, child_expr_bool = self.expr_bool(cur_token, G)
+            children_expr_list.append(child_expr_bool)
+            if cur_token.name != "COMMA":
+                return cur_token, tree("EXPR_LIST", children_expr_list)
+            cur_token = next(G)
 
-    # <expression> -> <primary> {<arith_op> <primary>}
-    def expression(self, curToken, G):
-        children_expr = []
+    # <expr_bool> -> <term_bool> { <log_or> <term_bool> }
+    def expr_bool(self, cur_token, G):
+        children_expr_bool = []
         while True:
-            curToken, child_primary = self.primary(curToken, G)
-            children_expr.append(child_primary)
-            if curToken.t_class != "ARITHOP":
-                return curToken, tree("EXPRESSION", children_expr)
-            curToken, child_arith_op = self.arith_op(curToken, G)
-            children_expr.append(child_arith_op)
+            cur_token, child_term_bool = self.term_bool(cur_token, G)
+            children_expr_bool.append(child_term_bool)
+            if cur_token.t_class != "LOG_OR":
+                return cur_token, tree("EXPR_BOOL", children_expr_bool)
+            children_expr_bool.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
 
-    # <primary> -> (<expression>) | <ident> | INTLITERAL | BOOLLITERAL | STRINGLITERAL
-    def primary(self, curToken, G):
-        if curToken.name == "LPAREN":
-            curToken, child_expr = self.expression(next(G), G)
-            if curToken.name != "RPAREN":
-                raise ParserError.raise_parse_error("primary", ")", curToken)
-            return next(G), tree("PRIMARY", [child_expr])
-        elif curToken.name == "ID":
-            curToken, child_ident = self.ident(curToken, G)
-            return curToken, tree("PRIMARY", [child_ident])
+    # <term_bool> -> <expr_eq> { <log_and> <expr_eq> }
+    def term_bool(self, cur_token, G):
+        children_term_bool = []
+        while True:
+            cur_token, child_expr_eq = self.expr_eq(cur_token, G)
+            children_term_bool.append(child_expr_eq)
+            if cur_token.t_class != "LOG_AND":
+                return cur_token, tree("TERM_BOOL", children_term_bool)
+            children_term_bool.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <expr_eq> -> <expr_relation> { <equal_op> <expr_relation> }
+    def expr_eq(self, cur_token, G):
+        children_expr_eq = []
+        while True:
+            cur_token, child_expr_relation = self.expr_relation(cur_token, G)
+            children_expr_eq.append(child_expr_relation)
+            if cur_token.t_class != "EQUAL_OP":
+                return cur_token, tree("EXPR_EQ", children_expr_eq)
+            children_expr_eq.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    def expr_relation(self, cur_token, G):
+        children_expr_relation = []
+        while True:
+            cur_token, child_expr_arith = self.expr_arith(cur_token, G)
+            children_expr_relation.append(child_expr_arith)
+            if cur_token.t_class != "REL_OP":
+                return cur_token, tree("EXPR_RELATION", children_expr_relation)
+            children_expr_relation.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <expr_arith> -> <term_arith> { <unary_add_op> <term_arith> }
+    def expr_arith(self, cur_token, G):
+        children_expr_arith = []
+        while True:
+            cur_token, child_term_arith = self.term_arith(cur_token, G)
+            children_expr_arith.append(child_term_arith)
+            if cur_token.t_class != "UNARY_ADD_OP":
+                return cur_token, tree("EXPR_ARITH", children_expr_arith)
+            children_expr_arith.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <term_arith> -> <fact_arith> { <mul_op> <fact_arith> }
+    def term_arith(self, cur_token, G):
+        children_term_arith = []
+        while True:
+            cur_token, child_fact_arith = self.fact_arith(cur_token, G)
+            children_term_arith.append(child_fact_arith)
+            if cur_token.t_class != "MUL_OP":
+                return cur_token, tree("TERM_ARITH", children_term_arith)
+            children_term_arith.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <fact_arith> -> <unary_op> <term_unary>
+    #                 | <unary_add_op> <term_unary> | <term_unary>
+    def fact_arith(self, cur_token, G):
+        children_fact_arith = []
+        while True:
+            cur_token, child_term_unary = self.term_unary(cur_token, G)
+            children_fact_arith.append(child_term_unary)
+            if cur_token.t_class not in ("UNARY_OP", "UNARY_ADD_OP"):
+                return cur_token, tree("FACT_ARITH", children_fact_arith)
+            children_fact_arith.append(tree(cur_token.name, [], cur_token))
+            cur_token = next(G)
+
+    # <term_unary> -> <literal> | <ident> | (expr_bool)
+    def term_unary(self, cur_token, G):
+        if cur_token.name == "LPAREN":
+            cur_token, child_expr_bool = self.expression(next(G), G)
+            if cur_token.name != "RPAREN":
+                raise ParserError.raise_parse_error("TERM_UNARY", ")", cur_token)
+            return next(G), tree("TERM_UNARY", [child_expr_bool])
+        elif cur_token.name == "ID":
+            cur_token, child_ident = self.ident(cur_token, G)
+            return cur_token, tree("TERM_UNARY", [child_ident])
         # I flipped this to a positive check just to make
         # it slightly clearer
-        elif curToken.name in ("INTLIT", "BOOLLIT", "STRINGLIT"):
-            t = tree(curToken.name)
-            t.token = curToken
-            return next(G), tree("PRIMARY", [t])
+        elif cur_token.t_class == "LITERAL":
+            return next(G), tree("TERM_UNARY", [tree(cur_token.name, [], cur_token)])
         else:
-            raise ParserError.raise_parse_error('primary', "ID or LITERALS", curToken)
+            raise ParserError.raise_parse_error('TERM_UNARY', "ID or LITERAL", cur_token)
 
     # <ident> -> ID
-    def ident(self, curToken, G):
-        if curToken.name != "ID":
-            raise ParserError.raise_parse_error("ident", "ID", curToken)
-
-        ########## add entries to symbol table at the second pass in code gen
-        self.symbol_table[curToken.pattern] = {'type': 'int', 'scope': None, 'mem_name': None, 'init_val': None,
-                                          'curr_val': None, 'addr_reg': None, 'val_reg': None}
-        t = tree('ID')
-        t.token = curToken
-        return next(G), tree("IDENT", [t])
-
-    # <arith_op> -> + | -
-    def arith_op(self, curToken, G):
-        if curToken.t_class != "ARITHOP":
-            raise ParserError.raise_parse_error("arith_op", "ARITHOP", curToken)
-        return next(G), tree(curToken.name)
+    def ident(self, cur_token, G):
+        if cur_token.name != "ID":
+            raise ParserError.raise_parse_error("IDENT", "ID", cur_token)
+        return next(G), tree("IDENT", [tree("ID", [], cur_token)])
