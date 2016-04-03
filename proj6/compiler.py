@@ -8,9 +8,9 @@ def compiler(source, tokens, output, is_debug, is_safe):
     if is_debug:
         # For testing
         print('Compiling "{:s}" into "{:s}" using "{:s}" for tokens\n'.format(source, output, tokens))
-    CodeGenerator(*Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
 
- 
+
 if __name__ == "__main__":  # Only true if program invoked from the command line
 
     # Use the argparse library to parse the commandline arguments
@@ -22,9 +22,9 @@ if __name__ == "__main__":  # Only true if program invoked from the command line
     parser.set_defaults(safe_mode=False, debug_mode=False)
     parser.add_argument('source_file', type = str,
                         help = "Source-code file", default = 'tokens.txt')
-    parser.add_argument('output_file', type = str, 
+    parser.add_argument('output_file', type = str,
                         help = 'output file name')
-    
+
     args = parser.parse_args()
 
     # Call the compiler function

@@ -9,10 +9,13 @@ Grammar:
                         | <declaration>
                         | read( <id list> )
                         | write( <expr list> )
+
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
     <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
+
     <assignment>	->	<ident> := <expr_bool>
+
     <id list>		->	<ident> {, <ident>}
     <expr list>		->	<expr_bool> { , <expr_bool> }
 
