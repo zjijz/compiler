@@ -262,19 +262,17 @@ class Parser:
     # <fact_arith> -> <unary_op> <term_unary>
     #                 | <unary_add_op> <term_unary> | <term_unary>
     def fact_arith(self, cur_token, G):
-        children_fact_arith = []
-        while True:
+        if cur_token.t_class in {'UNARY_OP', 'UNARY_ADD_OP'}:
+            next_token, child_term_unary = self.term_unary(next(G), G)
+            return next_token, tree('FACT_ARITH', [tree(cur_token.name), child_term_unary])
+        else:
             cur_token, child_term_unary = self.term_unary(cur_token, G)
-            children_fact_arith.append(child_term_unary)
-            if cur_token.t_class not in ("UNARY_OP", "UNARY_ADD_OP"):
-                return cur_token, tree("FACT_ARITH", children_fact_arith)
-            children_fact_arith.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            return cur_token, tree('FACT_ARITH', [child_term_unary])
 
     # <term_unary> -> <literal> | <ident> | (expr_bool)
     def term_unary(self, cur_token, G):
         if cur_token.name == "LPAREN":
-            cur_token, child_expr_bool = self.expression(next(G), G)
+            cur_token, child_expr_bool = self.expr_bool(next(G), G)
             if cur_token.name != "RPAREN":
                 raise ParserError.raise_parse_error("TERM_UNARY", ")", cur_token)
             return next(G), tree("TERM_UNARY", [child_expr_bool])

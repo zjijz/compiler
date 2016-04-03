@@ -784,8 +784,29 @@ class CodeGenerator:
 
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
-    def _process_term_unary(self, tree_nodes):
-        # len(tree_nodes) == 1
+    def _process_term_unary(self, term_node):
+        # len(term_node) == 1
+        child = term_node[0].children
+        token = child.token
+
+        if token.t_class == 'LITERAL': # If token is a literal
+            literal = token.pattern
+
+            # Check int, float, bool, string
+            try:
+                return int(literal), 'int', token
+            except ValueError:
+                try:
+                    return float(literal), 'float', token
+                except ValueError:
+                    try:
+                        return bool(literal), 'bool', token
+                    except ValueError:
+                        return literal, 'string', token
+        elif token.t_class == 'IDENTIFIER': # If token is an id
+            return self._process_id(token)
+        else: # if token is <expr_bool>
+            return self._process_expr_bool(child.children)
 
 
     # Takes a full ID token
