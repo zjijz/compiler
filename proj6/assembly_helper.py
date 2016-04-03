@@ -358,19 +358,6 @@ def asm_sub_rep(r_reg, *regs):
     return ret_asm
 
 
-# Helper that loads f_reg into a register
-def asm_negate_helper(r_reg, f_reg, free_reg):
-    ret_asm = ''
-
-    if type(f_reg) is int:
-        ret_asm += asm_reg_set(free_reg, f_reg)
-        ret_asm += asm_log_xor(r_reg, free_reg, 1)
-    else:
-        ret_asm = asm_log_negate(r_reg, f_reg)
-
-    return ret_asm
-
-
 # Helper that will convert an int to a float
 def asm_cast_int_to_float(f_reg, i_reg):
     if type(i_reg) is int:

@@ -21,8 +21,8 @@ Grammar:
 
     <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
-    <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
-    <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
+    <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
 
     <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
@@ -215,27 +215,28 @@ class Parser:
             children_term_bool.append(tree(cur_token.name, [], cur_token))
             cur_token = next(G)
 
-    # <expr_eq> -> <expr_relation> { <equal_op> <expr_relation> }
+    # <expr_eq> -> <expr_relation> [ <equal_op> <expr_relation> ]
     def expr_eq(self, cur_token, G):
         children_expr_eq = []
-        while True:
-            cur_token, child_expr_relation = self.expr_relation(cur_token, G)
-            children_expr_eq.append(child_expr_relation)
-            if cur_token.t_class != "EQUAL_OP":
-                return cur_token, tree("EXPR_EQ", children_expr_eq)
+        cur_token, child_expr_relation = self.expr_relation(cur_token, G)
+        children_expr_eq.append(child_expr_relation)
+        if cur_token.t_class == 'EQUAL_OP':
             children_expr_eq.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_relation = self.expr_relation(next(G), G)
+            children_expr_eq.append(child_expr_relation)
+        return cur_token, tree('EXPR_EQ', children_expr_eq)
 
-    # <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     def expr_relation(self, cur_token, G):
         children_expr_relation = []
-        while True:
-            cur_token, child_expr_arith = self.expr_arith(cur_token, G)
-            children_expr_relation.append(child_expr_arith)
-            if cur_token.t_class != "REL_OP":
-                return cur_token, tree("EXPR_RELATION", children_expr_relation)
+        cur_token, child_expr_arith = self.expr_arith(cur_token, G)
+        children_expr_relation.append(child_expr_arith)
+        if cur_token.t_class == 'REL_OP':
             children_expr_relation.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_arith = self.expr_arith(next(G), G)
+            children_expr_relation.append(child_expr_arith)
+        return cur_token, tree('EXPR_RELATION', children_expr_relation)
+
 
     # <expr_arith> -> <term_arith> { <unary_add_op> <term_arith> }
     def expr_arith(self, cur_token, G):
