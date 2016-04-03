@@ -138,9 +138,6 @@ class CodeGenerator:
         self.array_sym_table = {}
 
         # Registers
-        self.reg_pool = self._create_register_pool()
-        self.aux_reg_pool = self._create_register_pool('aux')
-        self.float_reg_pool = self._create_register_pool('float')
         self.reg_table = self._init_reg_table()
         self.aux_reg_table = self._init_reg_table('aux')
         self.float_reg_table = self._init_reg_table('float')
@@ -220,14 +217,13 @@ class CodeGenerator:
         return pool
 
     def _init_reg_table(self, type_s = 'normal'):
-        dict = {}
-        if type_s == 'aux':
-            for reg in self.aux_reg_pool:
-                dict[reg] = CodeGenerator._empty_aux_reg_dict()
-        else:
-            for reg in self.reg_pool:
-                dict[reg] = CodeGenerator._empty_reg_dict()
-        return dict
+        reg_pool = self._create_register_pool(type_s)
+        empty_dict = self._empty_aux_reg_dict() if type_s == 'aux' else self._empty_reg_dict()
+
+        ret_dict = {}
+        for reg in reg_pool:
+            ret_dict[reg] = empty_dict
+        return ret_dict
 
     def _traverse(self, tree):
         if self.tree.children:
@@ -314,7 +310,7 @@ class CodeGenerator:
         self.reg_table[reg] = CodeGenerator._empty_reg_dict()
         return reg
 
-    # Abstraction that allows all methods that need to try to acces sym_table to run this instead to catch
+    # Abstraction that allows all methods that need to try to access sym_table to run this instead to catch
     # un-initialization error
     def _get_sym_table_entry(self, ident, token):
         id_dict = None
@@ -378,10 +374,10 @@ class CodeGenerator:
                 init_val = id_dict['init_val']
 
                 # Variables can be:
-                # - ints, floats (words)
-                # - booleans -> static analysis with strings
+                # - ints, floats -> .word
+                # - booleans -> .byte
                 # - strings -> different sym table
-                o_type = '.word'
+                o_type = '.byte' if type == 'bool' else '.word'
 
                 data_section += '{:s}:\t{:s}\t{:d}\t# {:s} in original\n'\
                                 .format(name, o_type, init_val if init_val else 0, id)
@@ -422,7 +418,7 @@ class CodeGenerator:
     def _write_id(self, tree_nodes):
         expr_lst = tree_nodes[1].children
         for expr in expr_lst:
-            reg, var_type, var_token = self._process_expr(expr.children)
+            reg, var_type, var_token = self._process_expr_bool(expr.children)
             curr_v0 = self.aux_reg_table[self.val_0]['val']
             if asm_check_syscode_write(var_type, curr_v0):
                 self.output_string += asm_set_syscode_write(var_type)
@@ -503,6 +499,10 @@ class CodeGenerator:
     # Update: type, mem_name, init_val, curr_val, addr_reg, var_reg (unless value can be statically analyzed)
     # Returns nothing
     def _declare(self, tree_nodes):
+        pass
+
+    # Used to run individual declare statements
+    def _process_declare_term(self, var_id, var_type):
         pass
 
     # # Takes a sequence of primary tokens and arith_ops
@@ -652,11 +652,77 @@ class CodeGenerator:
     #     else: # Single <expression>
     #         return self._process_expr(primary_children)
 
+    # Used for expressions
+    # Returns the register that has the value of accum_id loaded
+    def ensure_id_loaded(self, curr_id, curr_reg):
+        # Assume curr_reg is correct
+        id_reg = curr_reg
+
+        id_dict = None
+        try:
+            id_dict = self.sym_table[curr_id]
+        except KeyError:
+            # Don't throw an error here, since the accum_id may hav ebeen removed from a register yet
+            pass
+
+        # If id_dict is not found, then curr_reg is correct
+        if id_dict:
+            id_reg = id_dict['val_reg']
+            addr_reg = id_dict['addr_reg']
+            mem_name = id_dict['mem_name']
+
+            # If id_reg is None, load it into memory
+            if not id_reg:
+                id_reg = self._find_free_register()
+                self.var_queue.append({'reg': id_reg, 'id': curr_id, 'mem_type': 'VALUE'})
+                self._update_tables(curr_id, None, id_reg, id_dict)
+
+                # If addr_reg is none
+                if not addr_reg:
+                    addr_reg = self._find_free_register()
+                    self.var_queue.append({'reg': addr_reg, 'id': curr_id, 'mem_type': 'ADDRESS'})
+                    self._update_tables(curr_id, addr_reg, id_reg, id_dict)
+
+                    # Load address into addr_reg
+                    self.output_string += asm_load_mem_addr(mem_name, addr_reg)
+
+                # Load id_reg from addr_reg
+                self.output_string += asm_load_mem_var_from_addr(addr_reg, id_reg)
+
+        return id_reg
+
+    # Used for expressions
+    # Returns the newly reserved accum_register
+    def initialize_val_reg(self, mem_id, curr_reg, curr_type):
+        cleaned_type = 'float' if curr_type == 'float' else 'normal'
+        var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
+
+        # Initialize val_reg
+        accum_reg = self._find_free_register(cleaned_type)
+
+        # Add to var_queue
+        var_queue.append({'reg': accum_reg, 'id': mem_id, 'mem_type': 'TYPE.' + str(curr_type)})
+
+        # Reserve accum_reg
+        self._update_reg_table(mem_id, accum_reg, 'VALUE')
+
+        # Equate val_reg and curr_reg
+        self.output_string += asm_reg_set(accum_reg, curr_reg)
+
+        return accum_reg
+
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     def _process_expr_bool(self, tree_nodes):
-        val_reg = None
-        val_type = None
-        val_token = None
+        # Set up accumulator
+
+        # Process first term
+            # Type check
+
+        # Process remaining terms
+        for i in range(1, len(tree_nodes), 2):
+            pass
+
+        # Return value register, type, and token
         return val_reg, val_type, val_token
 
     # <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
@@ -705,7 +771,7 @@ class CodeGenerator:
 
         # Check if curr_val is not None (thus, if we can just return it)
         if curr_val:
-            return curr_val, 'int', token
+            return curr_val, var_type, token
         # If the value of the variable is in a register already, just return it
         elif val_reg:
             return val_reg, var_type, token

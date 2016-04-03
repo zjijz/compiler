@@ -12,7 +12,7 @@ Grammar:
 
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
-    <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
+    <dec term>      ->  <ident> [ := <expr_bool> ] **Allowed only once
 
     <assignment>	->	<ident> := <expr_bool>
 
