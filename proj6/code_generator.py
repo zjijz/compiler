@@ -11,7 +11,7 @@ from errors import *
 #  'curr_val': current value (None if used in an operation with a variable from READ)
 #  'addr_reg': temporary register with memory address
 #  'val_reg': temporary register with value
-#  'used': Boolean value if the variable is used and should be outputted in the assembly file
+#  'used': True | False
 
 # Register Table (Keys are register names, Values are Dicts themselves)
 #  'id': ID pattern
@@ -151,6 +151,7 @@ class CodeGenerator:
         #   self.save_0 - Where addresses are temporarily loaded
         #   self.float_0 - Where read-in floats are stored
         #   self.float_12 - Used for printing floats
+        #   float_13 ($f13) is reserved for float immediates in asm_helper and has no guaranteed value
 
         # Variable Queues
         self.var_queue = []
@@ -367,7 +368,7 @@ class CodeGenerator:
         for id in self.sym_table:
             id_dict = self.sym_table[id]
 
-            if id_dict['used']:
+            if id_dict['used'] == 2:
                 type = id_dict['type']
                 scope = id_dict['scope']
                 name = id_dict['mem_name']
@@ -385,7 +386,7 @@ class CodeGenerator:
         for string in self.array_sym_table:
             id_dict = self.array_sym_table[string]
 
-            if id_dict['used']:
+            if id_dict['used'] == 2:
                 name = id_dict['mem_name']
                 o_type = id_dict['type']
 
@@ -411,6 +412,11 @@ class CodeGenerator:
         id_list = tree_nodes[1].children
         for ident in id_list:
             id_dict = self._get_sym_table_entry(ident.children[0].token.pattern, ident.children[0].token)
+
+            # Alert process id that if this id is called, set it to used
+            # (Because it was dynamically set)
+            id_dict['used'] = True
+
             self.output_string += asm_read(id_dict['type']) # places input into $v0
             self._assign_id(id_dict, self.val_0)
 
@@ -472,6 +478,9 @@ class CodeGenerator:
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
         if not curr_val:
+            # Set id to be printed out to MIPS
+            id_dict['used'] = True
+
             # Load variable addr and val into registers
             if not val_reg:
                 type_str = 'float' if var_type == 'float' else 'normal'
@@ -654,7 +663,7 @@ class CodeGenerator:
 
     # Used for expressions
     # Returns the register that has the value of accum_id loaded
-    def ensure_id_loaded(self, curr_id, curr_reg):
+    def _ensure_id_loaded(self, curr_id, curr_reg):
         # Assume curr_reg is correct
         id_reg = curr_reg
 
@@ -693,7 +702,7 @@ class CodeGenerator:
 
     # Used for expressions
     # Returns the newly reserved accum_register
-    def initialize_val_reg(self, mem_id, curr_reg, curr_type):
+    def _initialize_val_reg(self, mem_id, curr_reg, curr_type):
         cleaned_type = 'float' if curr_type == 'float' else 'normal'
         var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
 
@@ -713,51 +722,79 @@ class CodeGenerator:
 
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     def _process_expr_bool(self, tree_nodes):
-        # Set up accumulator
+        #  Generate a temp ID
+        accum_id = next(self.temp_id_generator)
+
+        # Create temp variables
+        immediate_val = 0
+        val_reg = None
+
+        # Process the first child and store it to immediate_val or val_reg
+        temp_reg, val_type, val_token = self._process_term_bool(tree_nodes[0])
+        if type(temp_reg) == int:
+            immediate_val = temp_reg
+        else:
+            val_reg = self._initialize_val_reg(accum_id, temp_reg, val_type)
 
         # Process first term
+        for i in range(1, len(tree_nodes), 2):
             # Type check
+            pass
 
         # Process remaining terms
         for i in range(1, len(tree_nodes), 2):
             pass
 
+        # If immediate_val and val_reg are non null, or them together
+        if immediate_val and val_reg:
+            immediate_val_num = 0 if not immediate_val else 1
+            self.output_string += asm_log_or(val_reg, val_reg, immediate_val_num)
+
         # Return value register, type, and token
-        return val_reg, val_type, val_token
+        if immediate_val and not val_reg:
+            return immediate_val, val_type, val_token
+        else:
+            return val_reg, val_type, val_token
 
     # <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
+    # Returns value register (or immediate), value type, and token
     def _process_term_bool(self):
         pass
 
     # <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
+    # Returns value register (or immediate), value type, and token
     def _process_expr_eq(self):
         pass
 
     # <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    # Returns value register (or immediate), value type, and token
     def _process_expr_rel(self):
         pass
 
     # <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
+    # Returns value register (or immediate), value type, and token
     def _process_expr_arith(self):
         pass
 
     # <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
+    # Returns value register (or immediate), value type, and token
     def _process_term_arith(self):
         pass
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
+    # Returns value register (or immediate), value type, and token
     def _process_fact_arith(self):
         pass
 
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
+    # Returns value register (or immediate), value type, and token
     def _process_term_unary(self):
         pass
 
     # Takes a full ID token
     # Handles loading a variable's address and value into registers
-    # Returns a tuple of the value of the id or the register with it's value, the type of the variable,
-    # and the token of the id
-    # (This is mainly for _expr)
+    # Returns value register (or immediate), value type, and token
+    # (This is mainly for expressions)
     # (Note: This will NOT force a variable to loaded into memory if the compiler can statically evaluate the value)
     def _process_id(self, token):
         ident = token.pattern
@@ -772,27 +809,30 @@ class CodeGenerator:
         # Check if curr_val is not None (thus, if we can just return it)
         if curr_val:
             return curr_val, var_type, token
-        # If the value of the variable is in a register already, just return it
-        elif val_reg:
-            return val_reg, var_type, token
-        # If not, load the value into a register if the addr is already loaded
-        elif addr_reg:
-            val_reg = self._find_free_register(var_type)
+        # If the value of the variable is not in register, load it
+        elif not val_reg:
+            # If not, load the value into a register if the addr is already loaded
+            if addr_reg:
+                val_reg = self._find_free_register(var_type)
 
-            self._update_tables(ident, addr_reg, val_reg, id_dict)
-            self.var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+                self._update_tables(ident, addr_reg, val_reg, id_dict)
+                self.var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
-            self.output_string += asm_load_mem_var_from_addr(id_dict['addr_reg'], val_reg)
-        # Worst case, you have to load both the addr and the value into registers
-        else:
-            addr_reg = self._find_free_register()
-            self._update_tables(ident, addr_reg, val_reg, id_dict)
-            self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
+                self.output_string += asm_load_mem_var_from_addr(id_dict['addr_reg'], val_reg)
+            # Worst case, you have to load both the addr and the value into registers
+            else:
+                addr_reg = self._find_free_register()
+                self._update_tables(ident, addr_reg, val_reg, id_dict)
+                self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
 
-            val_reg = self._find_free_register(var_type)
-            self._update_tables(ident, addr_reg, val_reg, id_dict)
-            self.var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+                val_reg = self._find_free_register(var_type)
+                self._update_tables(ident, addr_reg, val_reg, id_dict)
+                self.var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
-            self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
+                self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
+        # else: If val_reg was good to go, just return it
+
+        # Set id to be printed out in MIPS if it couldn't be statically analyzed
+        id_dict['used'] = True
 
         return val_reg, var_type, token
