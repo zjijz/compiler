@@ -1,9 +1,10 @@
 begin
     bool x;
-    x := 3 == 4
-    5 >= 2
-    1 == 2
-    2 != 3
+    x := 3 == 4;
+    x := 5 >= 2;
+    x := 1 == 2;
+    x := 2 != 3;
     string s;
     s := "hello, I have \"escaped characters\"";
+    int a, b := 10, c;
 end

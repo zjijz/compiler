@@ -115,7 +115,7 @@ class Parser:
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
             cur_token = next(G)
-            if cur_token.name not in ("READ", "WRITE", "ID"):
+            if cur_token.name not in ("READ", "WRITE", "ID") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
     # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
@@ -134,7 +134,7 @@ class Parser:
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             return cur_token, tree("STATEMENT", [child_declaration])
-        if cur_token.t_class == "ID":
+        if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.assign(cur_token, G)
             return cur_token, tree("STATEMENT", [child_assign])
         raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID', cur_token)
@@ -157,11 +157,11 @@ class Parser:
                 return cur_token, tree("DEC_LIST", children_dec_term)
             cur_token = next(G)
 
-    # <dec term> -> <ident> [ := <expression> ] **ALlowed only once
+    # <dec term> -> <ident> [ := <expr_bool> ] **ALlowed only once
     def dec_term(self, cur_token, G):
         cur_token, child_ident = self.ident(cur_token, G)
         if cur_token.name == "ASSIGNOP":
-            cur_token, child_expr = self.expression(next(G), G)
+            cur_token, child_expr = self.expr_bool(next(G), G)
             return cur_token, tree("DEC_TERM", [child_ident, child_expr])
         return cur_token, tree("DEC_TERM", [child_ident])
 

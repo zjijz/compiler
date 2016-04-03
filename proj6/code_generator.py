@@ -736,10 +736,6 @@ class CodeGenerator:
         else:
             val_reg = self._initialize_val_reg(accum_id, temp_reg, val_type)
 
-        # Process first term
-        for i in range(1, len(tree_nodes), 2):
-            # Type check
-            pass
 
         # Process remaining terms
         for i in range(1, len(tree_nodes), 2):
@@ -788,8 +784,9 @@ class CodeGenerator:
 
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
-    def _process_term_unary(self):
-        pass
+    def _process_term_unary(self, tree_nodes):
+        # len(tree_nodes) == 1
+
 
     # Takes a full ID token
     # Handles loading a variable's address and value into registers
