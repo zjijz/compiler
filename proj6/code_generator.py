@@ -802,11 +802,6 @@ class CodeGenerator:
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
 
-                # If var_reg and next_reg are of different types, evaluate to False for == or True for !=
-                # If string, equal if they have the same literal
-                # If int or float, equal if they have the same (coerced value)
-                # If bool, equal if both are True or both are False
-
                 # This means type-coerced ints are not equal to equivalent floats
                 if val_type != next_type:
                     val_reg = None
@@ -998,8 +993,6 @@ class CodeGenerator:
     # Returns value register (or immediate), value type, and token
     def _process_term_arith(self, tree_nodes):
         def term_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            # Scan children and replace modoulo expressions with processed expressions
-
             for i in range(1, len(children), 2):
                 # Load the operation
                 oper = tree_nodes[i].label
@@ -1020,97 +1013,58 @@ class CodeGenerator:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
 
                 # Type checks
-                if val_type not in {'int', 'float'}:
+                if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
                     SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
 
-                if next_type not in {'int', 'float'}:
+                if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
                     SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line, next_token.col)
 
-                # Ensure immediate_val is a float
-                # This is done to ensure proper
-                # Also, MODULO must be processed with nearest term no matter what
-                if type(immediate_val) is int:
-                    immediate_val = float(immediate_val)
+                # Coerce int to float
+                if val_type == 'int' and next_type == 'float':
+                    # We care if val_reg is changed to a float, since we're going to keep track of it
+                    val_float_reg = self._find_free_register('float')
 
-                if oper.name == 'MODULO':
-                    if val_type != 'int':
-                        SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
-                    elif next_type != 'int':
-                        SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line, next_token.col)
+                    # Update sym_table (if available)
+                    try:
+                        id_dict = self.sym_table[accum_id]
+                        id_dict['type'] = 'float'
+                        id_dict['val_reg'] = val_float_reg
+                        # id_dict['used'] = True
+                    except KeyError:
+                        pass
 
-                if type(next_reg) in {int, float}: # next_reg is an immediate
-                    if oper == 'MULTIPLY':
-                        immediate_val *= next_reg
-                    elif oper == 'DIVIDE':
-                        immediate_val /= next_reg
-                elif not val_reg: # Initialize val_reg since not immediate
-                    # If next is a 'float', ensure we will initialize val_reg as one too
-                    if next_type == 'float':
-                        val_type = 'float'
+                    # Remove from normal var_queue
+                    self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
 
-                    if oper == 'MULTIPLY':
-                        val_reg = initialize_val_reg(accum_id, next_reg, val_type)
-                    elif oper == 'DIVIDE':
-                        # Throw immediate into val-reg here
-                        val_reg = initialize_val_reg(accum_id, immediate_val, val_type)
-                        immediate_val = None
-                        # Divide 1 by val_reg
-                        # If this becomes zero, it's supposed to be
-                        self.output_string += asm_divide(val_reg, 1, val_reg)
-                else: # add/sub (coerce types if necessary)
-                    # Coerce int to float
-                    if val_type == 'int' and next_type == 'float':
-                        # We care if val_reg is changed to a float, since we're going to keep track of it
-                        val_float_reg = self._find_free_register('float')
+                    # Add to float var_queue
+                    self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TEMP.float'})
 
-                        # Update sym_table (if available)
-                        try:
-                            id_dict = self.sym_table[accum_id]
-                            id_dict['type'] = 'float'
-                            id_dict['val_reg'] = val_float_reg
-                            # id_dict['used'] = True
-                        except KeyError:
-                            pass
+                    # Coerce val_type up
+                    self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
 
-                        # Remove from normal var_queue
-                        self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
+                    # set first_reg to be val_float_reg
+                    val_reg = val_float_reg
+                    val_type = 'float'
+                elif val_type == 'float' and next_type == 'int':
+                    # We don't care to save this, so we'll just let it die once we're done with it
+                    next_float_reg = self._find_free_register('float')
+                    # Coerce next_type up
+                    self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
+                    # set second_reg to be next_float_reg
+                    next_reg = next_float_reg
 
-                        # Add to float var_queue
-                        self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TEMP.float'})
-
-                        # Coerce val_type up
-                        self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
-
-                        # set first_reg to be val_float_reg
-                        val_reg = val_float_reg
-                        val_type = 'float'
-                    elif val_type == 'float' and next_type == 'int':
-                        # We don't care to save this, so we'll just let it die once we're done with it
-                        next_float_reg = self._find_free_register('float')
-                        # Coerce next_type up
-                        self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
-                        # set second_reg to be next_float_reg
-                        next_reg = next_float_reg
-
-                    if oper == 'MULTIPLY':
-                        self.output_string += asm_multiply(val_reg, val_reg, next_reg)
-                    elif oper == 'DIVIDE':
-                        self.output_string += asm_divide(val_reg, val_reg, next_reg)
-
-                # Add up the immediate and val_reg if necessary
-                if immediate_val is not None and val_reg is not None:
-                    self.output_string += asm_multiply(val_reg, val_reg, immediate_val)
+                # Just move all operations into accumulator (optimize later)
+                # Immediates and register values are handled in asm methods
+                if oper == 'MULTIPLY':
+                    self.output_string += asm_multiply(val_reg, val_reg, next_reg)
+                elif oper == 'DIVIDE':
+                    self.output_string += asm_divide(val_reg, val_reg, next_reg)
+                elif oper == 'MODULO':
+                    self.output_string += asm_modulo(val_reg, val_reg, next_reg)
 
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_fact_arith'), term_arith_body)
-
-
-    # This is used to give pseudo-preference to the modulo operator, and allow it to associate with the nearest term
-    # to the left.
-    # Returns value register (or immediate), value type, and token
-    def _process_term_modulo(self):
-        pass
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
