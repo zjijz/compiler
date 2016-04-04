@@ -1,9 +1,4 @@
 begin
-    bool x;
-    x := 3 == 4
-    5 >= 2
-    1 == 2
-    2 != 3
-    string s;
-    s := "hello, I have \"escaped characters\"";
+    bool a := a == b;
+    bool b := a <= b;
 end

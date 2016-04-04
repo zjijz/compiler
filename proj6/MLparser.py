@@ -21,8 +21,8 @@ Grammar:
 
     <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
-    <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
-    <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
+    <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
 
     <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
@@ -115,7 +115,7 @@ class Parser:
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
             cur_token = next(G)
-            if cur_token.name not in ("READ", "WRITE", "ID"):
+            if cur_token.name not in ("READ", "WRITE", "ID") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
     # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
@@ -134,7 +134,7 @@ class Parser:
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             return cur_token, tree("STATEMENT", [child_declaration])
-        if cur_token.t_class == "ID":
+        if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.assign(cur_token, G)
             return cur_token, tree("STATEMENT", [child_assign])
         raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID', cur_token)
@@ -157,11 +157,11 @@ class Parser:
                 return cur_token, tree("DEC_LIST", children_dec_term)
             cur_token = next(G)
 
-    # <dec term> -> <ident> [ := <expression> ] **ALlowed only once
+    # <dec term> -> <ident> [ := <expr_bool> ] **ALlowed only once
     def dec_term(self, cur_token, G):
         cur_token, child_ident = self.ident(cur_token, G)
         if cur_token.name == "ASSIGNOP":
-            cur_token, child_expr = self.expression(next(G), G)
+            cur_token, child_expr = self.expr_bool(next(G), G)
             return cur_token, tree("DEC_TERM", [child_ident, child_expr])
         return cur_token, tree("DEC_TERM", [child_ident])
 
@@ -215,27 +215,28 @@ class Parser:
             children_term_bool.append(tree(cur_token.name, [], cur_token))
             cur_token = next(G)
 
-    # <expr_eq> -> <expr_relation> { <equal_op> <expr_relation> }
+    # <expr_eq> -> <expr_relation> [ <equal_op> <expr_relation> ]
     def expr_eq(self, cur_token, G):
         children_expr_eq = []
-        while True:
-            cur_token, child_expr_relation = self.expr_relation(cur_token, G)
-            children_expr_eq.append(child_expr_relation)
-            if cur_token.t_class != "EQUAL_OP":
-                return cur_token, tree("EXPR_EQ", children_expr_eq)
+        cur_token, child_expr_relation = self.expr_relation(cur_token, G)
+        children_expr_eq.append(child_expr_relation)
+        if cur_token.t_class == 'EQUAL_OP':
             children_expr_eq.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_relation = self.expr_relation(next(G), G)
+            children_expr_eq.append(child_expr_relation)
+        return cur_token, tree('EXPR_EQ', children_expr_eq)
 
-    # <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     def expr_relation(self, cur_token, G):
         children_expr_relation = []
-        while True:
-            cur_token, child_expr_arith = self.expr_arith(cur_token, G)
-            children_expr_relation.append(child_expr_arith)
-            if cur_token.t_class != "REL_OP":
-                return cur_token, tree("EXPR_RELATION", children_expr_relation)
+        cur_token, child_expr_arith = self.expr_arith(cur_token, G)
+        children_expr_relation.append(child_expr_arith)
+        if cur_token.t_class == 'REL_OP':
             children_expr_relation.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_arith = self.expr_arith(next(G), G)
+            children_expr_relation.append(child_expr_arith)
+        return cur_token, tree('EXPR_RELATION', children_expr_relation)
+
 
     # <expr_arith> -> <term_arith> { <unary_add_op> <term_arith> }
     def expr_arith(self, cur_token, G):
@@ -262,19 +263,17 @@ class Parser:
     # <fact_arith> -> <unary_op> <term_unary>
     #                 | <unary_add_op> <term_unary> | <term_unary>
     def fact_arith(self, cur_token, G):
-        children_fact_arith = []
-        while True:
+        if cur_token.t_class in {'UNARY_OP', 'UNARY_ADD_OP'}:
+            next_token, child_term_unary = self.term_unary(next(G), G)
+            return next_token, tree('FACT_ARITH', [tree(cur_token.name), child_term_unary])
+        else:
             cur_token, child_term_unary = self.term_unary(cur_token, G)
-            children_fact_arith.append(child_term_unary)
-            if cur_token.t_class not in ("UNARY_OP", "UNARY_ADD_OP"):
-                return cur_token, tree("FACT_ARITH", children_fact_arith)
-            children_fact_arith.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            return cur_token, tree('FACT_ARITH', [child_term_unary])
 
     # <term_unary> -> <literal> | <ident> | (expr_bool)
     def term_unary(self, cur_token, G):
         if cur_token.name == "LPAREN":
-            cur_token, child_expr_bool = self.expression(next(G), G)
+            cur_token, child_expr_bool = self.expr_bool(next(G), G)
             if cur_token.name != "RPAREN":
                 raise ParserError.raise_parse_error("TERM_UNARY", ")", cur_token)
             return next(G), tree("TERM_UNARY", [child_expr_bool])

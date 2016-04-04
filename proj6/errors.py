@@ -47,7 +47,7 @@ class SemanticError(Exception):
 
     @staticmethod
     def raise_incompatible_type(var_name, type_name, line, col):
-        raise SemanticError('Semantic error: Incopmatible type error: Line num {:d}, column num: {:d}\n\t{:s} is'
+        raise SemanticError('Semantic error: Incopmatible Type for Function: Line num {:d}, column num: {:d}\n\t{:s} is'
                             'of incompatible type {:s}.').format(line, col, var_name, type_name)
 
     def __init__(self, msg):

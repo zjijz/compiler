@@ -129,7 +129,7 @@ def asm_log_negate(r_reg, f_reg):
     return asm_log_xor(r_reg, f_reg, 1)
 
 
-## ______RELATIONSHIP______
+## ______EQUALITY______
 
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
@@ -161,6 +161,8 @@ def asm_rel_neq(r_reg, f_reg, s_reg):
     else:
         return 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
+
+## ______RELATIONSHIP______
 
 # r_reg <- f_reg < s_reg
 def asm_rel_le(r_reg, f_reg, s_reg):
@@ -358,23 +360,20 @@ def asm_sub_rep(r_reg, *regs):
     return ret_asm
 
 
-# Helper that loads f_reg into a register
-def asm_negate_helper(r_reg, f_reg, free_reg):
+# Helper that will convert an int to a float
+def asm_cast_int_to_float(f_reg, i_reg):
     ret_asm = ''
 
-    if type(f_reg) is int:
-        ret_asm += asm_reg_set(free_reg, f_reg)
-        ret_asm += asm_log_xor(r_reg, free_reg, 1)
-    else:
-        ret_asm = asm_log_negate(r_reg, f_reg)
+    if type(i_reg) is int:
+        ret_asm += asm_reg_set('$at', i_reg)
+        i_reg = '$at'
+
+    ret_asm += 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
 
     return ret_asm
 
 
-# Helper that will convert an int to a float
-def asm_cast_int_to_float(f_reg, i_reg):
-    if type(i_reg) is int:
-        return asm_reg_set(f_reg, i_reg)
-    else:
-        return 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
-
+# This allows for bools to be able to be dynamically printed
+def asm_dynamic_bool_print(r_reg, f_reg, true_addr_reg, false_addr_reg):
+    return asm_rel_eq('$at', f_reg, 1) + 'movn {:s}, {:s}, {:s}'.format(r_reg, true_addr_reg, '$at') + \
+           'movz {:s}, {:s}, {:s}'.format(r_reg, false_addr_reg, '$at')
