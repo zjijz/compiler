@@ -504,15 +504,34 @@ class CodeGenerator:
             # Equate registers (move assn_reg value into val_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
-    # Needs to initialize an identifier's symble table
+    # Needs to initialize an identifier's symbol table
     # Update: type, mem_name, init_val, curr_val, addr_reg, var_reg (unless value can be statically analyzed)
     # Returns nothing
-    def _declare(self, tree_nodes):
-        pass
+    # Code for handling variable declarations
+    # Needs to create the symbol table
+    # All calls to the symbol table need to be in try/catch statements
+    # if an error is thrown, redirect to throw semantic error?
+    # Load into memory
+    # Grab empty symbol table and edit types
+    # sym_table[id] = empty table?
+    def _declare_id(self, tree_nodes):
+        # The type is the first child of declare and the
+        # declaration list is the second
+        var_type = tree_nodes[0].token.name.lower()
+        decl_list = tree_nodes[0].children[1]
+
+        # Need to go through the list of ids being declared
+        for term in decl_list:
+            self._process_declare_term(term.children, var_type)
 
     # Used to run individual declare statements
-    def _process_declare_term(self, var_id, var_type):
-        pass
+    def _process_declare_term(self, children, var_type):
+        var_id = children[0].token.pattern
+        mem_name = next(self.var_name_generator)
+
+        # if declaration includes an assignment (to expr_bool)
+        if len(children) > 1:
+            expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
 
     # # Takes a sequence of primary tokens and arith_ops
     # # Checks that all variables are initialized
