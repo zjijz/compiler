@@ -129,7 +129,7 @@ def asm_log_negate(r_reg, f_reg):
     return asm_log_xor(r_reg, f_reg, 1)
 
 
-## ______RELATIONSHIP______
+## ______EQUALITY______
 
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
@@ -161,6 +161,8 @@ def asm_rel_neq(r_reg, f_reg, s_reg):
     else:
         return 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 
+
+## ______RELATIONSHIP______
 
 # r_reg <- f_reg < s_reg
 def asm_rel_le(r_reg, f_reg, s_reg):
@@ -360,10 +362,15 @@ def asm_sub_rep(r_reg, *regs):
 
 # Helper that will convert an int to a float
 def asm_cast_int_to_float(f_reg, i_reg):
+    ret_asm = ''
+
     if type(i_reg) is int:
-        return asm_reg_set(f_reg, i_reg)
-    else:
-        return 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
+        ret_asm += asm_reg_set('$at', i_reg)
+        i_reg = '$at'
+
+    ret_asm += 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
+
+    return ret_asm
 
 
 # This allows for bools to be able to be dynamically printed
