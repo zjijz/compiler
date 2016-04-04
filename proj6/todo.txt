@@ -42,6 +42,7 @@ Queue for Recent Variables
  - Abstract out the common parts of expression more
  - To ease my mind with val_reg and next_reg in expressions,
    I would like a way to 'lock' entries in var_queue so they cannot be removed
+ - Figure out if multiplicatino / division / modulo can be optimized (make modulo have its own precedence level)
 
  - Bools are only statically analyzed right now, add in an option to read them in from command line
  - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
