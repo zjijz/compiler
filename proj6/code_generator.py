@@ -616,9 +616,39 @@ class CodeGenerator:
         var_id = children[0].token.pattern
         mem_name = next(self.var_name_generator)
 
+        clean_type = 'float' if var_type == 'float' else 'normal'
+        var_queue = self.float_var_queue if clean_type == 'float' else self.var_queue
+
+        addr_reg = self._find_free_register(clean_type)
+        var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
+
+        val_reg = self._find_free_register(clean_type)
+        var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
+
+        curr_val = None
+        init_val = None
+
+
         # if declaration includes an assignment (to expr_bool)
         if len(children) > 1:
             expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
+            if expr_type != var_type:
+                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type, expr_token.line, expr_token.col)
+            if type(expr_reg) is not Register:
+                curr_val = init_val = expr_reg
+                val_reg = None
+            else:
+                self.output_string += asm_reg_set(val_reg, expr_reg)
+
+
+        var_dict = self._empty_sym_table_dict()
+        var_dict['addr_reg'] = addr_reg
+        var_dict['val_reg'] = val_reg
+        var_dict['type'] = var_type
+        var_dict['mem_name'] = mem_name
+        var_dict['curr_val'] = curr_val
+        var_dict['init_val'] = init_val
+        self.sym_table[var_id] = var_dict
 
     # Used for expressions
     # Returns the register that has the value of accum_id loaded
@@ -1173,6 +1203,11 @@ class CodeGenerator:
                     try:
                         return bool(literal), 'bool', token
                     except ValueError:
+                        str_dict = self._empty_array_sym_table_dict()
+                        str_dict['mem_name'] = next(self.var_name_generator)
+                        str_dict['type'] = '.asciiz'
+                        str_dict['val'] = literal
+                        self.array_sym_table[literal] = str_dict
                         return literal, 'string', token
         elif token.t_class == 'IDENTIFIER': # If token is an id
             return self._process_id(token)

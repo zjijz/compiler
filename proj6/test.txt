@@ -1,4 +1,3 @@
 begin
-    bool a := a == b;
-    bool b := a <= b;
+    bool a := 1;
 end
