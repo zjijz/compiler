@@ -95,7 +95,7 @@ class Parser:
             raise ParserError.raise_redundant_tokens_error('There are redundant tokens at the end of the program, '
                               'starting with: %s\nLine num: %d, column num: %d'
                               %(cur_token.line, cur_token.line_num, cur_token.col))
-        return t, self.symbol_table
+        return t
 
     # <program> -> begin <statement_list> end
     def program(self, cur_token, G):
@@ -291,4 +291,4 @@ class Parser:
     def ident(self, cur_token, G):
         if cur_token.name != "ID":
             raise ParserError.raise_parse_error("IDENT", "ID", cur_token)
-        return next(G), tree("IDENT", [tree("ID", [], cur_token)])
+        return next(G), tree("IDENT", [], cur_token) #[tree("ID", [], cur_token)])

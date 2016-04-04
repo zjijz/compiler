@@ -1,3 +1,4 @@
 begin
-    bool a := 1;
+    bool a := True;
+    write(a);
 end

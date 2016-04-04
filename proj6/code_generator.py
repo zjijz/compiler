@@ -2,6 +2,7 @@ from tree import *
 from MLparser import *
 from assembly_helper import *
 from errors import *
+from copy import *
 
 # Symbol Table (Keys are ID pattern, Values are Dicts themselves)
 #  'type': Data type
@@ -252,7 +253,7 @@ class CodeGenerator:
 
         ret_dict = {}
         for reg in reg_pool:
-            ret_dict[reg] = empty_dict
+            ret_dict[reg] = deepcopy(empty_dict)
         return ret_dict
 
     def _traverse(self, tree):
@@ -352,6 +353,7 @@ class CodeGenerator:
     # Used mostly or expr to reserve registers for temporary variables
     def _update_reg_table(self, table_type, mem_id, reg, reg_type):
         reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
+
         reg_dict = reg_table[reg]
         reg_dict['id'] =  mem_id
         reg_dict['mem_type'] = reg_type
@@ -391,8 +393,7 @@ class CodeGenerator:
         self.output_string = '.text\n'
 
     def _finish(self):
-        # Prepend '.data' section
-        data_section = '.data\n'
+        data_section = ''
 
         for id in self.sym_table:
             id_dict = self.sym_table[id]
@@ -421,7 +422,11 @@ class CodeGenerator:
                 o_string = id_dict['val']
 
                 # string might have to be sanitized when using arrays
-                data_section += '{:s}:\t{:s}\t{:s}\t'.format(name, o_type, o_string)
+                data_section += '{:s}:\t{:s}\t"{:s}"\t\n'.format(name, o_type, o_string)
+
+        # Prepend .data section instead of adding at beginning
+        if data_section != '':
+            data_section = '.data\n' + data_section
 
         self.output_string = data_section + self.output_string
 
@@ -453,7 +458,9 @@ class CodeGenerator:
     # Takes a list of expressions and correctly prints them
     def _write_id(self, tree_nodes):
         expr_lst = tree_nodes[1].children
+        print(expr_lst)
         for expr in expr_lst:
+            print(expr.children, type(expr.children))
             var_reg, var_type, var_token = self._process_expr_bool(expr.children)
 
             # Construct expr_type, which will control what's written out
@@ -519,7 +526,7 @@ class CodeGenerator:
                 # Ensure addr_reg is not None
                 if addr_reg is None:
                     addr_reg = self._find_free_register()
-                    self.var_queue.append({'reg': true_addr_reg, 'id': expr_reg, 'mem_type': 'ARRAY_ADDRESS'})
+                    self.var_queue.append({'reg': addr_reg, 'id': expr_reg, 'mem_type': 'ARRAY_ADDRESS'})
                     sym_dict['addr_reg'] = addr_reg
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
@@ -604,8 +611,8 @@ class CodeGenerator:
     def _declare_id(self, tree_nodes):
         # The type is the first child of declare and the
         # declaration list is the second
-        var_type = tree_nodes[0].token.name.lower()
-        decl_list = tree_nodes[0].children[1]
+        var_type = tree_nodes[0].children[0].token.name.lower()
+        decl_list = tree_nodes[0].children[1].children
 
         # Need to go through the list of ids being declared
         for term in decl_list:
@@ -621,25 +628,27 @@ class CodeGenerator:
 
         addr_reg = self._find_free_register(clean_type)
         var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
+        self._update_reg_table(clean_type, var_id, addr_reg, 'ADDRESS')
 
         val_reg = self._find_free_register(clean_type)
         var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
+        self._update_reg_table(clean_type, var_id, val_reg, 'VALUE')
 
         curr_val = None
         init_val = None
 
-
         # if declaration includes an assignment (to expr_bool)
         if len(children) > 1:
             expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
+
             if expr_type != var_type:
-                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type, expr_token.line, expr_token.col)
+                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type, expr_token.line_num, expr_token.col)
+
             if type(expr_reg) is not Register:
                 curr_val = init_val = expr_reg
                 val_reg = None
             else:
                 self.output_string += asm_reg_set(val_reg, expr_reg)
-
 
         var_dict = self._empty_sym_table_dict()
         var_dict['addr_reg'] = addr_reg
@@ -720,12 +729,14 @@ class CodeGenerator:
     # - must ensure that both val_reg and next_reg are loaded at proper times
     # - must take (tree_nodes, accum_id, val_reg, val_type, val_token, immediate_val) as parameters
     def _process_expr_skeleton(self, children, children_function, body_function):
+        print(children)
+
         # Reserve accum_id
         accum_id = next(self.temp_id_generator)
         immediate_val = None
         val_reg = None
 
-        temp_reg, val_type, val_token = children_function(children[0])
+        temp_reg, val_type, val_token = children_function(children[0].children)
         if type(temp_reg) in {int, float, bool, str}:
             immediate_val = temp_reg
         else: # Register
@@ -763,12 +774,12 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
                     SemanticError.raise_type_mismatch_error(val_token.name, next_token.name, val_type, next_type,
-                                                            val_token.line, val_token.col)
+                                                            val_token.line_num, val_token.col)
 
                 # Add them up
                 if type(next_reg) is bool: # static analysis
@@ -812,12 +823,12 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
                     SemanticError.raise_type_mismatch_error(val_token.name, next_token.name, val_type, next_type,
-                                                            val_token.line, val_token.col)
+                                                            val_token.line_num, val_token.col)
 
                 # Add them up
                 if type(next_reg) is bool: # static analysis
@@ -834,7 +845,7 @@ class CodeGenerator:
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_exp_eq'), term_bool_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body)
 
     # <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
     # Returns value register (or immediate), value type, and token
@@ -882,13 +893,13 @@ class CodeGenerator:
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_exp_rel'), expr_eq_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body)
 
     # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     # Returns value register (or immediate), value type, and token
     def _process_expr_rel(self, tree_nodes):
         def expr_rel_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            if children > 1:
+            if len(children) > 1:
                 # Get RHS
                 next_reg, next_type, next_token = children_function(children[2].children)
 
@@ -912,10 +923,10 @@ class CodeGenerator:
 
                 # If type is string or bool, throw incompatible type error
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line, next_token.col)
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
 
                 # first_reg defaults to val_reg
                 first_reg = val_reg
@@ -956,7 +967,7 @@ class CodeGenerator:
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_exp_arith'), expr_rel_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body)
 
     # <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     # Returns value register (or immediate), value type, and token
@@ -986,10 +997,10 @@ class CodeGenerator:
 
                 # Type check
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line, next_token.col)
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
 
                 if type(next_reg) in {int, float}: # next_reg is an immediate
                     if oper == 'PLUS':
@@ -1083,10 +1094,10 @@ class CodeGenerator:
 
                 # Type checks
                 if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
 
                 if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line, next_token.col)
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
 
                 # Coerce int to float
                 if val_type == 'int' and next_type == 'float':
@@ -1137,18 +1148,16 @@ class CodeGenerator:
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
-    def _process_fact_arith(self, fact_node):
+    def _process_fact_arith(self, fact_children):
         # len(fact_node.children) = 1 or 2
-        children = fact_node.children
-
-        if len(children) == 2:
-            unary_op = children[0].token
+        if len(fact_children) == 2:
+            unary_op = fact_children[0].token
 
             accum_id = next(self.temp_id_generator)
             immediate_val = None
             val_reg = None
 
-            temp_reg, val_type, val_token = self._process_term_unary(children[1])
+            temp_reg, val_type, val_token = self._process_term_unary(fact_children[1])
             if type(temp_reg) in {int, float, bool, str}:
                 immediate_val = temp_reg
             else: # Register
@@ -1157,11 +1166,11 @@ class CodeGenerator:
             if unary_op.name == 'PLUS':
                 # Throw error if not numeric type; do nothing otherwise
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
             elif unary_op.name == 'MINUS':
                 # Throw type error
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
 
                 if not val_reg: # immediate_val holds value
                     immediate_val *= -1
@@ -1170,7 +1179,7 @@ class CodeGenerator:
             elif unary_op.name == 'LOG_NEGATION':
                 # Throw type error
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
 
                 if not val_reg:
                     immediate_val = not immediate_val
@@ -1182,15 +1191,19 @@ class CodeGenerator:
             else:
                 return val_reg, val_type, val_token
         else: # len(cildren) = 1
-            return self._process_term_unary(children[0])
+            print('Fact children: 0', fact_children[0])
+            return self._process_term_unary(fact_children[0])
 
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
-    def _process_term_unary(self, term_node):
+    def _process_term_unary(self, term_unary):
         # len(term_node) == 1
-        child = term_node[0].children
+        print(term_unary)
+        print(term_unary.children)
+        print(term_unary.children[0])
+        print(term_unary.children[0].token)
+        child = term_unary.children[0]
         token = child.token
-
         if token.t_class == 'LITERAL': # If token is a literal
             literal = token.pattern
             # Check int, float, bool, string

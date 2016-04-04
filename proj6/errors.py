@@ -43,7 +43,7 @@ class SemanticError(Exception):
     @staticmethod
     def raise_type_mismatch_error(var_1, var_2, type_1, type_2, line, col):
         raise SemanticError('Semantic error: Type Mismatch Error: Line num {:d}, column num: {:d}\n\t{:s} is of '
-                            'type {:s}, but {:s} is of type {:s}.').format(line, col, var_1, type_1, var_2, type_2)
+                            'type {:s}, but {:s} is of type {:s}.'.format(line, col, var_1, type_1, var_2, type_2))
 
     @staticmethod
     def raise_incompatible_type(var_name, type_name, line, col):
