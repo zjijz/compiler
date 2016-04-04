@@ -13,17 +13,18 @@ from errors import *
 #  'val_reg': temporary register with value
 #  'used': True | False
 
+# Array Sym Table
+# Keeps track of arrays/strings
+# - Keys are the array or string
+# - 'mem_name': MIPs variable name
+# - 'type': output type (.ascii, .asciiz, or array type (=.word))
+# - 'addr_reg': register that holds address to oth index
+# - 'val': actual stirng for MIPS (same as key except for system strings)
+# - 'used: True | False
+
 # Register Table (Keys are register names, Values are Dicts themselves)
 #  'id': ID pattern
 #  'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
-
-# Var_Queue
-#  Holds a {'reg': "...", 'id': "...", 'mem_type': "VALUE"|"ADDRESS"|"ARRAY_ADDRESS"|"TEMP.type"} dict
-#  Push to back, pop from front
-
-# Float_var_queue:
-#  Holds a {'reg': "...", 'id': "...", 'mem_type': "VALUE"|"ADDRESS"|"TEMP.float"} dict
-#  Push to back, pop from front
 
 # Auxiliary Reg Table (Keeps track registers not used for variables)
 # Keeps track of $v0, $v1, $a0, $a1, $s0
@@ -37,14 +38,14 @@ from errors import *
 #   'id': ID pattern
 #   'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
 
-# Array Sym Table
-# Keeps track of arrays/strings
-# - Keys are the array or string
-# - 'mem_name': MIPs variable name
-# - 'type': output type (.ascii, .asciiz, or array type (=.word))
-# - 'addr_reg': register that holds address to oth index
-# - 'val': actual stirng for MIPS (same as key except for system strings)
-# - 'used: True | False
+# Var Queue
+#  Holds a {'reg': "...", 'id': "...", 'mem_type': "VALUE"|"ADDRESS"|"ARRAY_ADDRESS"|"TYPE.type"} dict
+#  Push to back, pop from front
+
+# Float Var Queue:
+#  Holds a {'reg': "...", 'id': "...", 'mem_type': "VALUE"|"ADDRESS"|"TYPE.float"} dict
+#  Push to back, pop from front
+
 
 # Courtesy of Dr. Karro
 def next_variable_name(curr_name):
@@ -102,6 +103,7 @@ class Register:
             return self.name != other.name
         else:
             return True
+
 
 class CodeGenerator:
     """
@@ -287,6 +289,7 @@ class CodeGenerator:
                 # Reset $s0 to what it was before
                 self.output_string += asm_load_reg_from_stack(self.save_0, 0)
         #################
+
         # Get what registers/var_queue to look at (float or normal)
         reg_table = self.float_reg_table if var_type == 'float' else self.reg_table
         var_queue = self.float_var_queue if var_type == 'float' else self.var_queue
@@ -360,6 +363,7 @@ class CodeGenerator:
     # DOES NOT update var_queue, that is up to you
     def _update_tables(self, table_type, id, new_addr_reg, new_val_reg, id_dict = None, addr_reg_dict = None, val_reg_dict = None):
         reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
+
         # Null Checks
         if not id_dict:
             id_dict = self.sym_table[id]
@@ -459,9 +463,9 @@ class CodeGenerator:
             curr_v0 = self.aux_reg_table[self.val_0]['val']
             # If check_syscode is true, then edits need to be made
             if asm_check_syscode_write(expr_type, curr_v0):
-                self.output_string += asm_set_syscode_write(var_type)
+                self.output_string += asm_set_syscode_write(expr_type)
                 self.aux_reg_table[self.val_0]['id'] = None
-                self.aux_reg_table[self.val_0]['val'] = asm_get_syscode_write(var_type)
+                self.aux_reg_table[self.val_0]['val'] = asm_get_syscode_write(expr_type)
                 self.aux_reg_table[self.val_0]['mem_name'] = None
                 self.aux_reg_table[self.val_0]['mem_type'] = None
 
@@ -492,7 +496,7 @@ class CodeGenerator:
                         false_addr_reg = self._find_free_register()
                         self.var_queue.append({'reg': false_addr_reg, 'id': self.bool_false_string,
                                                'mem_type': 'ARRAY_ADDRESS'})
-                        false_dict['addr_reg'] = true_addr_reg
+                        false_dict['addr_reg'] = false_addr_reg
 
                     # Since this register will only be used in this function, with no other calls to _find_free_reg(),
                     # it does not have to be reserved, just cleared and made accessible
@@ -690,6 +694,7 @@ class CodeGenerator:
     def _process_expr_bool(self, tree_nodes):
         def expr_bool_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             for i in range(1, len(children), 2):
+                # Get RHS
                 next_reg, next_type, next_token = children_function(children[i].children)
 
                 # Save off next_id
@@ -704,6 +709,8 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
@@ -736,6 +743,7 @@ class CodeGenerator:
     def _process_term_bool(self, tree_nodes):
         def term_bool_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             for i in range(1, len(children), 2):
+                # Get RHS
                 next_reg, next_type, next_token = children_function(children[i].children)
 
                 # Save off next_id
@@ -750,6 +758,8 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
@@ -783,9 +793,6 @@ class CodeGenerator:
         def expr_eq_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             # Only enter if there is an <equal_op> <expr_relation>
             if len(children) > 1:
-                # Save off operator
-                equal_op = children[1].token.name
-
                 # Get RHS
                 next_reg, next_type, next_token = children_function(children[2].children)
 
@@ -801,6 +808,11 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
+
+                # Save off operator
+                equal_op = children[1].token.name
 
                 # This means type-coerced ints are not equal to equivalent floats
                 if val_type != next_type:
@@ -828,9 +840,6 @@ class CodeGenerator:
     def _process_expr_rel(self, tree_nodes):
         def expr_rel_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             if children > 1:
-                # Save off op
-                rel_op = children[1]
-
                 # Get RHS
                 next_reg, next_type, next_token = children_function(children[2].children)
 
@@ -846,6 +855,11 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
+
+                # Save off op
+                rel_op = children[1]
 
                 # If type is string or bool, throw incompatible type error
                 if val_type not in {'int', 'float'}:
@@ -900,9 +914,7 @@ class CodeGenerator:
     def _process_expr_arith(self, tree_nodes):
         def expr_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             for i in range(1, len(children), 2):
-                # Load the operation
-                oper = tree_nodes[i].label
-
+                # Get RHS
                 next_reg, next_type, next_token = children_function(children[i].children)
 
                 # Save off next_id
@@ -917,6 +929,11 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
+
+                # Load the operation
+                oper = tree_nodes[i].label
 
                 # Type check
                 if val_type not in {'int', 'float'}:
@@ -960,7 +977,7 @@ class CodeGenerator:
                         self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
 
                         # Add to float var_queue
-                        self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TEMP.float'})
+                        self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TYPE.float'})
 
                         # Coerce val_type up
                         self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
@@ -994,9 +1011,7 @@ class CodeGenerator:
     def _process_term_arith(self, tree_nodes):
         def term_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
             for i in range(1, len(children), 2):
-                # Load the operation
-                oper = tree_nodes[i].label
-
+                # Get RHS
                 next_reg, next_type, next_token = children_function(children[i].children)
 
                 # Save off next_id
@@ -1011,6 +1026,11 @@ class CodeGenerator:
                 # Ensure next_reg is loaded
                 if next_id:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                ##################################
+
+                # Load the operation
+                oper = tree_nodes[i].label
 
                 # Type checks
                 if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
@@ -1037,7 +1057,7 @@ class CodeGenerator:
                     self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
 
                     # Add to float var_queue
-                    self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TEMP.float'})
+                    self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TYPE.float'})
 
                     # Coerce val_type up
                     self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)

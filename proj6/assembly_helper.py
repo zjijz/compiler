@@ -377,5 +377,3 @@ def asm_cast_int_to_float(f_reg, i_reg):
 def asm_dynamic_bool_print(r_reg, f_reg, true_addr_reg, false_addr_reg):
     return asm_rel_eq('$at', f_reg, 1) + 'movn {:s}, {:s}, {:s}'.format(r_reg, true_addr_reg, '$at') + \
            'movz {:s}, {:s}, {:s}'.format(r_reg, false_addr_reg, '$at')
-
-
