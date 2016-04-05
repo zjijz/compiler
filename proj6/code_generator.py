@@ -793,24 +793,29 @@ class CodeGenerator:
     # - must ensure that both val_reg and next_reg are loaded at proper times
     # - must take (tree_nodes, accum_id, val_reg, val_type, val_token, immediate_val) as parameters
     def _process_expr_skeleton(self, children, children_function, body_function):
-        # Reserve accum_id
-        accum_id = next(self.temp_id_generator)
-        immediate_val = None
-        val_reg = None
-
-        temp_reg, val_type, val_token = children_function(children[0].children)
-        if type(temp_reg) in {int, float, bool, str}:
-            immediate_val = temp_reg
-        else: # Register
-            val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
-
-        val_reg, immediate_val, val_type = \
-            body_function(children[1:], children_function, accum_id, val_reg, val_type, val_token, immediate_val)
-
-        if not val_reg:
-            return immediate_val, val_type, val_token
+        # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
+        # Thus, we can just return exactly whatever returned from the one below
+        if len(children) == 1:
+            return children_function(children[0].children)
         else:
-            return val_reg, val_type, val_token
+            # Reserve accum_id
+            accum_id = next(self.temp_id_generator)
+            immediate_val = None
+            val_reg = None
+
+            temp_reg, val_type, val_token = children_function(children[0].children)
+            if type(temp_reg) in {int, float, bool, str}:
+                immediate_val = temp_reg
+            else: # Register
+                val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
+
+            val_reg, immediate_val, val_type = \
+                body_function(children[1:], children_function, accum_id, val_reg, val_type, val_token, immediate_val)
+
+            if not val_reg:
+                return immediate_val, val_type, val_token
+            else:
+                return val_reg, val_type, val_token
 
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     def _process_expr_bool(self, tree_nodes):
@@ -1132,7 +1137,7 @@ class CodeGenerator:
     # Returns value register (or immediate), value type, and token
     def _process_term_arith(self, tree_nodes):
         def term_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            # Initialize val_reg to immediate_val if necessaary
+            # Initialize val_reg to immediate_val if necessary
             if val_reg is None: # else, val_reg is already good to go
                 val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
 

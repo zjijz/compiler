@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "compiler.py", line 31, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.debug_mode, args.safe_mode)
+  File "compiler.py", line 11, in compiler
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 181, in compile
+    self._finish()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 430, in _finish
+    fp = open(self.output_name, 'w')
+FileNotFoundError: [Errno 2] No such file or directory: 'proj_6_testers/compiled/6.asm'

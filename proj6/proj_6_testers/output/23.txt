@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "compiler.py", line 31, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.debug_mode, args.safe_mode)
+  File "compiler.py", line 11, in compiler
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/MLparser.py", line 97, in parse
+    %(cur_token.line, cur_token.line_num, cur_token.col))
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/errors.py", line 20, in raise_redundant_tokens_error
+    %(curToken.line, curToken.line_num, curToken.col))
+AttributeError: 'str' object has no attribute 'line'

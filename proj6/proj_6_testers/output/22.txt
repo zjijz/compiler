@@ -1,0 +1,34 @@
+Traceback (most recent call last):
+  File "compiler.py", line 31, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.debug_mode, args.safe_mode)
+  File "compiler.py", line 11, in compiler
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 180, in compile
+    self._traverse(self.tree)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 263, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 263, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 260, in _traverse
+    self.func_factory[child.label](tree.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 458, in _write
+    var_reg, var_type, var_token = self._process_expr_bool(expr.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 866, in _process_expr_bool
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 799, in _process_expr_skeleton
+    return children_function(children[0].children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 915, in _process_term_bool
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 799, in _process_expr_skeleton
+    return children_function(children[0].children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 963, in _process_expr_eq
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 799, in _process_expr_skeleton
+    return children_function(children[0].children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 1037, in _process_expr_rel
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 813, in _process_expr_skeleton
+    body_function(children[1:], children_function, accum_id, val_reg, val_type, val_token, immediate_val)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 971, in expr_rel_body
+    next_reg, next_type, next_token = children_function(children[2].children)
+IndexError: list index out of range

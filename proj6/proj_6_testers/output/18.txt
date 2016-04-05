@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "compiler.py", line 31, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.debug_mode, args.safe_mode)
+  File "compiler.py", line 11, in compiler
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 180, in compile
+    self._traverse(self.tree)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 263, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 263, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 260, in _traverse
+    self.func_factory[child.label](tree.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 445, in _read
+    id_dict = self._get_sym_table_entry(ident.children[0].token.pattern, ident.children[0].token)
+IndexError: list index out of range

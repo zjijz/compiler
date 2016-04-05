@@ -13,10 +13,10 @@ do
 
   if ! grep --quiet Traceback proj_6_testers/output/$name.txt; then
     # Clear ouput if not error
-    > proj_5_testers/output/$name.txt
+    > proj_6_testers/output/$name.txt
 
     # Run MIPS on file and input
-    cat proj_5_testers/input/$name.txt | java -jar ~/mars4_5.jar proj_5_testers/compiled/$name.asm >> proj_6_testers/output/$name.txt
+    cat proj_6_testers/input/$name.txt | java -jar ~/mars4_5.jar proj_6_testers/compiled/$name.asm >> proj_6_testers/output/$name.txt
   elif grep --quiet Lexical proj_6_testers/output/$name.txt; then
     echo "Lexical Error" > proj_6_testers/output/$name.txt
   elif grep --quiet Syntax proj_6_testers/output/$name.txt; then

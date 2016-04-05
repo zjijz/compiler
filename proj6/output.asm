@@ -1,18 +1,10 @@
 .text
-li $t5, 20
-mul $t5, $t5, 10
-move $t8, $t5
-move $t4, $t8
-move $s4, $t4
-move $s1, $s4
-move $s2, $s1
-move $t1, $s2
-move $s5, $t1
-move $t6, $s5
-move $t2, $t6
-move $t9, $t2
-move $s3, $t9
-move $t7, $s3
-li $v0, 1
-move $a0, $t7
+li $at, 1101004800
+mtc1 $at, $f27
+li $at, 1092616192
+mtc1 $at, $f13
+mul.s $f27, $f27, $f13
+mov.s $f9, $f27
+li $v0, 2
+mov.s $f12, $f9
 syscall
