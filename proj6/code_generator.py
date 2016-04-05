@@ -688,9 +688,24 @@ class CodeGenerator:
         if len(children) > 1:
             expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
 
+            # Raise SemanticError on type mismatch
             if expr_type != var_type:
-                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type,
-                                                        expr_token.line_num, expr_token.col)
+                # Coerce int into float (but not the other way around?)
+                if var_type == 'float' and expr_type == 'int':
+                    if type(expr_reg) is not int:
+                        # Reserve this just in case _assign_id removes it
+                        expr_float_reg = self._find_free_register('float')
+                        expr_temp_id = next(self.temp_id_generator)
+                        self.float_var_queue.append({'reg': expr_float_reg, 'id': expr_temp_id, 'mem_type': 'TYPE.float'})
+                        # Coerce next_type up
+                        self.output_string += asm_cast_int_to_float(expr_float_reg, expr_reg)
+                        # set expr_reg to be the new float_reg
+                        expr_reg = expr_float_reg
+                    else:
+                        expr_reg = float(expr_reg)
+                else:
+                    SemanticError.raise_type_mismatch_error(ident, expr_token.pattern, id_type, expr_type,
+                                                            expr_token.line_num, expr_token.col)
 
             # Check for immediates
             if type(expr_reg) is not Register:
@@ -791,8 +806,6 @@ class CodeGenerator:
 
         val_reg, immediate_val, val_type = \
             body_function(children[1:], children_function, accum_id, val_reg, val_type, val_token, immediate_val)
-
-        print('Returned from: ', children_function.__name__, 'var_type', val_type)
 
         if not val_reg:
             return immediate_val, val_type, val_token

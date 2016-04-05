@@ -39,7 +39,7 @@ Queue for Recent Variables
  - Pretty Print for sym_table, reg_table, aux_reg_table, float_reg_table, and var_queue
  - Helper function / class to make dictionaries for use with var_queue
 
- - Create a funciton that will recurse down and look through tree nodes until it finds a designated one
+ - Create a function that will recurse down and look through tree nodes until it finds a designated one
 
  - Abstract out the common parts of expression more
    - In expr_bool, make it so optimization level 3 breaks once it finds a static True with or (no point processing the rest)
@@ -47,13 +47,15 @@ Queue for Recent Variables
  - Abstract assign_id and process_id  more (the part where they load val and address registers)
  - Figure out if multiplicatin / division / modulo can be optimized
 
- - Bools are only statically analyzed right now, add in an option to read them in from command line
-   - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
-     - Keep a boolean 'register' table of coprocessor 1 flags
+ - Abstract out a way to coerce ints to floats (assign, declaration, and expressions)
 
- - Abstract out a way to coerce ints to floats
+ - Redo errors to also output the line
 
  - Devise a way to pass down the accumulator register to child functions if there is only one term in the expression (i.e. it 'fell' through to a lower expression)
+
+  - Bools are only statically analyzed right now, add in an option to read them in from command line
+   - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
+     - Keep a boolean 'register' table of coprocessor 1 flags
  ______________________________
  Project 6
  - Bool type (statically analyzed)
