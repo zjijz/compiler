@@ -40,12 +40,14 @@ Queue for Recent Variables
  - Helper function / class to make dictionaries for use with var_queue
 
  - Create a function that will recurse down and look through tree nodes until it finds a designated one
-   - I swear the parse tree structure is the bain of my existence
+   - I swear the parse tree structure is the bane of my existence
 
  - Abstract out the common parts of expression more
    - In expr_bool, make it so method breaks once it finds a static True with or (no point processing the rest)
    - In term_bool, make it so method breaks once if finds a static False
+
  - Abstract assign_id and process_id  more (the part where they load val and address registers)
+
  - Figure out if multiplication / division / modulo can be optimized more
 
  - Abstract out a way to coerce ints to floats (assign, declaration, and expressions)
