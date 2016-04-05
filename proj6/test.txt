@@ -1,4 +1,4 @@
 begin
-    float x := 20;
+    int x := 20 * 10;
     write(x);
 end

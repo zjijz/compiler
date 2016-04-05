@@ -1132,6 +1132,10 @@ class CodeGenerator:
     # Returns value register (or immediate), value type, and token
     def _process_term_arith(self, tree_nodes):
         def term_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
+            # Initialize val_reg to immediate_val if necessaary
+            if val_reg is None: # else, val_reg is already good to go
+                val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
+
             for i in range(1, len(children), 2):
                 # Get RHS
                 next_reg, next_type, next_token = children_function(children[i].children)

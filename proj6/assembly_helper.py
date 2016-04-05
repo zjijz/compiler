@@ -272,7 +272,7 @@ def asm_multiply(r_reg, f_reg, s_reg):
         else:
             return 'mul.s {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
     else:
-        return 'mul {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        return 'mul {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
 
 
 # r_reg = f_reg / s_reg
@@ -283,13 +283,13 @@ def asm_divide(r_reg, f_reg, s_reg):
         else:
             return 'div.s {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
     else:
-        return 'div {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        return 'div {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
 
 
 # Only defined for integers
 # r_reg = f_reg % s_reg
 def asm_modulo(r_reg, f_reg, s_reg):
-    return 'rem {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    return 'rem {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
 
 
 # Load a value from one register to another
