@@ -21,7 +21,7 @@ do
     echo "Lexical Error" > proj_6_testers/output/$name.txt
   elif grep --quiet Syntax proj_6_testers/output/$name.txt; then
     echo "Syntax Error" > proj_6_testers/output/$name.txt
-  elif grep --quiet Syntax proj_6_testers/output/$name.txt; then
+  elif grep --quiet Semantic proj_6_testers/output/$name.txt; then
     echo "Semantic Error" > proj_6_testers/output/$name.txt
   fi
 

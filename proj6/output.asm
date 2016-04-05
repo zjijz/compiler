@@ -1,10 +1,22 @@
+.data
+c:	.word	0	# a in original
+e:	.word	0	# c in original
+d:	.word	0	# b in original
 .text
-li $at, 1101004800
-mtc1 $at, $f27
-li $at, 1092616192
-mtc1 $at, $f13
-mul.s $f27, $f27, $f13
-mov.s $f9, $f27
-li $v0, 2
-mov.s $f12, $f9
+li $v0, 5
+syscall
+la $t0, c
+lw $t5, 0($t0)
+move $t5, $v0
+move $t6, $t5
+move $s4, $t5
+add $s4, $s4, $t5
+add $s4, $s4, $t5
+move $t7, $s4
+li $v0, 1
+move $a0, $t5
+syscall
+move $a0, $t6
+syscall
+move $a0, $t7
 syscall

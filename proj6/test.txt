@@ -1,4 +1,9 @@
 begin
-    float x := 20.0 * 10.0;
-    write(x);
+    int a;
+    read(a);
+    int b := a;
+    int c := (a) + (a) + (a);
+    write(a, b, c);
 end
+
+

@@ -40,12 +40,13 @@ Queue for Recent Variables
  - Helper function / class to make dictionaries for use with var_queue
 
  - Create a function that will recurse down and look through tree nodes until it finds a designated one
+   - I swear the parse tree structure is the bain of my existence
 
  - Abstract out the common parts of expression more
-   - In expr_bool, make it so optimization level 3 breaks once it finds a static True with or (no point processing the rest)
-   - In term_bool, make optimization level 3 break once if finds a static False
+   - In expr_bool, make it so method breaks once it finds a static True with or (no point processing the rest)
+   - In term_bool, make it so method breaks once if finds a static False
  - Abstract assign_id and process_id  more (the part where they load val and address registers)
- - Figure out if multiplication / division / modulo can be optimized
+ - Figure out if multiplication / division / modulo can be optimized more
 
  - Abstract out a way to coerce ints to floats (assign, declaration, and expressions)
 
@@ -57,6 +58,10 @@ Queue for Recent Variables
   - Bools are only statically analyzed right now, add in an option to read them in from command line
    - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
      - Keep a boolean 'register' table of coprocessor 1 flags
+
+ - assembly updates
+   - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
+   -
  ______________________________
  Project 6
  - Bool type (statically analyzed)
@@ -74,6 +79,6 @@ ______________________________
 Features
 - Static analysis of integers, booleans, floats, and strings
 - Dynanmic register management with different register pools for integers and floats
-- Tracks auxiliary registers to minimize unnecessary moves to syscall registers
+- Tracks auxiliary registers to minimize unnecessary moves to registers used in syscall functions
 - Safe mode and unsafe mode (unsafe mode uses registers that are normally supposed to be saved without saving them off)
 - Debug mode that shows debugging on the parser and prints out the code generator tables

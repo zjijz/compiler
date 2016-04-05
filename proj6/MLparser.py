@@ -92,9 +92,7 @@ class Parser:
         G = Lexer(source_file, token_file).lex()
         cur_token, t = self.program(next(G), G)
         if (cur_token.name != "$"):
-            raise ParserError.raise_redundant_tokens_error('There are redundant tokens at the end of the program, '
-                              'starting with: %s\nLine num: %d, column num: %d'
-                              %(cur_token.line, cur_token.line_num, cur_token.col))
+            raise ParserError.raise_redundant_tokens_error(cur_token)
         return t
 
     # <program> -> begin <statement_list> end

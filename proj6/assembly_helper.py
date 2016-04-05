@@ -137,7 +137,7 @@ def asm_log_negate(r_reg, f_reg):
 
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -154,7 +154,7 @@ def asm_rel_eq(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg != s_reg
 def asm_rel_neq(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -170,7 +170,7 @@ def asm_rel_neq(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg < s_reg
 def asm_rel_le(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -184,7 +184,7 @@ def asm_rel_le(r_reg, f_reg, s_reg):
 # I don't know why this one doesn't have pseudocode overrides for immediates, but the others do
 # r_reg <- f_reg <= s_reg
 def asm_rel_lt(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -199,7 +199,8 @@ def asm_rel_lt(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg > s_reg
 def asm_rel_ge(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    print(r_reg, f_reg, s_reg)
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -214,7 +215,7 @@ def asm_rel_ge(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg >= s_reg
 def asm_rel_gt(r_reg, f_reg, s_reg):
-    if 'f' in s_reg:
+    if 'f' in str(s_reg):
         if type(s_reg) is float:
             asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -318,22 +319,34 @@ def asm_load_mem_addr(mem_name, temp_reg):
 
 # Assumes mem_name address isn't in memory already
 def asm_load_mem_var(mem_name, addr_reg, dest_reg, offset = 0):
-    return 'la {:s}, {:s}\nlw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, dest_reg, offset, addr_reg)
+    if 'f' in str(dest_reg):
+        return 'la {:s}, {:s}\nl.s {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, dest_reg, offset, addr_reg)
+    else:
+        return 'la {:s}, {:s}\nlw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, dest_reg, offset, addr_reg)
 
 
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_load_mem_var_from_addr(mem_addr_reg, dest_reg, offset = 0):
-    return 'lw {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
+    if 'f' in str(dest_reg):
+        return 'l.s {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
+    else:
+        return 'lw {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
 
 
 # Assumes mem_name address isn't in memory already
 def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
-    return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
+    if 'f' in str(var_reg):
+        return 'la {:s}, {:s}\ns.s {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
+    else:
+        return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
 
 
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
-    return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+    if 'f' in str(var_reg):
+        return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+    else:
+        return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
 
 # _______________________Helpers________________________
 
