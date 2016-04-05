@@ -1,22 +1,32 @@
 .data
-c:	.word	0	# a in original
 e:	.word	0	# c in original
 d:	.word	0	# b in original
+c:	.word	0	# a in original
+f:	.asciiz	"\n"	
 .text
 li $v0, 5
 syscall
-la $t0, c
-lw $t5, 0($t0)
-move $t5, $v0
-move $t6, $t5
-move $s4, $t5
-add $s4, $s4, $t5
-add $s4, $s4, $t5
-move $t7, $s4
+la $t7, c
+lw $s1, 0($t7)
+move $s1, $v0
+move $t8, $s1
+move $s6, $s1
+add $s6, $s6, $s1
+add $s6, $s6, $s1
+move $t9, $s6
 li $v0, 1
-move $a0, $t5
+move $a0, $s1
 syscall
-move $a0, $t6
+li $v0, 4
+la $s2, f
+move $a0, $s2
 syscall
-move $a0, $t7
+li $v0, 1
+move $a0, $t8
+syscall
+li $v0, 4
+move $a0, $s2
+syscall
+li $v0, 1
+move $a0, $t9
 syscall

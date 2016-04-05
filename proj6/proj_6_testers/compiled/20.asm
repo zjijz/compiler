@@ -1,12 +1,12 @@
 .text
-li $t9, 5
-mul $t9, $t9, 6
-div $t9, $t9, 2
+li $s2, 5
+mul $s2, $s2, 6
+div $s2, $s2, 2
 li $v0, 1
-move $a0, $t9
+move $a0, $s2
 syscall
-li $t8, 6
-div $t8, $t8, 2
-mul $t8, $t8, 5
-move $a0, $t8
+li $t5, 6
+div $t5, $t5, 2
+mul $t5, $t5, 5
+move $a0, $t5
 syscall

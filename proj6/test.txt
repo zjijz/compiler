@@ -3,7 +3,7 @@ begin
     read(a);
     int b := a;
     int c := (a) + (a) + (a);
-    write(a, b, c);
+    write(a, "\n", b, "\n", c);
 end
 
 

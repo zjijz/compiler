@@ -519,6 +519,9 @@ class CodeGenerator:
                     r_reg = self._find_free_register()
                     self.output_string += asm_dynamic_bool_print(r_reg, expr_reg, true_addr_reg, false_addr_reg)
 
+                    # Reset $a0
+                    self.aux_reg_table[self.arg_0] = self._empty_aux_reg_dict()
+
                     # Write
                     self.output_string += asm_write(r_reg, expr_type)
 
@@ -553,6 +556,9 @@ class CodeGenerator:
                 # Write
                 self.output_string += asm_write(addr_reg, expr_type, is_a0_set)
             else: # then expr_reg is int or float
+                # Reset $a0
+                self.aux_reg_table[self.arg_0] = self._empty_aux_reg_dict()
+
                 self.output_string += asm_write(expr_reg, expr_type)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
@@ -1324,10 +1330,15 @@ class CodeGenerator:
                 literal = token.pattern
                 # Check int, float, bool, string literals
                 if token.name == 'STRINGLIT':
-                    str_dict = self._empty_array_sym_table_dict()
-                    str_dict['mem_name'] = next(self.var_name_generator)
-                    str_dict['type'] = '.asciiz'
-                    self.array_sym_table[literal] = str_dict
+                    # See if literal already in array_sym_table
+                    try:
+                        self.array_sym_table[literal]
+                    except KeyError:
+                        # Create new entry
+                        str_dict = self._empty_array_sym_table_dict()
+                        str_dict['mem_name'] = next(self.var_name_generator)
+                        str_dict['type'] = '.asciiz'
+                        self.array_sym_table[literal] = str_dict
                     return literal, 'string', token
                 elif token.name == 'BOOLLIT':
                     return literal == 'True', 'bool', token
