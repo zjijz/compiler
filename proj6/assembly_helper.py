@@ -5,6 +5,7 @@ import struct
 
 # Borrowed from http://stackoverflow.com/questions/16444726/binary-representation-of-float-in-python-bits-not-hex
 # Slightly edited to adhere to Python 3.5 standards over 2.7
+# The return from this function should be cast by int(str, 2) for the immediate to use in MIPS
 def convert_float_to_binary(float_val):
     return ''.join(bin(b).replace('0b', '').rjust(8, '0') for b in struct.pack('!f', float_val))
 
@@ -83,16 +84,19 @@ def asm_set_syscode_write(var_type):
 # 2 - print float, arg in $f12
 # 3 - print double, arg in $f12
 # 4 - print string, arg in $a0
-def asm_write(var_reg, var_type):
+# If the is_a0_set boolean is True, then the will be no register equation
+def asm_write(var_reg, var_type, is_a0_set = False):
     ret_asm = ''
-    if var_type == 'int':
-        ret_asm += asm_reg_set('$a0', var_reg)
-    elif var_type == 'float':
-        ret_asm += asm_reg_set('$f12', var_reg)
-    elif var_type == 'double':
-        ret_asm += asm_reg_set('$f12', var_reg)
-    else:
-        ret_asm += asm_reg_set('$a0', var_reg)
+
+    if not is_a0_set:
+        if var_type == 'int':
+            ret_asm += asm_reg_set('$a0', var_reg)
+        elif var_type == 'float':
+            ret_asm += asm_reg_set('$f12', var_reg)
+        elif var_type == 'double':
+            ret_asm += asm_reg_set('$f12', var_reg)
+        else:
+            ret_asm += asm_reg_set('$a0', var_reg)
 
     return ret_asm + 'syscall\n'
 
@@ -297,7 +301,7 @@ def asm_reg_set(f_reg, s_reg):
     if type(s_reg) is int:
         return 'li {:s}, {:d}\n'.format(f_reg, s_reg)
     elif type(s_reg) is float:
-        return 'li {:s}, {:s}\n'.format('$at', convert_float_to_binary(s_reg)) \
+        return 'li {:s}, {:d}\n'.format('$at', int(convert_float_to_binary(s_reg), 2)) \
                   + 'mtc1 {:s}, {:s}\n'.format('$at', f_reg)
     elif op_type == 'float':
         return 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)

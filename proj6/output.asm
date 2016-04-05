@@ -1,7 +1,5 @@
-.data
-a:	.asciiz	"True"	
 .text
-li $v0, 4
-la $s1, a
-move $a0, $s1
+li $v0, 2
+li $at, 1101004800
+mtc1 $at, $f12
 syscall

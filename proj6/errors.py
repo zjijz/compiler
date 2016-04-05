@@ -41,6 +41,11 @@ class SemanticError(Exception):
                             'initialized before use.'.format(line, col, variable))
 
     @staticmethod
+    def raise_already_initialized_error(variable, line, col):
+        raise SemanticError('Semantic error: Initialization Error: Line num: {:d}, column num: {:d}\n\t'
+                            '{:s} is already initialized.'.format(line, col, variable))
+
+    @staticmethod
     def raise_type_mismatch_error(var_1, var_2, type_1, type_2, line, col):
         raise SemanticError('Semantic error: Type Mismatch Error: Line num {:d}, column num: {:d}\n\t{:s} is of '
                             'type {:s}, but {:s} is of type {:s}.'.format(line, col, var_1, type_1, var_2, type_2))

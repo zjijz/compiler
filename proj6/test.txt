@@ -1,4 +1,5 @@
 begin
-    bool a := True;
-    write(a);
+    float x;
+    x := 20;
+    write(x);
 end

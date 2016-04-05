@@ -20,7 +20,6 @@ from copy import *
 # - 'mem_name': MIPs variable name
 # - 'type': output type (.ascii, .asciiz, or array type (=.word))
 # - 'addr_reg': register that holds address to oth index
-# - 'val': actual stirng for MIPS (same as key except for system strings)
 # - 'used: True | False
 
 # Register Table (Keys are register names, Values are Dicts themselves)
@@ -127,7 +126,7 @@ class CodeGenerator:
 
     @staticmethod
     def _empty_array_sym_table_dict():
-        return {'type': None, 'mem_name': None, 'addr_reg': None, 'used': None}
+        return {'type': None, 'mem_name': None, 'addr_reg': None, 'used': False}
 
     def __init__(self, parse_tree, output_filename, is_debug, is_safe):
         # Name / ID generators
@@ -139,8 +138,8 @@ class CodeGenerator:
         self.safe_mode = is_safe
 
         # Function dictionary
-        self.func_factory = {"READ": self._read_id, "WRITE": self._write_id, "ASSIGN": self._assign,
-                             "DECLARATION": self._declare_id}
+        self.func_factory = {"READ": self._read, "WRITE": self._write, "ASSIGN": self._assign,
+                             "DECLARATION": self._declare}
 
         # Stuff from Parser
         self.tree = parse_tree
@@ -148,8 +147,8 @@ class CodeGenerator:
         # Symbol Tables
         self.sym_table = {}
         # These system strings start with an untypable character to ensure no conflict with user-defined strings
-        self.bool_true_string = chr(0) + 'True'
-        self.bool_false_string = chr(0) + 'False'
+        self.bool_true_string = '"True"'
+        self.bool_false_string = '"False"'
         self.array_sym_table = self._create_array_sym_table()
 
         # Registers
@@ -188,14 +187,12 @@ class CodeGenerator:
         true_dict = self._empty_array_sym_table_dict()
         true_dict['type'] = '.asciiz'
         true_dict['mem_name'] = next(self.var_name_generator)
-        true_dict['val'] = 'True'
         array_sym_table[self.bool_true_string] = true_dict
 
         # 'False' for bool
         false_dict = self._empty_array_sym_table_dict()
         false_dict['type'] = '.asciiz'
         false_dict['mem_name'] = next(self.var_name_generator)
-        false_dict['val'] = 'False'
         array_sym_table[self.bool_false_string] = false_dict
 
         return array_sym_table
@@ -297,7 +294,7 @@ class CodeGenerator:
 
         # Look for open register
         for reg in reg_table:
-            if not self.reg_table[reg]['id']:
+            if not reg_table[reg]['id']:
                 return reg
 
         # If none are open, free up a register
@@ -419,10 +416,9 @@ class CodeGenerator:
             if id_dict['used']:
                 name = id_dict['mem_name']
                 o_type = id_dict['type']
-                o_string = id_dict['val']
 
                 # string might have to be sanitized when using arrays
-                data_section += '{:s}:\t{:s}\t"{:s}"\t\n'.format(name, o_type, o_string)
+                data_section += '{:s}:\t{:s}\t{:s}\t\n'.format(name, o_type, string)
 
         # Prepend .data section instead of adding at beginning
         if data_section != '':
@@ -443,7 +439,7 @@ class CodeGenerator:
                   'Variable Queue: ', self.var_queue, '\n\n', 'Float Variable Queue: ', self.float_var_queue, '\n')
 
     # Takes a list of id's and writes required code to read input into each
-    def _read_id(self, tree_nodes):
+    def _read(self, tree_nodes):
         id_list = tree_nodes[1].children
         for ident in id_list:
             id_dict = self._get_sym_table_entry(ident.children[0].token.pattern, ident.children[0].token)
@@ -456,11 +452,9 @@ class CodeGenerator:
             self._assign_id(id_dict, self.val_0)
 
     # Takes a list of expressions and correctly prints them
-    def _write_id(self, tree_nodes):
+    def _write(self, tree_nodes):
         expr_lst = tree_nodes[1].children
-        print(expr_lst)
         for expr in expr_lst:
-            print(expr.children, type(expr.children))
             var_reg, var_type, var_token = self._process_expr_bool(expr.children)
 
             # Construct expr_type, which will control what's written out
@@ -530,8 +524,18 @@ class CodeGenerator:
                     sym_dict['addr_reg'] = addr_reg
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
+                # Check if address is already in $a0
+                a0_dict = self.aux_reg_table[self.arg_0]
+                is_a0_set = False
+                if a0_dict['val'] == expr_reg:
+                    is_a0_set = True
+                # Update $v0 otherwise
+                else:
+                    a0_dict['val'] = expr_reg
+                    a0_dict['mem_type'] = 'ADDRESS'
+
                 # Write
-                self.output_string += asm_write(addr_reg, expr_type)
+                self.output_string += asm_write(addr_reg, expr_type, is_a0_set)
             else: # then expr_reg is int or float
                 self.output_string += asm_write(expr_reg, expr_type)
 
@@ -539,36 +543,59 @@ class CodeGenerator:
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
     def _assign(self, tree_nodes):
         # Get RHS result
+        expr_id = None
         expr_reg, expr_type, expr_token = self._process_expr_bool(tree_nodes[0].children[1].children)
 
         # Get LHS variable
-        token = tree_nodes[0].children[0].children[0].token
+        token = tree_nodes[0].children[0].token
         ident = token.pattern
         id_dict = self._get_sym_table_entry(ident, token)
 
+        # Throw type error
+        id_type = id_dict['type']
+        if  id_type != expr_type:
+            # Coerce int into float (but not the other way around?)
+            if id_type == 'float' and expr_type == 'int':
+                if type(expr_reg) is not int:
+                    # Reserve this just in case _assign_id removes it
+                    expr_float_reg = self._find_free_register('float')
+                    expr_temp_id = next(self.temp_id_generator)
+                    self.float_var_queue.append({'reg': expr_float_reg, 'id': expr_temp_id, 'mem_type': 'TYPE.float'})
+                    # Coerce next_type up
+                    self.output_string += asm_cast_int_to_float(expr_float_reg, expr_reg)
+                    # set expr_reg to be the new float_reg
+                    expr_reg = expr_float_reg
+                else:
+                    expr_reg = float(expr_reg)
+            else:
+                SemanticError.raise_type_mismatch_error(ident, expr_token.pattern, id_type, expr_type,
+                                                        expr_token.line_num, expr_token.col)
+
         # Run _assign_id
-        self._assign_id(id_dict, expr_reg)
+        self._assign_id(id_dict, expr_reg, expr_id)
 
     # Takes an id
     # Ensures that the id addr and val are initialized into registers
     # Returns nothing, since it should correctly equate values
     # (Either changing curr_val if RHS is an immediate, or
-    def _assign_id(self, id_dict, assn_reg):
+    def _assign_id(self, id_dict, assn_reg, expr_id = None):
         var_type = id_dict['type']
         name = id_dict['mem_name']
         addr_reg = id_dict['addr_reg']
         val_reg = id_dict['val_reg']
         curr_val = id_dict['curr_val']
 
+        print(type(assn_reg))
+
         python_assn_type = type(assn_reg)
         if python_assn_type is Register:
-            id_dict['curr_val'] = None
+            curr_val = id_dict['curr_val'] = None
         elif python_assn_type is int and var_type == 'int':
-            id_dict['curr_val'] = assn_reg
+            curr_val = id_dict['curr_val'] = assn_reg
         elif python_assn_type is float and var_type == 'float':
-            id_dict['curr_val'] = assn_reg
+            curr_val = id_dict['curr_val'] = assn_reg
         elif python_assn_type is str and var_type == 'string':
-            id_dict['curr_val'] = assn_reg
+            curr_val = id_dict['curr_val'] = assn_reg
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
         if not curr_val:
@@ -595,6 +622,10 @@ class CodeGenerator:
 
                 self.output_string += asm_load_mem_var_from_addr(addr_reg, val_reg)
 
+            # Ensure expr_id is loaded (if not None)
+            if expr_id:
+                assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
+
             # Equate registers (move assn_reg value into val_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
@@ -608,7 +639,7 @@ class CodeGenerator:
     # Load into memory
     # Grab empty symbol table and edit types
     # sym_table[id] = empty table?
-    def _declare_id(self, tree_nodes):
+    def _declare(self, tree_nodes):
         # The type is the first child of declare and the
         # declaration list is the second
         var_type = tree_nodes[0].children[0].token.name.lower()
@@ -620,34 +651,52 @@ class CodeGenerator:
 
     # Used to run individual declare statements
     def _process_declare_term(self, children, var_type):
-        var_id = children[0].token.pattern
+        # Get var_id and reserve MIPS name
+        token = children[0].token
+        var_id = token.pattern
+
+        # Checks if var_id is already initialized
+        # If it isn't, simply suppress KeyError
+        # If no KeyError, raise SemanticError
+        try:
+            self.sym_table[var_id]
+            SemanticError.raise_already_initialized_error(var_id, token.line_num, token.col)
+        except KeyError:
+            pass
+
         mem_name = next(self.var_name_generator)
 
+        # Clean up the type and get correct var_queue for variable type
         clean_type = 'float' if var_type == 'float' else 'normal'
         var_queue = self.float_var_queue if clean_type == 'float' else self.var_queue
 
+        # Load addr_reg
         addr_reg = self._find_free_register(clean_type)
         var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
         self._update_reg_table(clean_type, var_id, addr_reg, 'ADDRESS')
 
+        # Load var_reg
         val_reg = self._find_free_register(clean_type)
         var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
         self._update_reg_table(clean_type, var_id, val_reg, 'VALUE')
 
+        # Set curr_val and init_val to default to None
         curr_val = None
         init_val = None
 
-        # if declaration includes an assignment (to expr_bool)
+        # If declaration includes an assignment (to expr_bool)
         if len(children) > 1:
             expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
 
             if expr_type != var_type:
-                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type, expr_token.line_num, expr_token.col)
+                SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type,
+                                                        expr_token.line_num, expr_token.col)
 
+            # Check for immediates
             if type(expr_reg) is not Register:
                 curr_val = init_val = expr_reg
                 val_reg = None
-            else:
+            else: # If not, equate registers
                 self.output_string += asm_reg_set(val_reg, expr_reg)
 
         var_dict = self._empty_sym_table_dict()
@@ -729,8 +778,6 @@ class CodeGenerator:
     # - must ensure that both val_reg and next_reg are loaded at proper times
     # - must take (tree_nodes, accum_id, val_reg, val_type, val_token, immediate_val) as parameters
     def _process_expr_skeleton(self, children, children_function, body_function):
-        print(children)
-
         # Reserve accum_id
         accum_id = next(self.temp_id_generator)
         immediate_val = None
@@ -744,6 +791,8 @@ class CodeGenerator:
 
         val_reg, immediate_val, val_type = \
             body_function(children[1:], children_function, accum_id, val_reg, val_type, val_token, immediate_val)
+
+        print('Returned from: ', children_function.__name__, 'var_type', val_type)
 
         if not val_reg:
             return immediate_val, val_type, val_token
@@ -1191,37 +1240,29 @@ class CodeGenerator:
             else:
                 return val_reg, val_type, val_token
         else: # len(cildren) = 1
-            print('Fact children: 0', fact_children[0])
             return self._process_term_unary(fact_children[0])
 
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
     def _process_term_unary(self, term_unary):
         # len(term_node) == 1
-        print(term_unary)
-        print(term_unary.children)
-        print(term_unary.children[0])
-        print(term_unary.children[0].token)
         child = term_unary.children[0]
         token = child.token
         if token.t_class == 'LITERAL': # If token is a literal
             literal = token.pattern
-            # Check int, float, bool, string
-            try:
+            # Check int, float, bool, string literals
+            if token.name == 'STRINGLIT':
+                str_dict = self._empty_array_sym_table_dict()
+                str_dict['mem_name'] = next(self.var_name_generator)
+                str_dict['type'] = '.asciiz'
+                self.array_sym_table[literal] = str_dict
+                return literal, 'string', token
+            elif token.name == 'BOOLLIT':
+                return bool(literal), 'bool', token
+            elif token.name == 'INTLIT':
                 return int(literal), 'int', token
-            except ValueError:
-                try:
-                    return float(literal), 'float', token
-                except ValueError:
-                    try:
-                        return bool(literal), 'bool', token
-                    except ValueError:
-                        str_dict = self._empty_array_sym_table_dict()
-                        str_dict['mem_name'] = next(self.var_name_generator)
-                        str_dict['type'] = '.asciiz'
-                        str_dict['val'] = literal
-                        self.array_sym_table[literal] = str_dict
-                        return literal, 'string', token
+            elif token.name == 'FLOATLIT':
+                return float(literal), 'float', token
         elif token.t_class == 'IDENTIFIER': # If token is an id
             return self._process_id(token)
         else: # if token is <expr_bool>
