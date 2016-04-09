@@ -1,0 +1,16 @@
+# Test comparison operators
+# Test with x := 3
+# Prints 9.0 27.0 3.0 12.0 -6.0
+
+begin
+    int x;
+    float y := 27.0;
+    read(x);
+    y = y / x;
+    write(y);       # prints 9.0
+    write(y * x);   # prints 27.0
+    write(y / x);   # prints 3.0
+    write(y + x);   # prints 12.0
+    write(x - y);   # prints -6.0
+end
+

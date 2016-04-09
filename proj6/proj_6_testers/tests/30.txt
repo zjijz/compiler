@@ -1,0 +1,7 @@
+# Test integer arithmetic operations
+# Should print 12 7 2 1 1
+
+begin
+    int x := 3, y := 4;
+    write(x * y, 18 % y, x / 3);
+end
