@@ -1,0 +1,7 @@
+# Test write before declaration
+# Test with write(x)
+# Should throw an error.
+
+begin
+    write(x);
+end
