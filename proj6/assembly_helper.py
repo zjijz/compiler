@@ -323,6 +323,7 @@ def asm_reg_set(f_reg, s_reg):
     else:
         return 'move {:s}, {:s}\n'.format(f_reg, s_reg) # move is a pseudo-instruction
     '''
+
     ret = ''
     if op_type == 'float':
         if type(s_reg) is float:
@@ -336,10 +337,10 @@ def asm_reg_set(f_reg, s_reg):
             ret += 'li {:s}, {:d}\n'.format(f_reg, s_reg)
         else:
             ret += 'move {:s}, {:s}\n'.format(f_reg, s_reg)
-
-
+    return ret
 
 ## ______READ/WRITE RAM______
+
 
 # Loads a variable's memory address into a register
 def asm_load_mem_addr(mem_name, temp_reg):

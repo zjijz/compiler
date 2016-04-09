@@ -8,9 +8,9 @@ begin
     read(x);
     y := y / x;
     write(y);       # prints 9.0
-    #write(y * x);   # prints 27.0
-    #write(y / x);   # prints 3.0
-    #write(y + x);   # prints 12.0
-    #write(x - y);   # prints -6.0
+    write(y * x);   # prints 27.0
+    write(y / x);   # prints 3.0
+    write(y + x);   # prints 12.0
+    write(x - y);   # prints -6.0
 end
 

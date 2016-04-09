@@ -143,7 +143,6 @@ class CodeGenerator:
 
         # Stuff from Parser
         self.tree = parse_tree
-        print(parse_tree)
 
         # Symbol Tables
         self.sym_table = {}
@@ -434,7 +433,7 @@ class CodeGenerator:
                 o_type = id_dict['type']
 
                 # string might have to be sanitized when using arrays
-                data_section += '{:s}:\t{:s}\t{:s}\t\n'.format(name, o_type, string)
+                data_section += '{:s}:\t{:s}\t{:s}\n'.format(name, o_type, string)
 
         # Prepend .data section instead of adding at beginning
         if data_section != '':
@@ -467,6 +466,8 @@ class CodeGenerator:
             id_dict['used'] = True
 
             input_reg = self.float_0 if id_dict['type'] == 'float' else self.val_0
+
+            print(id_dict['type'], type(id_dict['type']))
 
             self.output_string += asm_read(id_dict['type']) # places input into $v0
             self._assign_id(var_id, input_reg)
@@ -1177,7 +1178,7 @@ class CodeGenerator:
                         # We don't care to save this, so we'll just let it die once we're done with it
                         next_float_reg = self._find_free_register('float')
                         # Coerce next_type up
-                        self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
+                        self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
                         # set second_reg to be next_float_reg
                         next_reg = next_float_reg
 
@@ -1261,7 +1262,8 @@ class CodeGenerator:
                     # We don't care to save this, so we'll just let it die once we're done with it
                     next_float_reg = self._find_free_register('float')
                     # Coerce next_type up
-                    self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
+                    print(next_float_reg, next_reg)
+                    self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
                     # set second_reg to be next_float_reg
                     next_reg = next_float_reg
 
