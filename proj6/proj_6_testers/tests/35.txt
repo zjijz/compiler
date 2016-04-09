@@ -1,0 +1,7 @@
+# Test for read with incorrect operands(bool)
+# Should throw an error
+
+begin 
+    bool b;
+    read(b);
+end
