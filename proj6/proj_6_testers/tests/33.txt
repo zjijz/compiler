@@ -1,0 +1,9 @@
+# Test using a var before initialization
+# Test with y = x;
+# Should throw an error
+
+begin
+    int y = 0;
+    int x;
+    y = x;
+end
