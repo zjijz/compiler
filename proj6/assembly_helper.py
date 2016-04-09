@@ -21,12 +21,12 @@ def asm_allocate_stack_space(space = 4):
 
 # Load variable from stack
 def asm_load_reg_from_stack(reg, offset = 0):
-    return asm_read_mem_addr('$sp', reg, offset)
+    return asm_load_mem_var_from_addr('$sp', reg, offset)
 
 
 # Save variable to stack
 def asm_save_reg_to_stack(reg, offset = 0):
-    return asm_write_mem_addr('$sp', reg, offset)
+    return asm_save_mem_var_from_addr('$sp', reg, offset)
 
 
 ## ______I/O______
@@ -129,6 +129,7 @@ def asm_log_xor(r_reg, f_reg, s_reg):
 
 # CANNOT work with immediates!
 # Load f_reg into a register before using if it is an immediate
+# This does a bitflip of the 1's place
 def asm_log_negate(r_reg, f_reg):
     return asm_log_xor(r_reg, f_reg, 1)
 
@@ -138,7 +139,7 @@ def asm_log_negate(r_reg, f_reg):
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
     ret = ""
-    if 'f' in str(s_reg):
+    if 'f' in str(f_reg):
         if type(s_reg) is float:
             ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
@@ -150,89 +151,94 @@ def asm_rel_eq(r_reg, f_reg, s_reg):
         ret += 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movf $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        if type(s_reg) is int:
-            ret += asm_reg_set('$at', s_reg)
-            s_reg = '$at'
-
-        ret += 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
-
+        ret += 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret
 
 
 # r_reg <- f_reg != s_reg
 def asm_rel_neq(r_reg, f_reg, s_reg):
-    if 'f' in str(s_reg):
+    ret = ''
+    if 'f' in str(f_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
+
         # Assumes f_reg and s_reg are not equal
         # If they are equal, then $at is set to 0 (False)
-        return 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
+        ret += 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        return 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
+    return ret
 
 
 ## ______RELATIONSHIP______
 
 # r_reg <- f_reg < s_reg
 def asm_rel_le(r_reg, f_reg, s_reg):
+    ret = ''
     if 'f' in str(s_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
 
         return 'c.le.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movf $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        return 'sle {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'sle {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
+    return ret
 
 
 # I don't know why this one doesn't have pseudocode overrides for immediates, but the others do
 # r_reg <- f_reg <= s_reg
 def asm_rel_lt(r_reg, f_reg, s_reg):
+    ret = ''
     if 'f' in str(s_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
 
         return 'c.lt.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movf $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     elif type(s_reg) is int:
-        return 'slti {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'slti {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
-        return 'slt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'slt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+    return ret
 
 
 # r_reg <- f_reg > s_reg
 def asm_rel_ge(r_reg, f_reg, s_reg):
-    print(r_reg, f_reg, s_reg)
+    ret = ''
     if 'f' in str(s_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
 
         # Assume f_reg >= s_reg
         # If f_reg < s_reg, set r_reg to 0 (False)
-        return 'c.lt.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
+        ret += 'c.lt.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        return 'sge {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'sge {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
+    return ret
 
 
 # r_reg <- f_reg >= s_reg
 def asm_rel_gt(r_reg, f_reg, s_reg):
+    ret = ''
     if 'f' in str(s_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
 
         # Assume f_reg > s_reg
         # If f_reg <= s_reg, set r_reg to 0 (False)
-        return 'c.le.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
+        ret += 'c.le.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movt $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        return 'sgt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        ret += 'sgt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
+    return ret
 
 
 ## ______ARITHMETIC______
@@ -306,6 +312,7 @@ def asm_reg_set(f_reg, s_reg):
     op_type = 'float' if 'f' in str(f_reg) else 'normal'
 
     # This branches if s_reg is a register (i.e. string) or an immediate (i.e. int)
+    '''
     if type(s_reg) is int:
         return 'li {:s}, {:d}\n'.format(f_reg, s_reg)
     elif type(s_reg) is float:
@@ -315,6 +322,21 @@ def asm_reg_set(f_reg, s_reg):
         return 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
     else:
         return 'move {:s}, {:s}\n'.format(f_reg, s_reg) # move is a pseudo-instruction
+    '''
+    ret = ''
+    if op_type == 'float':
+        if type(s_reg) is float:
+            ret += 'li {:s}, {:d}\n'.format('$at', int(convert_float_to_binary(s_reg), 2)) \
+                  + 'mtc1 {:s}, {:s}\n'.format('$at', '$f13')
+            s_reg = '$f13'
+
+        ret += 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
+    else: # int
+        if type(s_reg) is int:
+            ret += 'li {:s}, {:d}\n'.format(f_reg, s_reg)
+        else:
+            ret += 'move {:s}, {:s}\n'.format(f_reg, s_reg)
+
 
 
 ## ______READ/WRITE RAM______
@@ -356,32 +378,6 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
         return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
 
 # _______________________Helpers________________________
-
-
-# Helper function to make swapping variables easier
-# Writes the old variable from $var_reg to RAM, and then loads the new one to the same reg
-# At the end: $addre_reg = address of s_mem_name and $var_reg = value of s_mem_name
-def asm_swap_variables(f_mem_name, s_mem_name, addr_reg, var_reg, f_offset = 0, s_offset = 0):
-    return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\nla {:s}, {:s}\nlw {:s}, {:d}({:s})\n'\
-        .format(addr_reg, f_mem_name, var_reg, f_offset, addr_reg, addr_reg, s_mem_name, var_reg, s_offset, addr_reg)
-
-
-# Helper to make repeated addition easier
-def asm_add_rep(r_reg, *regs):
-    ret_asm = ''
-    ret_asm += asm_add(r_reg, regs[0], regs[1]) # initial add of two variables
-    for i in [2..len(regs)]:
-        ret_asm += asm_add(r_reg, r_reg, regs[i])
-    return ret_asm
-
-
-# Helper to make repeated subtraction easier
-def asm_sub_rep(r_reg, *regs):
-    ret_asm = ''
-    ret_asm += asm_sub(r_reg, regs[0], regs[1]) # initial add of two variables
-    for i in [2..len(regs)]:
-        ret_asm += asm_sub(r_reg, r_reg, regs[i])
-    return ret_asm
 
 
 # Helper that will convert an int to a float

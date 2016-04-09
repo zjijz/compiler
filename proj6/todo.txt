@@ -63,6 +63,8 @@ Queue for Recent Variables
 
  - assembly updates
    - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
+
+ - unify how assembly methods are written
  ______________________________
  Project 6
  - Bool type (statically analyzed)

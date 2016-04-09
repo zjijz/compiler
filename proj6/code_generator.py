@@ -8,7 +8,7 @@ from copy import *
 #  'type': Data type
 #  'scope': Data scope
 #  'mem_name": variable name for .data
-#  'init_val': initial value (None if set with READ)
+#  'init_val': initial value ('Read' if set with READ)
 #  'curr_val': current value (None if used in an operation with a variable from READ)
 #  'addr_reg': temporary register with memory address
 #  'val_reg': temporary register with value
@@ -417,10 +417,14 @@ class CodeGenerator:
                 # - ints, floats -> .word
                 # - booleans -> .byte
                 # - strings -> different sym table
-                o_type = '.byte' if type == 'bool' else '.word'
+                o_type = '.word'
+                if type == 'bool':
+                    o_type = '.byte'
+                elif type == 'float':
+                    o_type = '.float'
 
-                data_section += '{:s}:\t{:s}\t{:d}\t# {:s} in original\n'\
-                                .format(name, o_type, init_val if init_val else 0, id)
+                data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
+                                .format(name, o_type, str(init_val) if init_val else '0', id)
 
         for string in self.array_sym_table:
             id_dict = self.array_sym_table[string]
@@ -1367,10 +1371,15 @@ class CodeGenerator:
         mem_name = id_dict['mem_name']
         addr_reg = id_dict['addr_reg']
         val_reg = id_dict['val_reg']
+        init_val = id_dict['init_val']
         curr_val = id_dict['curr_val']
 
         cleaned_type = 'float' if var_type == 'float' else 'normal'
         val_var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
+
+        # If not initialized, throw an error
+        if init_val is None:
+            pass
 
         # Check if curr_val is not None (thus, if we can just return it)
         if curr_val is not None:

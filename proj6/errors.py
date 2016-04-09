@@ -36,6 +36,11 @@ class SemanticError(Exception):
     """
 
     @staticmethod
+    def raise_declaration_error(variable, line, col):
+        raise SemanticError('Semantic error: Declaration Error: Line num: {:d}, column num: {:d}\n\t{:s} not '
+                            'declared before use.'.format(line, col, variable))
+
+    @staticmethod
     def raise_initialization_error(variable, line, col):
         raise SemanticError('Semantic error: Initiatilization Error: Line num: {:d}, column num: {:d}\n\t{:s} not '
                             'initialized before use.'.format(line, col, variable))
