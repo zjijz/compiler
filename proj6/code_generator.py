@@ -143,6 +143,7 @@ class CodeGenerator:
 
         # Stuff from Parser
         self.tree = parse_tree
+        print(parse_tree)
 
         # Symbol Tables
         self.sym_table = {}
@@ -487,6 +488,7 @@ class CodeGenerator:
 
             # Convert bool to string for printing
             if var_type == 'bool':
+                print(expr_reg)
                 if type(expr_reg) is bool: # literal
                     # set expr_reg to the string and let the string conditional print it
                     expr_reg = self.bool_true_string if var_reg else self.bool_false_string
@@ -1277,7 +1279,7 @@ class CodeGenerator:
     def _process_fact_arith(self, fact_children):
         # len(fact_node.children) = 1 or 2
         if len(fact_children) == 2:
-            unary_op = fact_children[0].token
+            unary_op = fact_children[0].label
 
             accum_id = next(self.temp_id_generator)
             immediate_val = None
@@ -1289,11 +1291,11 @@ class CodeGenerator:
             else: # Register
                 val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
 
-            if unary_op.name == 'PLUS':
+            if unary_op == 'PLUS':
                 # Throw error if not numeric type; do nothing otherwise
                 if val_type not in {'int', 'float'}:
                     SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
-            elif unary_op.name == 'MINUS':
+            elif unary_op == 'MINUS':
                 # Throw type error
                 if val_type not in {'int', 'float'}:
                     SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
@@ -1302,7 +1304,7 @@ class CodeGenerator:
                     immediate_val *= -1
                 else: # could not be statically analyzed
                     self.output_string += asm_multiply(val_reg, val_reg, -1)
-            elif unary_op.name == 'LOG_NEGATION':
+            elif unary_op == 'LOG_NEGATION':
                 # Throw type error
                 if val_type != 'bool':
                     SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
@@ -1371,7 +1373,7 @@ class CodeGenerator:
         val_var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
 
         # Check if curr_val is not None (thus, if we can just return it)
-        if curr_val:
+        if curr_val is not None:
             return curr_val, var_type, token
         # If the value of the variable is not in register, load it
         elif not val_reg:

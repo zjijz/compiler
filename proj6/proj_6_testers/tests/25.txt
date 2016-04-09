@@ -1,0 +1,9 @@
+# Tests string type and literal
+# Prints HeyHello
+
+begin
+    string s;
+    s := "Hey";
+    string s2 := "Hello";
+    write(s,s2);
+end

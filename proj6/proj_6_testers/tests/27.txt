@@ -1,0 +1,9 @@
+# Tests reading in floats
+# Input should be 10, 20.0
+# Prints out 10.020.0
+
+begin
+    float f, f2;
+    read(f,f2);
+    write(f,f2);
+end

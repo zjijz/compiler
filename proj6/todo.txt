@@ -63,7 +63,6 @@ Queue for Recent Variables
 
  - assembly updates
    - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
-   -
  ______________________________
  Project 6
  - Bool type (statically analyzed)
@@ -77,6 +76,9 @@ Queue for Recent Variables
  - Relational ops
  - New arithmetic ops (unary negation, *, /, %)
  - Mixed int and float expressions (casting int to float implicitly)
+ _____________________________
+ Issues:
+ - THere is no check if variables are initilaized, only declared
 ______________________________
 Features
 - Static analysis of integers, booleans, floats, and strings

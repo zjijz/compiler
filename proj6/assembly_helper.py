@@ -137,19 +137,26 @@ def asm_log_negate(r_reg, f_reg):
 
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
+    ret = ""
     if 'f' in str(s_reg):
         if type(s_reg) is float:
-            asm_reg_set('$f13', s_reg)
+            ret += asm_reg_set('$f13', s_reg)
             s_reg = '$f13'
 
         # Run the comparison (result set in coprocessor 1 flag 0 (default one looked at by movf
         # Load a 1 (True) into $at
         # If the comparison was actually false, swap $at with 0 (False)
         # Set r_reg to $at
-        return 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movf $at, $0\n' \
+        ret += 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$at', 1) + 'movf $at, $0\n' \
                + asm_reg_set(r_reg, '$at')
     else:
-        return 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+        if type(s_reg) is int:
+            ret += asm_reg_set('$at', s_reg)
+            s_reg = '$at'
+
+        ret += 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+
+    return ret
 
 
 # r_reg <- f_reg != s_reg
