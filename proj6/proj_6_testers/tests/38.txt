@@ -1,0 +1,7 @@
+# Tests comparison between ints and floats
+# Prints TrueFalseFalseTrueTrue
+begin
+    int x := 2, y := 20;
+    float f := 25.0, g := 2.0;
+    write(x < y, g > y, x == g, g <= f, f >= x);
+end

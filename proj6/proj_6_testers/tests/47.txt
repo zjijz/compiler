@@ -1,0 +1,8 @@
+"""
+Type coersion
+Should throw an error
+"""
+
+begin
+    bool b := "True";
+end
