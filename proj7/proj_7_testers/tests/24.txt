@@ -1,0 +1,8 @@
+# Tests bool type and literals
+# Prints TrueFalse
+
+begin
+    bool b := True;
+    bool b2 := False;
+    write(b,b2);
+end

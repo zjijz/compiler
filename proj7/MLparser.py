@@ -3,7 +3,7 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
-    <block>		    ->	begin <statement list> end
+    <program>		->	begin <statement list> end
     <statement list>->	<statement>; { <statement>; }
     <statement>		->	<assignment>
                         | <declaration>
@@ -13,17 +13,19 @@ Grammar:
                         | <while_statement>
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
-    <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
+    <dec term>      ->  <ident> [ := <expr_bool> ] **Allowed only once
+
     <assignment>	->	<ident> := <expr_bool>
     <if_statement>  ->  if <expr_bool> then <block> [else <block>]
     <while_statement>-> while <expr_bool> <block>
+
     <id list>		->	<ident> {, <ident>}
     <expr list>		->	<expr_bool> { , <expr_bool> }
 
     <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
-    <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
-    <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
+    <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
 
     <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
@@ -78,7 +80,6 @@ def add_class_debug(klass):
 @add_class_debug
 class Parser:
     def __init__(self, isDebug):
-        self.symbol_table = {}
         self.debug_flag = isDebug
         self.recursion_level = 0
 
@@ -89,23 +90,20 @@ class Parser:
         returns True if the code is syntactically correct.
         Throws a ParserError otherwise.
         """
-        self.symbol_table.clear()
         G = Lexer(source_file, token_file).lex()
         cur_token, t = self.block(next(G), G)
-        if (cur_token.name != "$"):
-            raise ParserError.raise_redundant_tokens_error('There are redundant tokens at the end of the program, '
-                              'starting with: %s\nLine num: %d, column num: %d'
-                              %(cur_token.line, cur_token.line_num, cur_token.col))
-        return t, self.symbol_table
+        if cur_token.name != "$":
+            raise ParserError.raise_redundant_tokens_error(cur_token)
+        return t
 
-    # <block> -> begin <statement_list> end
+    # <program> -> begin <statement_list> end
     def block(self, cur_token, G):
         if cur_token.name != "BEGIN":
-            raise ParserError.raise_parse_error("block", "begin", cur_token)
+            raise ParserError.raise_parse_error("program", "begin", cur_token)
         cur_token, tree_stmt_list = self.statement_list(next(G), G)
         if cur_token.name != "END":
-            raise ParserError.raise_parse_error("block", "end", cur_token)
-        return next(G), tree("BLOCK", [tree("BEGIN"), tree_stmt_list, tree("END")])
+            raise ParserError.raise_parse_error("program", "end", cur_token)
+        return next(G), tree("PROGRAM", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
     # <statement_list> -> <statement>; { <statement>; }
     def statement_list(self, cur_token, G):
@@ -116,10 +114,10 @@ class Parser:
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
             cur_token = next(G)
-            if cur_token.name not in ("READ", "WRITE", "ID"):
+            if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
-    # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> ) 
+    # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
     #                | <if_statement> | <while_statement>
     def statement(self, cur_token, G):
         if cur_token.name in ("READ", "WRITE"):
@@ -148,7 +146,7 @@ class Parser:
         raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID or IF or WHILE', cur_token)
 
     # <if_statement>  ->  if <expr_bool> then <block> [else <block>]
-    def if_statement(self, cur_token, G): 
+    def if_statement(self, cur_token, G):
         cur_token, child_expr_bool = self.expr_bool(next(G), G)
         if cur_token.name != "THEN":
             raise ParserError.raise_parse_error("IF_STATEMENT", 'THEN', cur_token)
@@ -156,11 +154,11 @@ class Parser:
         if cur_token.name != "ELSE":
             return cur_token, tree("IF_STATEMENT", [tree("IF"), child_expr_bool, tree("THEN"), child_block])
         cur_token, child_else_block = self.block(next(G), G)
-        return cur_token, tree("IF_STATEMENT", [tree("IF"), child_expr_bool, tree("THEN"), 
+        return cur_token, tree("IF_STATEMENT", [tree("IF"), child_expr_bool, tree("THEN"),
                                                 child_block, tree("ELSE"), child_else_block])
-    
+
     # <while_statement>-> while <expr_bool> <block>
-    def while_statement(self, cur_token, G): 
+    def while_statement(self, cur_token, G):
         cur_token, child_expr_bool = self.expr_bool(next(G), G)
         cur_token, child_block = self.block(next(G), G)
         return cur_token, tree("WHILE_STATEMENT", [tree("WHILE"), child_expr_bool, child_block])
@@ -183,11 +181,11 @@ class Parser:
                 return cur_token, tree("DEC_LIST", children_dec_term)
             cur_token = next(G)
 
-    # <dec term> -> <ident> [ := <expression> ] **ALlowed only once
+    # <dec term> -> <ident> [ := <expr_bool> ] **ALlowed only once
     def dec_term(self, cur_token, G):
         cur_token, child_ident = self.ident(cur_token, G)
         if cur_token.name == "ASSIGNOP":
-            cur_token, child_expr = self.expression(next(G), G)
+            cur_token, child_expr = self.expr_bool(next(G), G)
             return cur_token, tree("DEC_TERM", [child_ident, child_expr])
         return cur_token, tree("DEC_TERM", [child_ident])
 
@@ -241,27 +239,28 @@ class Parser:
             children_term_bool.append(tree(cur_token.name, [], cur_token))
             cur_token = next(G)
 
-    # <expr_eq> -> <expr_relation> { <equal_op> <expr_relation> }
+    # <expr_eq> -> <expr_relation> [ <equal_op> <expr_relation> ]
     def expr_eq(self, cur_token, G):
         children_expr_eq = []
-        while True:
-            cur_token, child_expr_relation = self.expr_relation(cur_token, G)
-            children_expr_eq.append(child_expr_relation)
-            if cur_token.t_class != "EQUAL_OP":
-                return cur_token, tree("EXPR_EQ", children_expr_eq)
+        cur_token, child_expr_relation = self.expr_relation(cur_token, G)
+        children_expr_eq.append(child_expr_relation)
+        if cur_token.t_class == 'EQUAL_OP':
             children_expr_eq.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_relation = self.expr_relation(next(G), G)
+            children_expr_eq.append(child_expr_relation)
+        return cur_token, tree('EXPR_EQ', children_expr_eq)
 
-    # <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
+    # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     def expr_relation(self, cur_token, G):
         children_expr_relation = []
-        while True:
-            cur_token, child_expr_arith = self.expr_arith(cur_token, G)
-            children_expr_relation.append(child_expr_arith)
-            if cur_token.t_class != "REL_OP":
-                return cur_token, tree("EXPR_RELATION", children_expr_relation)
+        cur_token, child_expr_arith = self.expr_arith(cur_token, G)
+        children_expr_relation.append(child_expr_arith)
+        if cur_token.t_class == 'REL_OP':
             children_expr_relation.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            cur_token, child_expr_arith = self.expr_arith(next(G), G)
+            children_expr_relation.append(child_expr_arith)
+        return cur_token, tree('EXPR_RELATION', children_expr_relation)
+
 
     # <expr_arith> -> <term_arith> { <unary_add_op> <term_arith> }
     def expr_arith(self, cur_token, G):
@@ -288,19 +287,17 @@ class Parser:
     # <fact_arith> -> <unary_op> <term_unary>
     #                 | <unary_add_op> <term_unary> | <term_unary>
     def fact_arith(self, cur_token, G):
-        children_fact_arith = []
-        while True:
+        if cur_token.t_class in {'UNARY_OP', 'UNARY_ADD_OP'}:
+            next_token, child_term_unary = self.term_unary(next(G), G)
+            return next_token, tree('FACT_ARITH', [tree(cur_token.name), child_term_unary])
+        else:
             cur_token, child_term_unary = self.term_unary(cur_token, G)
-            children_fact_arith.append(child_term_unary)
-            if cur_token.t_class not in ("UNARY_OP", "UNARY_ADD_OP"):
-                return cur_token, tree("FACT_ARITH", children_fact_arith)
-            children_fact_arith.append(tree(cur_token.name, [], cur_token))
-            cur_token = next(G)
+            return cur_token, tree('FACT_ARITH', [child_term_unary])
 
     # <term_unary> -> <literal> | <ident> | (expr_bool)
     def term_unary(self, cur_token, G):
         if cur_token.name == "LPAREN":
-            cur_token, child_expr_bool = self.expression(next(G), G)
+            cur_token, child_expr_bool = self.expr_bool(next(G), G)
             if cur_token.name != "RPAREN":
                 raise ParserError.raise_parse_error("TERM_UNARY", ")", cur_token)
             return next(G), tree("TERM_UNARY", [child_expr_bool])
@@ -318,4 +315,4 @@ class Parser:
     def ident(self, cur_token, G):
         if cur_token.name != "ID":
             raise ParserError.raise_parse_error("IDENT", "ID", cur_token)
-        return next(G), tree("IDENT", [tree("ID", [], cur_token)])
+        return next(G), tree("IDENT", [], cur_token) #[tree("ID", [], cur_token)])

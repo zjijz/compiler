@@ -1,0 +1,7 @@
+# Test for using a variable before declaration
+# Test with x := 5
+# Should throw an error.
+
+begin
+    x := 5;
+end

@@ -1,0 +1,17 @@
+# Try all operators on all data types such that a literal comes first
+# Also tests dynamic bools
+# Input: 5, 3.0
+# Output:
+## True, False, -10, 10, 200, 5, 6, True, True, False, False, False, True
+## False, True, True, True, True, False, True, True
+## False, False, True, True, False, True
+
+begin
+    int i := 20, i2;
+    float f := 2.0, f2;
+    bool b := True;
+    read(i2,f2);
+    write(not False, not True, -10, +10, 10 * i, 106 / i, 106 % i, 100 > i, 100 >= i, 100 < i, 100 <= i, 100 == i, 100 != i, "\n");
+    write(False and b, True and b, False or b, True or b, not False and b, not True and b, not False or b, not True or b, "\n");
+    write(i2 > i, i2 >= i, i2 < i, i2 <= i, i2 == i, i2 != i);
+end

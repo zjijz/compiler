@@ -1,38 +1,38 @@
 .data
-c:	.word	0	# i in original
+f:	.float	0	# g in original
 e:	.float	0	# f in original
 d:	.word	0	# j in original
-f:	.float	0	# g in original
+c:	.word	0	# i in original
 .text
 li $v0, 5
 syscall
-la $s5, c
-lw $t0, 0($s5)
-move $t0, $v0
+la $t6, c
+lw $t3, 0($t6)
+move $t3, $v0
 li $v0, 6
 syscall
-la $t3, e
-l.s $f27, 0($t3)
-mov.s $f27, $f0
+la $t5, e
+l.s $f7, 0($t5)
+mov.s $f7, $f0
 li $v0, 5
 syscall
-la $s6, d
-lw $s2, 0($s6)
+la $t2, d
+lw $s2, 0($t2)
 move $s2, $v0
 li $v0, 6
 syscall
-la $s4, f
-l.s $f6, 0($s4)
-mov.s $f6, $f0
+la $t9, f
+l.s $f18, 0($t9)
+mov.s $f18, $f0
 li $v0, 1
-move $a0, $t0
+move $a0, $t3
 syscall
 li $v0, 2
-mov.s $f12, $f27
+mov.s $f12, $f7
 syscall
 li $v0, 1
 move $a0, $s2
 syscall
 li $v0, 2
-mov.s $f12, $f6
+mov.s $f12, $f18
 syscall

@@ -1,0 +1,7 @@
+# Output "I never could get the hang of Thursdays."
+
+begin
+    string s := "I never could get the hang of Thursdays.";
+    string s2 := s;
+    write(s2);
+end

@@ -9,12 +9,15 @@ Grammar:
                         | <declaration>
                         | read( <id list> )
                         | write( <expr list> )
-
+                        | <if_statement>
+                        | <while_statement>
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
     <dec term>      ->  <ident> [ := <expr_bool> ] **Allowed only once
 
     <assignment>	->	<ident> := <expr_bool>
+    <if_statement>  ->  if <expr_bool> then <block> [else <block>]
+    <while_statement>-> while <expr_bool> <block>
 
     <id list>		->	<ident> {, <ident>}
     <expr list>		->	<expr_bool> { , <expr_bool> }
@@ -77,7 +80,6 @@ def add_class_debug(klass):
 @add_class_debug
 class Parser:
     def __init__(self, isDebug):
-        self.symbol_table = {}
         self.debug_flag = isDebug
         self.recursion_level = 0
 
@@ -88,15 +90,14 @@ class Parser:
         returns True if the code is syntactically correct.
         Throws a ParserError otherwise.
         """
-        self.symbol_table.clear()
         G = Lexer(source_file, token_file).lex()
-        cur_token, t = self.program(next(G), G)
-        if (cur_token.name != "$"):
+        cur_token, t = self.block(next(G), G)
+        if cur_token.name != "$":
             raise ParserError.raise_redundant_tokens_error(cur_token)
         return t
 
     # <program> -> begin <statement_list> end
-    def program(self, cur_token, G):
+    def block(self, cur_token, G):
         if cur_token.name != "BEGIN":
             raise ParserError.raise_parse_error("program", "begin", cur_token)
         cur_token, tree_stmt_list = self.statement_list(next(G), G)
@@ -113,10 +114,11 @@ class Parser:
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
             cur_token = next(G)
-            if cur_token.name not in ("READ", "WRITE", "ID") and cur_token.t_class != 'TYPE':
+            if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
     # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
+    #                | <if_statement> | <while_statement>
     def statement(self, cur_token, G):
         if cur_token.name in ("READ", "WRITE"):
             tokenName = cur_token.name
@@ -135,7 +137,31 @@ class Parser:
         if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.assign(cur_token, G)
             return cur_token, tree("STATEMENT", [child_assign])
-        raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID', cur_token)
+        if cur_token.name == "IF":
+            cur_token, child_if = self.if_statement(cur_token, G)
+            return cur_token, tree("STATEMENT", [child_if])
+        if cur_token.name == "WHILE":
+            cur_token, child_while = self.while_statement(cur_token, G)
+            return cur_token, tree("STATEMENT", [child_while])
+        raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID or IF or WHILE', cur_token)
+
+    # <if_statement>  ->  if <expr_bool> then <block> [else <block>]
+    def if_statement(self, cur_token, G):
+        cur_token, child_expr_bool = self.expr_bool(next(G), G)
+        if cur_token.name != "THEN":
+            raise ParserError.raise_parse_error("IF_STATEMENT", 'THEN', cur_token)
+        cur_token, child_block = self.block(next(G), G)
+        if cur_token.name != "ELSE":
+            return cur_token, tree("IF_STATEMENT", [tree("IF"), child_expr_bool, tree("THEN"), child_block])
+        cur_token, child_else_block = self.block(next(G), G)
+        return cur_token, tree("IF_STATEMENT", [tree("IF"), child_expr_bool, tree("THEN"),
+                                                child_block, tree("ELSE"), child_else_block])
+
+    # <while_statement>-> while <expr_bool> <block>
+    def while_statement(self, cur_token, G):
+        cur_token, child_expr_bool = self.expr_bool(next(G), G)
+        cur_token, child_block = self.block(next(G), G)
+        return cur_token, tree("WHILE_STATEMENT", [tree("WHILE"), child_expr_bool, child_block])
 
     # <declaration>	-> <type> <dec list>
     def declaration(self, cur_token, G):

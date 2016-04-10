@@ -5,18 +5,18 @@ a:	.asciiz	"True"
 .text
 li $v0, 5
 syscall
-la $s5, c
-lw $t7, 0($s5)
-move $t7, $v0
-move $t0, $t7
-slti $t0, $t0, 17
-move $t1, $t0
-andi $t1, $t1, 1
+la $t1, c
+lw $s2, 0($t1)
+move $s2, $v0
+move $t5, $s2
+slti $t5, $t5, 17
+move $t9, $t5
+andi $t9, $t9, 1
 li $v0, 4
-la $s6, a
-la $t4, b
-seq $v1, $t1, 1
-movn $t5, $s6, $v1
-movz $t5, $t4, $v1
-move $a0, $t5
+la $s4, a
+la $t0, b
+seq $v1, $t9, 1
+movn $t4, $s4, $v1
+movz $t4, $t0, $v1
+move $a0, $t4
 syscall

@@ -1,0 +1,10 @@
+# Tests float type and literal
+# Prints 10.025.030.00.56
+
+begin
+    float f := 10.0;
+    float fi := 25;
+    float f2 := 30.;
+    float f3 := .56;
+    write(f,fi,f2,f3);
+end

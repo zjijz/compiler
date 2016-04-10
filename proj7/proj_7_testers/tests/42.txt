@@ -1,0 +1,7 @@
+# The arithmetic operators are only defined on int types; the boolean operators are only defined on bool types.  Any type mismath (e.g. 5 or 7, or True + False) should result in a semantic error.
+### test for True + 7
+### should throw an error
+
+begin
+    int i := True + 7;
+end

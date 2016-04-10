@@ -1,0 +1,6 @@
+# Type coersion
+# Should throw an error
+
+begin
+    string a := True;
+end

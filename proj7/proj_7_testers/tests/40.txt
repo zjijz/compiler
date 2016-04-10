@@ -1,0 +1,9 @@
+# Test boolean expressions with reading in ints
+# Input: 14
+# Output: True
+
+begin
+    int x;
+    read(x);
+    write(True and x < 17);
+end

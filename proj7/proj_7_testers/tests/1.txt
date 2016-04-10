@@ -1,0 +1,8 @@
+# Assignment with expression (Single var)
+# Should output 12
+
+begin
+    int x := 12;
+    int y := x;
+    write(y);
+end

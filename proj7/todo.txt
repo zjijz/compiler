@@ -1,0 +1,90 @@
+Queue for Recent Variables
+-Could optimize this to better keep variables in registers to minimize
+ read/write to RAM
+  - LinkedList to be able to easily move values already on list when seeing them?
+ ______________________________
+ Compiler Flags
+ - Levels of Optimization for Compiler
+   - O1: (Default) Code will be compiled in a way that the best programmer would write it
+     - Good register management
+     - Minimum read / writes to RAM
+   - O2: Things that would be beneficial, but annoying for a programmer to do
+     - Keeping one (or a few) memory addresses and using offsets from these addresses
+   - O3: Restructuring code
+     - Inlining functions
+     - Loop unrolling
+     - Recursion unrolling
+     - Evaluation of variables to see if insturctions can be moved around to better facilitate register management
+ ______________________________
+ Optimizations
+ - Keeping track of current variable values in sym_table to further reduce calls to read from RAM (O1)
+   (Since initialization can be done with immediates instead of loading addresses and values)
+   - Done for 'int'
+ - Change Queue to be a more complete LinkedList (O1)
+ - Allowing a register to track more than one variable (for instance, in situations of equality)(O1)
+   - The register would then just have to know it has two values, and save off both whenever the register is freed
+ - Add code to track what's in $a0, $a1, and $v0 (use these registers as potential places to store variables)
+ - Write a way to evaluate if only the address of a variable is needed (O2)
+ - When variables are initialized using read, they are loaded into memory, even though they don't need to be
+    - because value is null before
+ - Analyzer that looks at an expression and removes unnecessary parenthesis
+    - merges expression siblings with addition or subtraction between the two
+ - Add a 'used' field to the symbol table that allows a variable that was never used to not be written to .data section
+    - i.e. when an immediate is able to be traced
+ ______________________________
+ Errors
+ - None
+ ______________________________
+ Improvements
+ - Pretty Print for sym_table, reg_table, aux_reg_table, float_reg_table, and var_queue
+ - Helper function / class to make dictionaries for use with var_queue
+
+ - Create a function that will recurse down and look through tree nodes until it finds a designated one
+   - I swear the parse tree structure is the bane of my existence
+
+ - Abstract out the common parts of expression more
+   - In expr_bool, make it so method breaks once it finds a static True with or (no point processing the rest)
+   - In term_bool, make it so method breaks once if finds a static False
+
+ - Abstract assign_id and process_id  more (the part where they load val and address registers)
+
+ - Figure out if multiplication / division / modulo can be optimized more
+
+ - Abstract out a way to coerce ints to floats (assign, declaration, and expressions)
+
+ - Redo errors to also output the line
+
+ - It looks like floats have operations run on them, and then are moved to a tempoaray register, and then to their
+   final destination (look into cutting out this middle register)
+
+  - Bools are only statically analyzed right now, add in an option to read them in from command line
+   - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
+     - Keep a boolean 'register' table of coprocessor 1 flags
+
+ - assembly updates
+   - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
+______________________________
+Project 7
+- if statements
+  - Operates on a boolean
+  - Nested
+  - else blocks
+  - Inline all ifs since they can only be used once in their block (an if in a while would be inlined into the while)
+  - use branch or jump with registers
+- while statements
+- Semantic Erros
+  - Conditionals must evaluate to bools
+- Think of a possible way to analyze how often while blocks are called to see if inlining could be possible
+- Need a way to generate the code for an if/while block and store it to a "function table" to keep track
+______________________________
+Project 8
+- Functions
+- Scope
+______________________________
+
+Features
+- Static analysis of integers, booleans, floats, and strings
+- Dynanmic register management with different register pools for integers and floats
+- Tracks auxiliary registers to minimize unnecessary moves to registers used in syscall functions
+- Safe mode and unsafe mode (unsafe mode uses registers that are normally supposed to be saved without saving them off)
+- Debug mode that shows debugging on the parser and prints out the code generator tables

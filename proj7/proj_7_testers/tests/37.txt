@@ -1,0 +1,10 @@
+# Tests reading in an int and float in same line
+# Input: 4 45.0 17 90.0
+# Output: 445.01790.0
+
+begin
+    int i, j;
+    float f, g;
+    read(i, f, j, g);
+    write(i, f, j, g);
+end
