@@ -1,11 +1,11 @@
 .data
-d:	.asciiz	"Hey"
 f:	.asciiz	"Hello"
+d:	.asciiz	"Hey"
 .text
 li $v0, 4
-la $s3, d
-move $a0, $s3
+la $t2, d
+move $a0, $t2
 syscall
-la $s4, f
-move $a0, $s4
+la $t7, f
+move $a0, $t7
 syscall

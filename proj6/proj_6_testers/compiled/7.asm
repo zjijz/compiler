@@ -4,12 +4,12 @@ c:	.word	0	# x in original
 .text
 li $v0, 5
 syscall
-la $s4, c
-lw $t2, 0($s4)
-move $t2, $v0
-move $t8, $t2
-addi $t8, $t8, 35
-move $t3, $t8
+la $t6, c
+lw $t4, 0($t6)
+move $t4, $v0
+move $t9, $t4
+addi $t9, $t9, 35
+move $t8, $t9
 li $v0, 1
-move $a0, $t3
+move $a0, $t8
 syscall

@@ -6,8 +6,8 @@ li $v0, 4
 la $t1, a
 move $a0, $t1
 syscall
-la $t4, b
-move $a0, $t4
+la $t5, b
+move $a0, $t5
 syscall
 syscall
 move $a0, $t1

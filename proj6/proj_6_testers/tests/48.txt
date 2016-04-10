@@ -1,0 +1,14 @@
+# Tests that a variable could be statically analyzed, then reassigned to a dynamic var from read(...)
+# Inputs 400, 3.0
+# Outputs 608004.06.0
+
+begin
+    int x := 30;
+    write(x+x);
+    read(x);
+    write(x+x);
+    float f := 2.0;
+    write(2*f);
+    read(f);
+    write(f+f);
+end

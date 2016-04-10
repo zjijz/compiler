@@ -140,7 +140,7 @@ def asm_log_or(r_reg, f_reg, s_reg):
 # ANDs f_reg and s_reg and stores in r_reg
 def asm_log_and(r_reg, f_reg, s_reg):
     ret_asm, f_reg, s_reg = load_immediates('normal', '', f_reg, s_reg)
-    if type(s_reg) is int:
+    if type(s_reg) is bool:
         s_reg = 1 if s_reg else 0
         ret_asm += 'andi {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
@@ -150,7 +150,7 @@ def asm_log_and(r_reg, f_reg, s_reg):
 
 def asm_log_xor(r_reg, f_reg, s_reg):
     ret_asm, f_reg, s_reg = load_immediates('normal', '', f_reg, s_reg)
-    if type(s_reg) is int:
+    if type(s_reg) is bool:
         s_reg = 1 if s_reg else 0
         ret_asm += 'xori {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
@@ -169,23 +169,6 @@ def asm_log_negate(r_reg, f_reg):
 
 # r_reg <- f_reg == s_reg
 def asm_rel_eq(r_reg, f_reg, s_reg):
-    '''
-    ret = ""
-    if 'f' in str(f_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        # Run the comparison (result set in coprocessor 1 flag 0 (default one looked at by movf
-        # Load a 1 (True) into $v1
-        # If the comparison was actually false, swap $v1 with 0 (False)
-        # Set r_reg to $v1
-        ret += 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$v1', 1) + 'movf $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    else:
-        ret += 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -200,21 +183,6 @@ def asm_rel_eq(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg != s_reg
 def asm_rel_neq(r_reg, f_reg, s_reg):
-    '''
-    ret = ''
-    if 'f' in str(f_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        # Assumes f_reg and s_reg are not equal
-        # If they are equal, then $v1 is set to 0 (False)
-        ret += 'c.eq.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$v1', 1) + 'movt $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    else:
-        ret += 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -231,20 +199,6 @@ def asm_rel_neq(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg < s_reg
 def asm_rel_le(r_reg, f_reg, s_reg):
-    '''
-    print(r_reg, f_reg, s_reg)
-    ret = ''
-    if 'f' in str(s_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        return 'c.le.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$v1', 1) + 'movf $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    else:
-        ret += 'sle {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -260,21 +214,6 @@ def asm_rel_le(r_reg, f_reg, s_reg):
 # I don't know why this one doesn't have pseudocode overrides for immediates, but the others do
 # r_reg <- f_reg <= s_reg
 def asm_rel_lt(r_reg, f_reg, s_reg):
-    '''
-    ret = ''
-    if 'f' in str(s_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        return 'c.lt.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$v1', 1) + 'movf $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    elif type(s_reg) is int:
-        ret += 'slti {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
-    else:
-        ret += 'slt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -283,29 +222,15 @@ def asm_rel_lt(r_reg, f_reg, s_reg):
                    + 'movf $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
     else:
-        ret_asm += 'slt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
+        if type(s_reg) is int:
+            ret_asm += 'slti {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
+        else:
+            ret_asm += 'slt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
 
 
 # r_reg <- f_reg > s_reg
 def asm_rel_ge(r_reg, f_reg, s_reg):
-    '''
-    ret = ''
-    if 'f' in str(s_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        # Assume f_reg >= s_reg
-        # If f_reg < s_reg, set r_reg to 0 (False)
-        ret += 'c.lt.s {:s}, {:s}\n'.format(f_reg, s_reg)
-               + asm_reg_set('$v1', 1)
-               + 'movt $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    else:
-        ret += 'sge {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -320,21 +245,6 @@ def asm_rel_ge(r_reg, f_reg, s_reg):
 
 # r_reg <- f_reg >= s_reg
 def asm_rel_gt(r_reg, f_reg, s_reg):
-    '''
-    ret = ''
-    if 'f' in str(s_reg):
-        if type(s_reg) is float:
-            ret += asm_reg_set('$f13', s_reg)
-            s_reg = '$f13'
-
-        # Assume f_reg > s_reg
-        # If f_reg <= s_reg, set r_reg to 0 (False)
-        ret += 'c.le.s {:s}, {:s}\n'.format(f_reg, s_reg) + asm_reg_set('$v1', 1) + 'movt $v1, $0\n' \
-               + asm_reg_set(r_reg, '$v1')
-    else:
-        ret += 'sgt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
-    return ret
-    '''
     op_type = get_op_type(f_reg, s_reg)
     ret_asm, f_reg, s_reg = load_immediates(op_type, '', f_reg, s_reg)
     if op_type == 'float':
@@ -444,7 +354,6 @@ def asm_reg_set(f_reg, s_reg):
 
 # Loads a variable's memory address into a register
 def asm_load_mem_addr(mem_name, temp_reg):
-    print('loaded address')
     return 'la {:s}, {:s}\n'.format(temp_reg, mem_name)
 
 

@@ -470,6 +470,9 @@ class CodeGenerator:
                 SemanticError.raise_incompatible_type(var_id, id_dict['type'], 'Read Function',
                                                       token.line_num, token.col)
 
+            # Reset $v0
+            self.aux_reg_table[self.val_0] = self._empty_aux_reg_dict()
+
             # Ensure variable is set to 'used' and prints out since we can't statically analyze it
             # (THIS MIGHT BE UNNECESSARY - TEST REMOVING IT)
             id_dict['used'] = True
@@ -742,7 +745,7 @@ class CodeGenerator:
                     else:
                         expr_reg = float(expr_reg)
                 else:
-                    SemanticError.raise_type_mismatch_error(ident, expr_token.pattern, id_type, expr_type,
+                    SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type,
                                                             expr_token.line_num, expr_token.col)
 
             # Check for immediates
@@ -852,8 +855,6 @@ class CodeGenerator:
         if len(children) == 1:
             return children_function(children[0].children)
         else:
-            print(children)
-
             # Reserve accum_id
             accum_id = next(self.temp_id_generator)
             immediate_val = None
@@ -868,7 +869,6 @@ class CodeGenerator:
             val_reg, immediate_val, val_type = \
                 body_function(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val)
 
-            print(val_reg, immediate_val, val_type)
             if not val_reg:
                 return immediate_val, val_type, val_token
             else:
@@ -898,12 +898,12 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Boolean OR',
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean OR',
                                                           val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
-                    SemanticError.raise_type_mismatch_error(val_token.name, next_token.name, val_type, next_type,
+                    SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
                                                             val_token.line_num, val_token.col)
 
                 # Add them up
@@ -948,12 +948,12 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Boolean AND',
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean AND',
                                                           val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
-                    SemanticError.raise_type_mismatch_error(val_token.name, next_token.name, val_type, next_type,
+                    SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
                                                             val_token.line_num, val_token.col)
 
                 # Add them up
@@ -962,8 +962,11 @@ class CodeGenerator:
                         immediate_val = next_reg
                     else:
                         immediate_val = immediate_val and next_reg
-                else: # MIPS
-                    self.output_string += asm_log_and(val_reg, val_reg, next_reg)
+                else: # Code evaluation
+                    if val_reg is None:
+                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
+                    else:
+                        self.output_string += asm_log_and(val_reg, val_reg, next_reg)
 
             # AND immediates and non-immediates together
             if immediate_val is not None and val_reg is not None:
@@ -1000,25 +1003,6 @@ class CodeGenerator:
                 # Save off operator
                 equal_op = children[1].token.name
 
-                '''
-                # This means type-coerced ints are not equal to equivalent floats
-                if val_type != next_type:
-                    immediate_val = False if equal_op == 'EQUAL' else True
-                    val_reg = None
-                elif val_type in {'string', 'bool'}:
-                    # Since strings can always be statically analyzed, they are only equal if literals are
-                    immediate_val = (val_reg == next_reg) if equal_op == 'EQUAL' else (val_reg != next_reg)
-                    val_reg = None
-                elif val_type in {'int', 'float'}:
-                    if not val_reg: # if immediate_val holds value
-                        val_reg = None # unnecessary
-                        immediate_val = immediate_val == next_reg if equal_op == 'EQUAL' else immediate_val != next_reg
-                    else:
-                        immediate_val = None
-                        # This will ensure val_reg has the 1 (True) or 0 (False) from the equality
-                        self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
-                            if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
-                '''
                 # We set '==' and '!=' to be hard type checkers, so we don't need to worry about type coercion
                 # I want to eventually add '=', and '!=' for soft equality checking and '==' and '!==' for hard checking
                 if val_type != next_type:
@@ -1074,11 +1058,11 @@ class CodeGenerator:
 
                 # If type is string or bool, throw incompatible type error
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Number Relationships',
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Number Relationships',
                                                           val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Number Relationships',
+                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Number Relationships',
                                                           next_token.line_num, next_token.col)
 
                 # Check for static analysis
@@ -1170,11 +1154,11 @@ class CodeGenerator:
 
                 # Type check
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Arithmetic',
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
                                                           val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Arithmetic',
+                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
                                                           next_token.line_num, next_token.col)
 
                 if type(next_reg) in {int, float}: # next_reg is an immediate
@@ -1237,7 +1221,7 @@ class CodeGenerator:
                         self.output_string += asm_sub(val_reg, val_reg, next_reg)
 
             # Add up the immediate and val_reg if necessary
-            if immediate_val != 0 and val_reg is not None:
+            if immediate_val is not None and immediate_val != 0 and val_reg is not None:
                 self.output_string += asm_add(val_reg, val_reg, immediate_val)
 
             return val_reg, immediate_val, val_type
@@ -1276,11 +1260,11 @@ class CodeGenerator:
 
                 # Type checks
                 if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Arithmetic',
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
                                                           val_token.line_num, val_token.col)
 
                 if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Arithmetic',
+                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
                                                           next_token.line_num, next_token.col)
 
                 # Coerce int to float

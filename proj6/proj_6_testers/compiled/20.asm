@@ -5,8 +5,8 @@ div $s2, $s2, 2
 li $v0, 1
 move $a0, $s2
 syscall
-li $s3, 6
-div $s3, $s3, 2
-mul $s3, $s3, 5
-move $a0, $s3
+li $t1, 6
+div $t1, $t1, 2
+mul $t1, $t1, 5
+move $a0, $t1
 syscall

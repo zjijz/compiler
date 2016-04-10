@@ -6,22 +6,22 @@ li $v0, 1
 li $a0, 10
 syscall
 li $v0, 2
-li $at, 1101004800
-mtc1 $at, $f13
+li $v1, 1101004800
+mtc1 $v1, $f13
 mov.s $f12, $f13
 syscall
 li $v0, 1
 li $a0, -10
 syscall
 li $v0, 2
-li $at, 3248488448
-mtc1 $at, $f13
+li $v1, 3248488448
+mtc1 $v1, $f13
 mov.s $f12, $f13
 syscall
 li $v0, 4
-la $t6, b
-move $a0, $t6
+la $s4, b
+move $a0, $s4
 syscall
-la $s1, a
-move $a0, $s1
+la $s5, a
+move $a0, $s5
 syscall

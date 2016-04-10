@@ -8,6 +8,8 @@ def compiler(source, tokens, output, is_debug, is_safe):
     if is_debug:
         # For testing
         print('Compiling "{:s}" into "{:s}" using "{:s}" for tokens\n'.format(source, output, tokens))
+    # Only prints the huge stack trace in debugging mode
+    sys.tracebacklimit = 0 if is_debug else 1
     CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
 
 

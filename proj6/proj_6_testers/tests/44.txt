@@ -1,7 +1,5 @@
-"""
-Type coersion
-Should throw an error
-"""
+# Type coersion
+# Should throw an error
 
 begin
     bool b := 5;
