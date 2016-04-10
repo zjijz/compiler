@@ -8,7 +8,7 @@ from copy import *
 #  'type': Data type
 #  'scope': Data scope
 #  'mem_name": variable name for .data
-#  'init_val': initial value ('Read' if set with READ)
+#  'init_val': initial value ('DYNAMIC' if set with READ)('TEMP' if TEMP variable)
 #  'curr_val': current value (None if used in an operation with a variable from READ)
 #  'addr_reg': temporary register with memory address
 #  'val_reg': temporary register with value
@@ -157,7 +157,7 @@ class CodeGenerator:
         self.float_reg_table = self._init_reg_table('float')
         # Also has these attributes set in _create_register_pool:
         #   self.val_0 - Read-in ints are stored here
-        #   self.val_1 -
+        #   self.val_1 - We use it as a temp register for our psuedoinstructions (instead of $at) - DO NOT USE THIS
         #   self.arg_0 - Integer / String printing
         #   self.arg_1 -
         #   self.arg_2 -
@@ -338,7 +338,7 @@ class CodeGenerator:
             mem_type = mem_type[mem_type.find('.') + 1:]
 
             # Create sym_table entry
-            self.sym_table[mem_id] = {'type': mem_type, 'scope': None, 'mem_name': mem_name, 'init_val': None,
+            self.sym_table[mem_id] = {'type': mem_type, 'scope': None, 'mem_name': mem_name, 'init_val': 'TEMP',
                                       'curr_val': None, 'addr_reg': None, 'val_reg': None, 'used': True}
 
             # Save variable to memory
@@ -355,7 +355,7 @@ class CodeGenerator:
         try:
             id_dict = self.sym_table[ident]
         except KeyError:
-            SemanticError.raise_initialization_error(ident, token.line_num, token.col)
+            SemanticError.raise_declaration_error(ident, token.line_num, token.col)
         return id_dict
 
     # Used mostly or expr to reserve registers for temporary variables
@@ -407,7 +407,7 @@ class CodeGenerator:
             id_dict = self.sym_table[id]
 
             if id_dict['used']:
-                type = id_dict['type']
+                val_type = id_dict['type']
                 scope = id_dict['scope']
                 name = id_dict['mem_name']
                 init_val = id_dict['init_val']
@@ -417,13 +417,18 @@ class CodeGenerator:
                 # - booleans -> .byte
                 # - strings -> different sym table
                 o_type = '.word'
-                if type == 'bool':
+                if val_type == 'bool':
                     o_type = '.byte'
-                elif type == 'float':
+                elif val_type == 'float':
                     o_type = '.float'
 
+                # If init_val is not a string (i.e. 'DYNAMIC' or 'TEMP'), change o_val to the value
+                o_val = '0'
+                if type(init_val) is not str:
+                    o_val = str(init_val)
+
                 data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
-                                .format(name, o_type, str(init_val) if init_val else '0', id)
+                                .format(name, o_type, o_val, id)
 
         for string in self.array_sym_table:
             id_dict = self.array_sym_table[string]
@@ -461,13 +466,17 @@ class CodeGenerator:
             var_id = token.pattern
             id_dict = self._get_sym_table_entry(var_id, token)
 
+            if id_dict['type'] in {'string', 'bool'}:
+                SemanticError.raise_incompatible_type(var_id, id_dict['type'], 'Read Function',
+                                                      token.line_num, token.col)
+
             # Ensure variable is set to 'used' and prints out since we can't statically analyze it
             # (THIS MIGHT BE UNNECESSARY - TEST REMOVING IT)
             id_dict['used'] = True
 
-            input_reg = self.float_0 if id_dict['type'] == 'float' else self.val_0
+            id_dict['init_val'] = 'DYNAMIC'
 
-            print(id_dict['type'], type(id_dict['type']))
+            input_reg = self.float_0 if id_dict['type'] == 'float' else self.val_0
 
             self.output_string += asm_read(id_dict['type']) # places input into $v0
             self._assign_id(var_id, input_reg)
@@ -491,9 +500,11 @@ class CodeGenerator:
                 self.aux_reg_table[self.val_0]['mem_name'] = None
                 self.aux_reg_table[self.val_0]['mem_type'] = None
 
+            # Tracking $a0
+            is_a0_set = False
+
             # Convert bool to string for printing
             if var_type == 'bool':
-                print(expr_reg)
                 if type(expr_reg) is bool: # literal
                     # set expr_reg to the string and let the string conditional print it
                     expr_reg = self.bool_true_string if var_reg else self.bool_false_string
@@ -511,26 +522,28 @@ class CodeGenerator:
                     # Ensure addresses are loaded
                     if true_addr_reg is None:
                         true_addr_reg = self._find_free_register()
+                        self._update_reg_table('normal', self.bool_true_string, true_addr_reg, 'ARRAY_ADDRESS')
                         self.var_queue.append({'reg': true_addr_reg, 'id': self.bool_true_string,
                                                'mem_type': 'ARRAY_ADDRESS'})
                         true_dict['addr_reg'] = true_addr_reg
+                        self.output_string += asm_load_mem_addr(true_dict['mem_name'], true_addr_reg)
 
                     if false_addr_reg is None:
                         false_addr_reg = self._find_free_register()
+                        self._update_reg_table('normal', self.bool_false_string, false_addr_reg, 'ARRAY_ADDRESS')
                         self.var_queue.append({'reg': false_addr_reg, 'id': self.bool_false_string,
                                                'mem_type': 'ARRAY_ADDRESS'})
                         false_dict['addr_reg'] = false_addr_reg
+                        self.output_string += asm_load_mem_addr(false_dict['mem_name'], false_addr_reg)
 
                     # Since this register will only be used in this function, with no other calls to _find_free_reg(),
                     # it does not have to be reserved, just cleared and made accessible
                     r_reg = self._find_free_register()
                     self.output_string += asm_dynamic_bool_print(r_reg, expr_reg, true_addr_reg, false_addr_reg)
+                    expr_reg = r_reg
 
                     # Reset $a0
                     self.aux_reg_table[self.arg_0] = self._empty_aux_reg_dict()
-
-                    # Write
-                    self.output_string += asm_write(r_reg, expr_type)
 
             # If expr_reg is a string, we look it up and print using it's address
             if type(expr_reg) is str:
@@ -552,21 +565,18 @@ class CodeGenerator:
 
                 # Check if address is already in $a0
                 a0_dict = self.aux_reg_table[self.arg_0]
-                is_a0_set = False
                 if a0_dict['val'] == expr_reg:
                     is_a0_set = True
                 # Update $v0 otherwise
                 else:
                     a0_dict['val'] = expr_reg
                     a0_dict['mem_type'] = 'ADDRESS'
-
-                # Write
-                self.output_string += asm_write(addr_reg, expr_type, is_a0_set)
+                    expr_reg = addr_reg
             else: # then expr_reg is int or float
                 # Reset $a0
                 self.aux_reg_table[self.arg_0] = self._empty_aux_reg_dict()
 
-                self.output_string += asm_write(expr_reg, expr_type)
+            self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
@@ -579,6 +589,13 @@ class CodeGenerator:
         token = tree_nodes[0].children[0].token
         ident = token.pattern
         id_dict = self._get_sym_table_entry(ident, token)
+
+        # Set init_val if first time calling
+        if id_dict['init_val'] is None:
+            if type(expr_reg) is Register:
+                id_dict['init_val'] = 'DYNAMIC'
+            else:
+                id_dict['init_val'] = expr_reg
 
         # Throw type error
         id_type = id_dict['type']
@@ -613,6 +630,7 @@ class CodeGenerator:
         name = id_dict['mem_name']
         addr_reg = id_dict['addr_reg']
         val_reg = id_dict['val_reg']
+        init_val = id_dict['init_val']
         curr_val = id_dict['curr_val']
 
         python_assn_type = type(assn_reg)
@@ -688,7 +706,7 @@ class CodeGenerator:
         # If no KeyError, raise SemanticError
         try:
             self.sym_table[var_id]
-            SemanticError.raise_already_initialized_error(var_id, token.line_num, token.col)
+            SemanticError.raise_already_declared_error(var_id, token.line_num, token.col)
         except KeyError:
             pass
 
@@ -732,6 +750,8 @@ class CodeGenerator:
                 curr_val = init_val = expr_reg
                 val_reg = None
             else: # If not, load address and variable registers and equate
+                init_val = 'DYNAMIC'
+
                 # Load addr_reg
                 addr_reg = self._find_free_register(clean_type)
                 var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
@@ -829,10 +849,11 @@ class CodeGenerator:
     def _process_expr_skeleton(self, children, children_function, body_function):
         # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
         # Thus, we can just return exactly whatever returned from the one below
-
         if len(children) == 1:
             return children_function(children[0].children)
         else:
+            print(children)
+
             # Reserve accum_id
             accum_id = next(self.temp_id_generator)
             immediate_val = None
@@ -847,6 +868,7 @@ class CodeGenerator:
             val_reg, immediate_val, val_type = \
                 body_function(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val)
 
+            print(val_reg, immediate_val, val_type)
             if not val_reg:
                 return immediate_val, val_type, val_token
             else:
@@ -876,7 +898,8 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Boolean OR',
+                                                          val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
@@ -925,7 +948,8 @@ class CodeGenerator:
 
                 # Check if val_reg is a bool
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Boolean AND',
+                                                          val_token.line_num, val_token.col)
 
                 # Check if next_reg is also a bool
                 if next_type != 'bool':
@@ -976,14 +1000,15 @@ class CodeGenerator:
                 # Save off operator
                 equal_op = children[1].token.name
 
+                '''
                 # This means type-coerced ints are not equal to equivalent floats
                 if val_type != next_type:
-                    val_reg = None
                     immediate_val = False if equal_op == 'EQUAL' else True
+                    val_reg = None
                 elif val_type in {'string', 'bool'}:
                     # Since strings can always be statically analyzed, they are only equal if literals are
-                    val_reg = None
                     immediate_val = (val_reg == next_reg) if equal_op == 'EQUAL' else (val_reg != next_reg)
+                    val_reg = None
                 elif val_type in {'int', 'float'}:
                     if not val_reg: # if immediate_val holds value
                         val_reg = None # unnecessary
@@ -991,6 +1016,26 @@ class CodeGenerator:
                     else:
                         immediate_val = None
                         # This will ensure val_reg has the 1 (True) or 0 (False) from the equality
+                        self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
+                            if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
+                '''
+                # We set '==' and '!=' to be hard type checkers, so we don't need to worry about type coercion
+                # I want to eventually add '=', and '!=' for soft equality checking and '==' and '!==' for hard checking
+                if val_type != next_type:
+                    immediate_val = False if equal_op == 'EQUAL' else True
+                    val_reg = None
+                else:
+                    # Check if val_reg or immediate_val has value
+                    # Run immediate comparison or MIPS if val_reg
+                    if val_reg is None:
+                        if type(next_reg) in {str, bool, int, float}: # Both are immediates
+                            immediate_val = immediate_val == next_reg \
+                                if equal_op == 'EQUAL' else immediate_val != next_reg
+                        else:
+                            val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
+                            self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
+                                if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
+                    else: # val_reg and a register or immediate (overloads in assembly_helper for this)
                         self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
                             if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
 
@@ -1029,24 +1074,23 @@ class CodeGenerator:
 
                 # If type is string or bool, throw incompatible type error
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Number Relationships',
+                                                          val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
-
-                # val_type now holds a bool
-                val_type = 'bool'
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Number Relationships',
+                                                          next_token.line_num, next_token.col)
 
                 # Check for static analysis
                 if immediate_val is not None and type(next_reg) in {int, float}:
                     if rel_op == 'GREATER':
-                        return None, immediate_val > next_reg, val_type
+                        return None, immediate_val > next_reg, 'bool'
                     elif rel_op == 'LESS':
-                        return None, immediate_val < next_reg, val_type
+                        return None, immediate_val < next_reg, 'bool'
                     elif rel_op == 'GREATER_EQUAL':
-                        return None, immediate_val >= next_reg, val_type
+                        return None, immediate_val >= next_reg, 'bool'
                     elif rel_op == 'LESS_EQUAL':
-                        return None, immediate_val <= next_reg, val_type
+                        return None, immediate_val <= next_reg, 'bool'
 
                 # first_reg defaults to val_reg or immediate_val depending on which one was set
                 first_reg = immediate_val if not val_reg else val_reg
@@ -1091,6 +1135,9 @@ class CodeGenerator:
                 elif rel_op == 'LESS_EQUAL':
                     self.output_string += asm_rel_le(val_reg, first_reg, second_reg)
 
+                # val_type now holds a bool
+                val_type = 'bool'
+
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body)
@@ -1123,10 +1170,12 @@ class CodeGenerator:
 
                 # Type check
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Arithmetic',
+                                                          val_token.line_num, val_token.col)
 
                 if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Arithmetic',
+                                                          next_token.line_num, next_token.col)
 
                 if type(next_reg) in {int, float}: # next_reg is an immediate
                     # initialize immediate
@@ -1142,9 +1191,9 @@ class CodeGenerator:
                         val_type = 'float'
 
                     if oper == 'PLUS':
-                        val_reg = initialize_val_reg(accum_id, next_reg, val_type)
+                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
                     elif oper == 'MINUS':
-                        val_reg = initialize_val_reg(accum_id, next_reg, val_type)
+                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
                         # Multiply val_reg by -1
                         self.output_string += asm_multiply(val_reg, val_reg, -1)
                 else: # add/sub (coerce types if necessary)
@@ -1188,7 +1237,7 @@ class CodeGenerator:
                         self.output_string += asm_sub(val_reg, val_reg, next_reg)
 
             # Add up the immediate and val_reg if necessary
-            if immediate_val is not None and val_reg is not None:
+            if immediate_val != 0 and val_reg is not None:
                 self.output_string += asm_add(val_reg, val_reg, immediate_val)
 
             return val_reg, immediate_val, val_type
@@ -1227,10 +1276,12 @@ class CodeGenerator:
 
                 # Type checks
                 if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
-                    SemanticError.raise_incompatible_type(val_token.name, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.name, val_type, 'Arithmetic',
+                                                          val_token.line_num, val_token.col)
 
                 if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
-                    SemanticError.raise_incompatible_type(next_token.name, next_type, next_token.line_num, next_token.col)
+                    SemanticError.raise_incompatible_type(next_token.name, next_type, 'Arithmetic',
+                                                          next_token.line_num, next_token.col)
 
                 # Coerce int to float
                 if val_type == 'int' and next_type == 'float':
@@ -1262,7 +1313,6 @@ class CodeGenerator:
                     # We don't care to save this, so we'll just let it die once we're done with it
                     next_float_reg = self._find_free_register('float')
                     # Coerce next_type up
-                    print(next_float_reg, next_reg)
                     self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
                     # set second_reg to be next_float_reg
                     next_reg = next_float_reg
@@ -1300,11 +1350,13 @@ class CodeGenerator:
             if unary_op == 'PLUS':
                 # Throw error if not numeric type; do nothing otherwise
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Unary Numberical Operations',
+                                                          val_token.line_num, val_token.col)
             elif unary_op == 'MINUS':
                 # Throw type error
                 if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Unary Numerical Operations',
+                                                          val_token.line_num, val_token.col)
 
                 if not val_reg: # immediate_val holds value
                     immediate_val *= -1
@@ -1313,7 +1365,8 @@ class CodeGenerator:
             elif unary_op == 'LOG_NEGATION':
                 # Throw type error
                 if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, val_token.line_num, val_token.col)
+                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Unary Boolean Opertions',
+                                                          val_token.line_num, val_token.col)
 
                 if not val_reg:
                     immediate_val = not immediate_val
@@ -1381,7 +1434,7 @@ class CodeGenerator:
 
         # If not initialized, throw an error
         if init_val is None:
-            pass
+            SemanticError.raise_initialization_error(ident, token.line_num, token.col)
 
         # Check if curr_val is not None (thus, if we can just return it)
         if curr_val is not None:

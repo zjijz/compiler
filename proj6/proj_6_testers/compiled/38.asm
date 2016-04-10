@@ -3,13 +3,13 @@ b:	.asciiz	"False"
 a:	.asciiz	"True"
 .text
 li $v0, 4
-la $t7, a
-move $a0, $t7
+la $t1, a
+move $a0, $t1
 syscall
-la $t3, b
-move $a0, $t3
+la $t4, b
+move $a0, $t4
 syscall
-move $a0, $t7
 syscall
-move $a0, $t3
+move $a0, $t1
+syscall
 syscall

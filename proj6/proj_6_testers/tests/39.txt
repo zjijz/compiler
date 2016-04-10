@@ -1,8 +1,9 @@
 # Test boolean comparisons with ints and bools
 # Prints TrueFalseTrue
+
 begin
     bool a := 1 < 2 == True;
     bool b := False != (17 >= 5 and 4 == 4.0);
-    bool c := 7 <= 1 + 2 * 2 - 1 or (True and 88 > 2) ;
+    bool c := 7 <= 1 + 2 * 2 - 1 or (True and 88 > 2);
     write(a,b,c);
 end

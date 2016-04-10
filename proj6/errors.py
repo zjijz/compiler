@@ -41,14 +41,14 @@ class SemanticError(Exception):
                             'declared before use.'.format(line, col, variable))
 
     @staticmethod
+    def raise_already_declared_error(variable, line, col):
+        raise SemanticError('Semantic error: Declaration Error: Line num: {:d}, column num: {:d}\n\t'
+                            '{:s} is already declared.'.format(line, col, variable))
+
+    @staticmethod
     def raise_initialization_error(variable, line, col):
         raise SemanticError('Semantic error: Initiatilization Error: Line num: {:d}, column num: {:d}\n\t{:s} not '
                             'initialized before use.'.format(line, col, variable))
-
-    @staticmethod
-    def raise_already_initialized_error(variable, line, col):
-        raise SemanticError('Semantic error: Initialization Error: Line num: {:d}, column num: {:d}\n\t'
-                            '{:s} is already initialized.'.format(line, col, variable))
 
     @staticmethod
     def raise_type_mismatch_error(var_1, var_2, type_1, type_2, line, col):
@@ -56,9 +56,9 @@ class SemanticError(Exception):
                             'type {:s}, but {:s} is of type {:s}.'.format(line, col, var_1, type_1, var_2, type_2))
 
     @staticmethod
-    def raise_incompatible_type(var_name, type_name, line, col):
-        raise SemanticError('Semantic error: Incopmatible Type for Function: Line num {:d}, column num: {:d}\n\t{:s} is'
-                            'of incompatible type {:s}.').format(line, col, var_name, type_name)
+    def raise_incompatible_type(var_name, type_name, func_name, line, col):
+        raise SemanticError('Semantic error: Incompatible Type for Function: Line num {:d}, column num: {:d}\n\t{:s} is'
+                            ' of incompatible type {:s} for {:s}.'.format(line, col, var_name, type_name, func_name))
 
     def __init__(self, msg):
         self.msg = msg

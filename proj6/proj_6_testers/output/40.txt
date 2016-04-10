@@ -1,0 +1,29 @@
+{'x': {'mem_name': 'c', 'init_val': 'DYNAMIC', 'val_reg': $t4, 'scope': None, 'curr_val': None, 'type': 'int', 'used': True, 'addr_reg': $t8}}
+Traceback (most recent call last):
+  File "compiler.py", line 31, in <module>
+    compiler(args.source_file, args.token_file, args.output_file, args.debug_mode, args.safe_mode)
+  File "compiler.py", line 11, in compiler
+    CodeGenerator(Parser(is_debug).parse(source, tokens), output, is_debug, is_safe).compile()
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 180, in compile
+    self._traverse(self.tree)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 274, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 274, in _traverse
+    self._traverse(child)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 271, in _traverse
+    self.func_factory[child.label](tree.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 489, in _write
+    var_reg, var_type, var_token = self._process_expr_bool(expr.children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 922, in _process_expr_bool
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 854, in _process_expr_skeleton
+    return children_function(children[0].children)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 972, in _process_term_bool
+    return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 868, in _process_expr_skeleton
+    body_function(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/code_generator.py", line 964, in term_bool_body
+    self.output_string += asm_log_and(val_reg, val_reg, next_reg)
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj6/assembly_helper.py", line 120, in asm_log_and
+    return 'and {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
+TypeError: non-empty format string passed to object.__format__

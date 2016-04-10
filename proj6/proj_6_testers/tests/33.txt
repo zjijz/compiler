@@ -3,7 +3,7 @@
 # Should throw an error
 
 begin
-    int y = 0;
+    int y := 0;
     int x;
-    y = x;
+    y := x;
 end

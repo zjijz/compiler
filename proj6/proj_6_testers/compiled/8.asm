@@ -1,28 +1,28 @@
 .data
+d:	.word	0	# y in original
 e:	.word	0	# z in original
 c:	.word	0	# x in original
-d:	.word	0	# y in original
 .text
 li $v0, 5
 syscall
-la $t8, c
-lw $t5, 0($t8)
-move $t5, $v0
+la $t1, c
+lw $t7, 0($t1)
+move $t7, $v0
 li $v0, 5
 syscall
-la $t0, d
-lw $s1, 0($t0)
-move $s1, $v0
+la $s4, d
+lw $t3, 0($s4)
+move $t3, $v0
 li $v0, 5
 syscall
-la $s6, e
-lw $t1, 0($s6)
-move $t1, $v0
-move $s4, $t5
-add $s4, $s4, $s1
-add $s4, $s4, $t1
-addi $s4, $s4, 7
-move $s1, $s4
+la $s5, e
+lw $s6, 0($s5)
+move $s6, $v0
+move $t9, $t7
+add $t9, $t9, $t3
+add $t9, $t9, $s6
+addi $t9, $t9, 7
+move $t3, $t9
 li $v0, 1
-move $a0, $s1
+move $a0, $t3
 syscall
