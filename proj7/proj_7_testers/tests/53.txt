@@ -1,0 +1,7 @@
+# Tests if the system can handle a rpeated float by only loading it into $a0 once
+# Outputs: 1.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.01.0
+
+begin
+    float f := 1.0;
+    write(f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f);
+end

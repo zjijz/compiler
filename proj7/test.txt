@@ -1,17 +1,5 @@
-# Tests that strings reuse addresses and that the system can handle many string loaded and unloading
-# Output:
-## abcdabcd
-##
-## abcdefghijklmnopqrstuvwxyz
-##
-## abcdefghijklmnopqrstuvwxyz
 
 begin
-    string s := "a", s2 := "b", s3 := "c", s4 := "d", s5 := "a", s6 := "b", s7 := "c", s8 := "d";
-    write(s,s2,s3,s4,s5,s6,s7,s8, "\n", "\n");
-    string s9 := "e", s10 := "f", s11 := "g", s12 := "h", s13 := "i", s14 := "j", s15 := "k", s16 := "l", s17 := "m";
-    string s18 := "n", s19 := "o", s20 := "q", s21 := "r", s22 := "s", s23 := "t", s24 := "u", s25 := "v", s26 := "w";
-    string s27 := "x", s28 := "y", s29 := "z";
-    write(s,s2,s3,s4,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29, "\n", "\n");
-    write(s,s2,s3,s4,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29);
+    float f := 1.0;
+    write(f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f);
 end
