@@ -3,9 +3,9 @@ f:	.asciiz	"TEMP"
 d:	.asciiz	"DYNAMIC"
 .text
 li $v0, 4
-la $t1, d
-move $a0, $t1
+la $s2, d
+move $a0, $s2
 syscall
-la $t4, f
-move $a0, $t4
+la $s3, f
+move $a0, $s3
 syscall

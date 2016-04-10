@@ -1,25 +1,25 @@
 .data
 e:	.byte	0	# c in original
-b:	.asciiz	"False"
 a:	.asciiz	"True"
+b:	.asciiz	"False"
 .text
 li $t1, 2
 mul $t1, $t1, 2
-move $s2, $t1
+move $t8, $t1
 li $v1, 7
-sle $t3, $v1, $s2
-move $s6, $t3
-ori $s6, $s6, 1
-move $t2, $s6
+sle $t0, $v1, $t8
+move $t7, $t0
+ori $t7, $t7, 1
+move $t5, $t7
 li $v0, 4
 la $s4, a
 move $a0, $s4
 syscall
-la $t9, b
-move $a0, $t9
+la $t4, b
+move $a0, $t4
 syscall
-seq $v1, $t2, 1
-movn $t6, $s4, $v1
-movz $t6, $t9, $v1
-move $a0, $t6
+seq $v1, $t5, 1
+movn $s2, $s4, $v1
+movz $s2, $t4, $v1
+move $a0, $s2
 syscall

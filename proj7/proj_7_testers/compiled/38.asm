@@ -1,15 +1,15 @@
 .data
-a:	.asciiz	"True"
 b:	.asciiz	"False"
+a:	.asciiz	"True"
 .text
 li $v0, 4
-la $t3, a
+la $t1, a
+move $a0, $t1
+syscall
+la $t3, b
 move $a0, $t3
 syscall
-la $t9, b
-move $a0, $t9
 syscall
-syscall
-move $a0, $t3
+move $a0, $t1
 syscall
 syscall

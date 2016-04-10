@@ -1,18 +1,18 @@
 .text
-li $s3, 3
-mul $s3, $s3, 4
+li $s6, 3
+mul $s6, $s6, 4
 li $v0, 1
-move $a0, $s3
+move $a0, $s6
 syscall
-li $t0, 18
-rem $t0, $t0, 4
-move $a0, $t0
+li $s4, 18
+rem $s4, $s4, 4
+move $a0, $s4
 syscall
-li $t4, 3
+li $t5, 3
+div $t5, $t5, 3
+move $a0, $t5
+syscall
+li $t4, 4
 div $t4, $t4, 3
 move $a0, $t4
-syscall
-li $t8, 4
-div $t8, $t8, 3
-move $a0, $t8
 syscall

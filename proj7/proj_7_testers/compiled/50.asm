@@ -2,25 +2,25 @@
 d:	.word	0	# i2 in original
 f:	.float	0	# f2 in original
 a:	.asciiz	"True"
-h:	.asciiz	"\n"
 b:	.asciiz	"False"
+h:	.asciiz	"\n"
 .text
 li $v0, 5
 syscall
-la $t1, d
-lw $t9, 0($t1)
-move $t9, $v0
+la $t8, d
+lw $s1, 0($t8)
+move $s1, $v0
 li $v0, 6
 syscall
-la $s5, f
-l.s $f28, 0($s5)
-mov.s $f28, $f0
+la $s6, f
+l.s $f30, 0($s6)
+mov.s $f30, $f0
 li $v0, 4
-la $t3, a
-move $a0, $t3
+la $t7, a
+move $a0, $t7
 syscall
-la $s3, b
-move $a0, $s3
+la $t0, b
+move $a0, $t0
 syscall
 li $v0, 1
 li $a0, -10
@@ -35,76 +35,76 @@ li $s4, 106
 div $s4, $s4, 20
 move $a0, $s4
 syscall
-li $t4, 106
-rem $t4, $t4, 20
-move $a0, $t4
-syscall
-li $v0, 4
-move $a0, $t3
-syscall
-syscall
+li $s3, 106
+rem $s3, $s3, 20
 move $a0, $s3
 syscall
+li $v0, 4
+move $a0, $t7
 syscall
 syscall
-move $a0, $t3
+move $a0, $t0
+syscall
+syscall
+syscall
+move $a0, $t7
 syscall
 la $s2, h
 move $a0, $s2
 syscall
-move $a0, $s3
+move $a0, $t0
 syscall
-move $a0, $t3
-syscall
-syscall
+move $a0, $t7
 syscall
 syscall
-move $a0, $s3
 syscall
-move $a0, $t3
+syscall
+move $a0, $t0
+syscall
+move $a0, $t7
 syscall
 syscall
 move $a0, $s2
 syscall
-move $t2, $t9
-sgt $t2, $t2, 20
+move $t3, $s1
+sgt $t3, $t3, 20
+seq $v1, $t3, 1
+movn $s5, $t7, $v1
+movz $s5, $t0, $v1
+move $a0, $s5
+syscall
+move $s5, $s1
+sge $s5, $s5, 20
+seq $v1, $s5, 1
+movn $t4, $t7, $v1
+movz $t4, $t0, $v1
+move $a0, $t4
+syscall
+move $t4, $s1
+slti $t4, $t4, 20
+seq $v1, $t4, 1
+movn $t9, $t7, $v1
+movz $t9, $t0, $v1
+move $a0, $t9
+syscall
+move $t9, $s1
+sle $t9, $t9, 20
+seq $v1, $t9, 1
+movn $t2, $t7, $v1
+movz $t2, $t0, $v1
+move $a0, $t2
+syscall
+move $t2, $s1
+seq $t2, $t2, 20
 seq $v1, $t2, 1
-movn $t0, $t3, $v1
-movz $t0, $s3, $v1
-move $a0, $t0
+movn $t1, $t7, $v1
+movz $t1, $t0, $v1
+move $a0, $t1
 syscall
-move $t0, $t9
-sge $t0, $t0, 20
-seq $v1, $t0, 1
-movn $t6, $t3, $v1
-movz $t6, $s3, $v1
+move $t1, $s1
+sne $t1, $t1, 20
+seq $v1, $t1, 1
+movn $t6, $t7, $v1
+movz $t6, $t0, $v1
 move $a0, $t6
-syscall
-move $t6, $t9
-slti $t6, $t6, 20
-seq $v1, $t6, 1
-movn $t8, $t3, $v1
-movz $t8, $s3, $v1
-move $a0, $t8
-syscall
-move $t8, $t9
-sle $t8, $t8, 20
-seq $v1, $t8, 1
-movn $t7, $t3, $v1
-movz $t7, $s3, $v1
-move $a0, $t7
-syscall
-move $t7, $t9
-seq $t7, $t7, 20
-seq $v1, $t7, 1
-movn $s6, $t3, $v1
-movz $s6, $s3, $v1
-move $a0, $s6
-syscall
-move $s6, $t9
-sne $s6, $s6, 20
-seq $v1, $s6, 1
-movn $s1, $t3, $v1
-movz $s1, $s3, $v1
-move $a0, $s1
 syscall

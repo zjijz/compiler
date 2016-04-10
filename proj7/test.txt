@@ -1,17 +1,17 @@
-# Try all operators on all data types such that a literal comes first
-# Also tests dynamic bools
-# Input: 5, 3.0
+# Tests that strings reuse addresses and that the system can handle many string loaded and unloading
 # Output:
-## True, False, -10, 10, 200, 5, 6, True, True, False, False, False, True
-## False, True, True, True, True, False, True, True
-## False, False, True, True, False, True
+## abcdabcd
+##
+## abcdefghijklmnopqrstuvwxyz
+##
+## abcdefghijklmnopqrstuvwxyz
 
 begin
-    int i := 20, i2;
-    float f := 2.0, f2;
-    bool b := True;
-    read(i2,f2);
-    write(not False, not True, -10, +10, 10 * i, 106 / i, 106 % i, 100 > i, 100 >= i, 100 < i, 100 <= i, 100 == i, 100 != i, "\n");
-    write(False and b, True and b, False or b, True or b, not False and b, not True and b, not False or b, not True or b, "\n");
-    write(i2 > i, i2 >= i, i2 < i, i2 <= i, i2 == i, i2 != i);
+    string s := "a", s2 := "b", s3 := "c", s4 := "d", s5 := "a", s6 := "b", s7 := "c", s8 := "d";
+    write(s,s2,s3,s4,s5,s6,s7,s8, "\n", "\n");
+    string s9 := "e", s10 := "f", s11 := "g", s12 := "h", s13 := "i", s14 := "j", s15 := "k", s16 := "l", s17 := "m";
+    string s18 := "n", s19 := "o", s20 := "q", s21 := "r", s22 := "s", s23 := "t", s24 := "u", s25 := "v", s26 := "w";
+    string s27 := "x", s28 := "y", s29 := "z";
+    write(s,s2,s3,s4,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29, "\n", "\n");
+    write(s,s2,s3,s4,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29);
 end

@@ -1,6 +1,6 @@
 .text
-li $s1, 3
-mul $s1, $s1, 3
+li $t5, 3
+mul $t5, $t5, 3
 li $v0, 1
-move $a0, $s1
+move $a0, $t5
 syscall

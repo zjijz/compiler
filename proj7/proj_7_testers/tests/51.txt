@@ -1,0 +1,7 @@
+# Tests excaped " in a string
+# Prints 'He said "Hey"'
+
+begin
+    string s := "He said \"Hey\"";
+    write(s);
+end

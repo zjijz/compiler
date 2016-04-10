@@ -30,7 +30,7 @@ from copy import *
 # Keeps track of $v0, $v1, $a0, $a1, $s0
 # Each value has:
 # - 'id': ID pattern
-# - 'val': current integer value in register
+# - 'val': current integer value in register or a Register
 # - 'mem_type': Variable type
 
 # Float Reg Table
@@ -576,8 +576,22 @@ class CodeGenerator:
                     a0_dict['mem_type'] = 'ADDRESS'
                     expr_reg = addr_reg
             else: # then expr_reg is int or float
-                # Reset $a0
-                self.aux_reg_table[self.arg_0] = self._empty_aux_reg_dict()
+                a0_dict = self.aux_reg_table[self.arg_0]
+                f12_dict = self.aux_reg_table[self.float_12]
+                if type(expr_reg) is int or expr_type == 'int':
+                    if a0_dict['val'] != expr_reg:
+                        a0_dict['val'] = expr_reg
+                        a0_dict['id'] = None
+                        a0_dict['mem_type'] = None
+                    else:
+                        is_a0_set = True
+                elif type(expr_reg) is float or expr_type == 'float':
+                    if f12_dict['val'] != expr_reg:
+                        f12_dict['val'] = expr_reg
+                        f12_dict['id'] = None
+                        f12_dict['mem_type'] = None
+                    else:
+                        is_a0_set = True
 
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 

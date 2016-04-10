@@ -1,22 +1,22 @@
 .data
 c:	.word	0	# x in original
-b:	.asciiz	"False"
 a:	.asciiz	"True"
+b:	.asciiz	"False"
 .text
 li $v0, 5
 syscall
-la $t3, c
-lw $t4, 0($t3)
-move $t4, $v0
-move $s4, $t4
-slti $s4, $s4, 17
-move $s3, $s4
-andi $s3, $s3, 1
+la $s5, c
+lw $t1, 0($s5)
+move $t1, $v0
+move $t8, $t1
+slti $t8, $t8, 17
+move $s6, $t8
+andi $s6, $s6, 1
 li $v0, 4
-la $s5, a
+la $s1, a
 la $t0, b
-seq $v1, $s3, 1
-movn $t7, $s5, $v1
-movz $t7, $t0, $v1
-move $a0, $t7
+seq $v1, $s6, 1
+movn $s2, $s1, $v1
+movz $s2, $t0, $v1
+move $a0, $s2
 syscall

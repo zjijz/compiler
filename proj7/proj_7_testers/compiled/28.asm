@@ -19,9 +19,9 @@ mtc1 $v1, $f13
 mov.s $f12, $f13
 syscall
 li $v0, 4
-la $t2, b
-move $a0, $t2
+la $s5, b
+move $a0, $s5
 syscall
-la $s2, a
-move $a0, $s2
+la $t8, a
+move $a0, $t8
 syscall

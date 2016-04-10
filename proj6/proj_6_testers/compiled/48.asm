@@ -7,31 +7,31 @@ li $a0, 60
 syscall
 li $v0, 5
 syscall
-la $t4, c
-lw $t8, 0($t4)
-move $t8, $v0
-move $s1, $t8
-add $s1, $s1, $t8
+la $s4, c
+lw $s2, 0($s4)
+move $s2, $v0
+move $s6, $s2
+add $s6, $s6, $s2
 li $v0, 1
-move $a0, $s1
+move $a0, $s6
 syscall
-li $t2, 2
-mtc1 $t2, $f4
-cvt.s.w $f4, $f4
+li $t6, 2
+mtc1 $t6, $f29
+cvt.s.w $f29, $f29
 li $v1, 1073741824
 mtc1 $v1, $f13
 mov.s $f13, $f13
-mul.s $f4, $f4, $f13
+mul.s $f29, $f29, $f13
 li $v0, 2
-mov.s $f12, $f4
+mov.s $f12, $f29
 syscall
 li $v0, 6
 syscall
-la $t1, d
-l.s $f4, 0($t1)
-mov.s $f4, $f0
-mov.s $f5, $f4
-add.s $f5, $f5, $f4
+la $t9, d
+l.s $f29, 0($t9)
+mov.s $f29, $f0
+mov.s $f22, $f29
+add.s $f22, $f22, $f29
 li $v0, 2
-mov.s $f12, $f5
+mov.s $f12, $f22
 syscall

@@ -63,6 +63,8 @@ Queue for Recent Variables
 
  - assembly updates
    - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
+
+ - Remove 'mem_type' from auxiliary reg table
 ______________________________
 Project 7
 - if statements
