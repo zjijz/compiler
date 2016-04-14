@@ -657,11 +657,13 @@ class CodeGenerator:
             curr_val = id_dict['curr_val'] = assn_reg
         elif python_assn_type is float and var_type == 'float':
             curr_val = id_dict['curr_val'] = assn_reg
+        elif python_assn_type is bool and var_type == 'bool':
+            curr_val = id_dict['curr_val'] = assn_reg
         elif python_assn_type is str and var_type == 'string':
             curr_val = id_dict['curr_val'] = assn_reg
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
-        if not curr_val:
+        if curr_val is None:
             # Set id to be printed out to MIPS
             id_dict['used'] = True
 

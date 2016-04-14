@@ -31,6 +31,9 @@ Queue for Recent Variables
     - merges expression siblings with addition or subtraction between the two
  - Add a 'used' field to the symbol table that allows a variable that was never used to not be written to .data section
     - i.e. when an immediate is able to be traced
+
+ - Optimizer that sits between the Parser and the Code Generator to optimize the parse tree (O3)
+ - Assembly Optimizer that will take the output assembly and reorder instructions to improve pipelining (O3)
  ______________________________
  Errors
  - None
@@ -56,13 +59,15 @@ Queue for Recent Variables
 
  - It looks like floats have operations run on them, and then are moved to a tempoaray register, and then to their
    final destination (look into cutting out this middle register)
+   - I looked into this: it's a byproduct of using the same int_convert_float code but with an float literal
+   - The program will convert the literal to a float, and then move it into the dest register
+   - However, the dest register is also $f13 in this case, since this is all temporary calculations to use the literal
+   - $f13 is then used for the operation
 
   - Bools are only statically analyzed right now, add in an option to read them in from command line
+   - This isn't actually true, since there can be bools set by comparison of dynamic integers
    - Bools can be better optimized by keeping track of coprocessor 1 flags that contain them (there are 8 I think)
      - Keep a boolean 'register' table of coprocessor 1 flags
-
- - assembly updates
-   - change lw and sw to use the label equivalents (make address storing unnecessary)(I think these use $at to store addresses)(big change)
 
  - Remove 'mem_type' from auxiliary reg table
 ______________________________

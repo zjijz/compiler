@@ -1,5 +1,4 @@
-
 begin
-    float f := 1.0;
-    write(f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f);
+bool x := False;
+write(x);
 end
