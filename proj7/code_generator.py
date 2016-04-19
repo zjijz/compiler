@@ -128,10 +128,15 @@ class CodeGenerator:
     def _empty_array_sym_table_dict():
         return {'type': None, 'mem_name': None, 'addr_reg': None, 'used': False}
 
+    @staticmethod
+    def _empty_tail_call(accum_id, val_reg, val_type, val_token, immediate_val):
+        return val_reg, immediate_val, val_type
+
     def __init__(self, parse_tree, output_filename, is_debug, is_safe):
         # Name / ID generators
         self.var_name_generator = variable_name_generator()
         self.temp_id_generator = temp_var_id_generator()
+        self.conditional_name_generator = variable_name_generator()
 
         # Compiler Flags
         self.debug_mode = is_debug
@@ -864,8 +869,11 @@ class CodeGenerator:
     # children_function == function to process children
     # body_function == function that runs logic (must return val_reg, immediate_val)
     # - must ensure that both val_reg and next_reg are loaded at proper times
-    # - must take (tree_nodes, accum_id, val_reg, val_type, val_token, immediate_val) as parameters
-    def _process_expr_skeleton(self, children, children_function, body_function):
+    # - must take (tree_nodes, accum_id, val_reg, val_type, val_token, immediate_val, next_reg, next_type, next_token)
+    #   as parameters
+    # tail function:
+    # - accum_id, val_reg, val_type, val_token, immediate_val as children
+    def _process_expr_skeleton(self, children, children_function, body_function, tail_function):
         # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
         # Thus, we can just return exactly whatever returned from the one below
         if len(children) == 1:
@@ -882,8 +890,31 @@ class CodeGenerator:
             else: # Register
                 val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
 
-            val_reg, immediate_val, val_type = \
-                body_function(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val)
+            # Run the body function of the expression
+            for i in range(1, len(children), 2):
+                # Get RHS
+                next_reg, next_type, next_token = children_function(children[i+1].children)
+
+                # Save off next_id
+                next_id = None
+                if type(next_reg) is Register:
+                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
+                    next_id = reg_table[next_reg]['id']
+
+                # Ensure val_reg is loaded
+                val_reg = self._ensure_id_loaded(accum_id, val_reg)
+
+                print(children_function)
+
+                # Ensure next_reg is loaded
+                if next_id:
+                    next_reg = self._ensure_id_loaded(next_id, next_reg)
+
+                val_reg, immediate_val, val_type = \
+                    body_function(accum_id, val_reg, val_type, val_token, immediate_val, children[i], next_reg, next_type, next_token)
+
+            # Run a tail call if necessary
+            val_reg, immediate_val, val_type = tail_function(accum_id, val_reg, val_type, val_token, immediate_val)
 
             if not val_reg:
                 return immediate_val, val_type, val_token
@@ -892,397 +923,222 @@ class CodeGenerator:
 
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     def _process_expr_bool(self, tree_nodes):
-        def expr_bool_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            for i in range(1, len(children), 2):
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[i+1].children)
+        def expr_bool_body(accum_id, val_reg, val_type, val_token, immediate_val,
+                           oper, next_reg, next_type, next_token):
+            # Check if val_reg is a bool
+            if val_type != 'bool':
+                SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean OR',
+                                                      val_token.line_num, val_token.col)
 
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
+            # Check if next_reg is also a bool
+            if next_type != 'bool':
+                SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
+                                                        val_token.line_num, val_token.col)
 
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
+            # Add them up
+            if type(next_reg) is bool: # static analysis
+                if immediate_val is None:
+                    immediate_val = next_reg
+                else:
+                    immediate_val = immediate_val or next_reg
+            else: # MIPS
+                self.output_string += asm_log_or(val_reg, val_reg, next_reg)
 
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
+            return val_reg, immediate_val, val_type
 
-                ##################################
-
-                # Check if val_reg is a bool
-                if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean OR',
-                                                          val_token.line_num, val_token.col)
-
-                # Check if next_reg is also a bool
-                if next_type != 'bool':
-                    SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
-                                                            val_token.line_num, val_token.col)
-
-                # Add them up
-                if type(next_reg) is bool: # static analysis
-                    if immediate_val is None:
-                        immediate_val = next_reg
-                    else:
-                        immediate_val = immediate_val or next_reg
-                else: # MIPS
-                    self.output_string += asm_log_or(val_reg, val_reg, next_reg)
-
-            # OR immediates and non-immediates together
+        def expr_bool_tail(accum_id, val_reg, val_type, val_token, immediate_val):
+             # OR immediates and non-immediates together
             if immediate_val is not None and val_reg is not None:
                 self.output_string += asm_log_or(val_reg, val_reg, immediate_val)
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body,
+                                           expr_bool_tail)
 
     # <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
     # Returns value register (or immediate), value type, and token
     def _process_term_bool(self, tree_nodes):
-        def term_bool_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            for i in range(1, len(children), 2):
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[i+1].children)
+        def term_bool_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
+                           next_token):
+            # Check if val_reg is a bool
+            if val_type != 'bool':
+                SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean AND',
+                                                      val_token.line_num, val_token.col)
 
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
+            # Check if next_reg is also a bool
+            if next_type != 'bool':
+                SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
+                                                        val_token.line_num, val_token.col)
 
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
+            # Add them up
+            if type(next_reg) is bool: # static analysis
+                if immediate_val is None:
+                    immediate_val = next_reg
+                else:
+                    immediate_val = immediate_val and next_reg
+            else: # Code evaluation
+                if val_reg is None:
+                    val_reg = self._init_val_reg(accum_id, next_reg, val_type)
+                else:
+                    self.output_string += asm_log_and(val_reg, val_reg, next_reg)
 
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
+            return val_reg, immediate_val, val_type
 
-                ##################################
-
-                # Check if val_reg is a bool
-                if val_type != 'bool':
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Boolean AND',
-                                                          val_token.line_num, val_token.col)
-
-                # Check if next_reg is also a bool
-                if next_type != 'bool':
-                    SemanticError.raise_type_mismatch_error(val_token.pattern, next_token.pattern, val_type, next_type,
-                                                            val_token.line_num, val_token.col)
-
-                # Add them up
-                if type(next_reg) is bool: # static analysis
-                    if immediate_val is None:
-                        immediate_val = next_reg
-                    else:
-                        immediate_val = immediate_val and next_reg
-                else: # Code evaluation
-                    if val_reg is None:
-                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
-                    else:
-                        self.output_string += asm_log_and(val_reg, val_reg, next_reg)
-
+        def term_bool_tail(accum_id, val_reg, val_type, val_token, immediate_val):
             # AND immediates and non-immediates together
             if immediate_val is not None and val_reg is not None:
                 self.output_string += asm_log_and(val_reg, val_reg, immediate_val)
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body,
+                                           term_bool_tail)
 
     # <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
     # Returns value register (or immediate), value type, and token
     def _process_expr_eq(self, tree_nodes):
-        def expr_eq_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            # Only enter if there is an <equal_op> <expr_relation>
-            if len(children) > 1:
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[2].children)
+        def expr_eq_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
+            # Save off operator
+            equal_op = oper.token.name
 
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
-
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
-
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
-
-                ##################################
-
-                # Save off operator
-                equal_op = children[1].token.name
-
-                # We set '==' and '!=' to be hard type checkers, so we don't need to worry about type coercion
-                # I want to eventually add '=', and '!=' for soft equality checking and '==' and '!==' for hard checking
-                if val_type != next_type:
-                    immediate_val = False if equal_op == 'EQUAL' else True
-                    val_reg = None
-                else:
-                    # Check if val_reg or immediate_val has value
-                    # Run immediate comparison or MIPS if val_reg
-                    if val_reg is None:
-                        if type(next_reg) in {str, bool, int, float}: # Both are immediates
-                            immediate_val = immediate_val == next_reg \
-                                if equal_op == 'EQUAL' else immediate_val != next_reg
-                        else:
-                            val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
-                            self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
-                                if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
-                    else: # val_reg and a register or immediate (overloads in assembly_helper for this)
+            # We set '==' and '!=' to be hard type checkers, so we don't need to worry about type coercion
+            # I want to eventually add '=', and '!=' for soft equality checking and '==' and '!==' for hard checking
+            if val_type != next_type:
+                immediate_val = False if equal_op == 'EQUAL' else True
+                val_reg = None
+            else:
+                # Check if val_reg or immediate_val has value
+                # Run immediate comparison or MIPS if val_reg
+                if val_reg is None:
+                    if type(next_reg) in {str, bool, int, float}: # Both are immediates
+                        immediate_val = immediate_val == next_reg \
+                            if equal_op == 'EQUAL' else immediate_val != next_reg
+                    else:
+                        val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
                         self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
                             if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
+                else: # val_reg and a register or immediate (overloads in assembly_helper for this)
+                    self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
+                        if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
 
-                # val_reg now contains a boolean
-                val_type = 'bool'
+            return val_reg, immediate_val, 'bool'
 
-            return val_reg, immediate_val, val_type
-
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body)
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body,
+                                           self._empty_tail_call)
 
     # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     # Returns value register (or immediate), value type, and token
     def _process_expr_rel(self, tree_nodes):
-        def expr_rel_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            if len(children) > 1:
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[2].children)
+        def expr_rel_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
+            # Save off op
+            rel_op = oper.label
 
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
+            # If type is string or bool, throw incompatible type error
+            if val_type not in {'int', 'float'}:
+                SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Number Relationships',
+                                                      val_token.line_num, val_token.col)
 
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
+            if next_type not in {'int', 'float'}:
+                SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Number Relationships',
+                                                      next_token.line_num, next_token.col)
 
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
-
-                ##################################
-
-                # Save off op
-                rel_op = children[1].label
-
-                # If type is string or bool, throw incompatible type error
-                if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Number Relationships',
-                                                          val_token.line_num, val_token.col)
-
-                if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Number Relationships',
-                                                          next_token.line_num, next_token.col)
-
-                # Check for static analysis
-                if immediate_val is not None and type(next_reg) in {int, float}:
-                    if rel_op == 'GREATER':
-                        return None, immediate_val > next_reg, 'bool'
-                    elif rel_op == 'LESS':
-                        return None, immediate_val < next_reg, 'bool'
-                    elif rel_op == 'GREATER_EQUAL':
-                        return None, immediate_val >= next_reg, 'bool'
-                    elif rel_op == 'LESS_EQUAL':
-                        return None, immediate_val <= next_reg, 'bool'
-
-                # first_reg defaults to val_reg or immediate_val depending on which one was set
-                first_reg = immediate_val if not val_reg else val_reg
-
-                # second_reg defaults to next_reg
-                second_reg = next_reg
-
-                # Ensure val_reg is loaded for return
-                if not val_reg:
-                    cleaned_type = 'float' if val_type == 'float' else 'normal'
-                    var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
-
-                    val_reg = self._find_free_register(cleaned_type)
-                    var_queue.append({'reg': val_reg, 'id': accum_id, 'mem_type': 'TYPE.' + str(val_type)})
-                    self._update_reg_table(cleaned_type, accum_id, val_reg, 'VALUE')
-
-                if val_type == 'int' and next_type == 'float':
-                    # We don't have to worry about reserving this register since normal val_reg will still hold the
-                    # return bool
-                    val_float_reg = self._find_free_register('float')
-
-                    # Coerce val_type up
-                    self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
-
-                    # set first_reg to be val_float_reg
-                    first_reg = val_float_reg
-                elif val_type == 'float' and next_type == 'int':
-                    next_float_reg = self._find_free_register('float')
-
-                    # Coerce next_type up
-                    self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
-
-                    # set second_reg to be next_float_reg
-                    second_reg = next_float_reg
-
+            # Check for static analysis
+            if immediate_val is not None and type(next_reg) in {int, float}:
                 if rel_op == 'GREATER':
-                    self.output_string += asm_rel_gt(val_reg, first_reg, second_reg)
+                    return None, immediate_val > next_reg, 'bool'
                 elif rel_op == 'LESS':
-                    self.output_string += asm_rel_lt(val_reg, first_reg, second_reg)
+                    return None, immediate_val < next_reg, 'bool'
                 elif rel_op == 'GREATER_EQUAL':
-                    self.output_string += asm_rel_ge(val_reg, first_reg, second_reg)
+                    return None, immediate_val >= next_reg, 'bool'
                 elif rel_op == 'LESS_EQUAL':
-                    self.output_string += asm_rel_le(val_reg, first_reg, second_reg)
+                    return None, immediate_val <= next_reg, 'bool'
 
-                # val_type now holds a bool
-                val_type = 'bool'
+            # first_reg defaults to val_reg or immediate_val depending on which one was set
+            first_reg = immediate_val if not val_reg else val_reg
 
-            return val_reg, immediate_val, val_type
+            # second_reg defaults to next_reg
+            second_reg = next_reg
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body)
+            # Ensure val_reg is loaded for return
+            if not val_reg:
+                cleaned_type = 'float' if val_type == 'float' else 'normal'
+                var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
+
+                val_reg = self._find_free_register(cleaned_type)
+                var_queue.append({'reg': val_reg, 'id': accum_id, 'mem_type': 'TYPE.' + str(val_type)})
+                self._update_reg_table(cleaned_type, accum_id, val_reg, 'VALUE')
+
+            if val_type == 'int' and next_type == 'float':
+                # We don't have to worry about reserving this register since normal val_reg will still hold the
+                # return bool
+                val_float_reg = self._find_free_register('float')
+
+                # Coerce val_type up
+                self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
+
+                # set first_reg to be val_float_reg
+                first_reg = val_float_reg
+            elif val_type == 'float' and next_type == 'int':
+                next_float_reg = self._find_free_register('float')
+
+                # Coerce next_type up
+                self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
+
+                # set second_reg to be next_float_reg
+                second_reg = next_float_reg
+
+            if rel_op == 'GREATER':
+                self.output_string += asm_rel_gt(val_reg, first_reg, second_reg)
+            elif rel_op == 'LESS':
+                self.output_string += asm_rel_lt(val_reg, first_reg, second_reg)
+            elif rel_op == 'GREATER_EQUAL':
+                self.output_string += asm_rel_ge(val_reg, first_reg, second_reg)
+            elif rel_op == 'LESS_EQUAL':
+                self.output_string += asm_rel_le(val_reg, first_reg, second_reg)
+
+            return val_reg, immediate_val, 'bool'
+
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body,
+                                           self._empty_tail_call)
 
     # <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     # Returns value register (or immediate), value type, and token
     def _process_expr_arith(self, tree_nodes):
-        def expr_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            for i in range(1, len(children), 2):
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[i+1].children)
+        def expr_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
+                            next_token):
+            # Load the operation
+            oper = oper.label
 
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
+            # Type check
+            if val_type not in {'int', 'float'}:
+                SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
+                                                      val_token.line_num, val_token.col)
 
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
+            if next_type not in {'int', 'float'}:
+                SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
+                                                      next_token.line_num, next_token.col)
 
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
+            if type(next_reg) in {int, float}: # next_reg is an immediate
+                # initialize immediate
+                immediate_val = 0 if immediate_val is None else immediate_val
 
-                ##################################
+                if oper == 'PLUS':
+                    immediate_val += next_reg
+                elif oper == 'MINUS':
+                    immediate_val -= next_reg
+            elif not val_reg: # Initialize val_reg since not immediate
+                # If next is a 'float', ensure we will initialize val_reg as one too
+                if next_type == 'float':
+                    val_type = 'float'
 
-                # Load the operation
-                oper = tree_nodes[i].label
-
-                # Type check
-                if val_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
-                                                          val_token.line_num, val_token.col)
-
-                if next_type not in {'int', 'float'}:
-                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
-                                                          next_token.line_num, next_token.col)
-
-                if type(next_reg) in {int, float}: # next_reg is an immediate
-                    # initialize immediate
-                    immediate_val = 0 if immediate_val is None else immediate_val
-
-                    if oper == 'PLUS':
-                        immediate_val += next_reg
-                    elif oper == 'MINUS':
-                        immediate_val -= next_reg
-                elif not val_reg: # Initialize val_reg since not immediate
-                    # If next is a 'float', ensure we will initialize val_reg as one too
-                    if next_type == 'float':
-                        val_type = 'float'
-
-                    if oper == 'PLUS':
-                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
-                    elif oper == 'MINUS':
-                        val_reg = self._init_val_reg(accum_id, next_reg, val_type)
-                        # Multiply val_reg by -1
-                        self.output_string += asm_multiply(val_reg, val_reg, -1)
-                else: # add/sub (coerce types if necessary)
-                    # Coerce int to float
-                    if val_type == 'int' and next_type == 'float':
-                        # We care if val_reg is changed to a float, since we're going to keep track of it
-                        val_float_reg = self._find_free_register('float')
-
-                        # Update sym_table (if available)
-                        try:
-                            id_dict = self.sym_table[accum_id]
-                            id_dict['type'] = 'float'
-                            id_dict['val_reg'] = val_float_reg
-                            # id_dict['used'] = True
-                        except KeyError:
-                            pass
-
-                        # Remove from normal var_queue
-                        self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
-
-                        # Add to float var_queue
-                        self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TYPE.float'})
-
-                        # Coerce val_type up
-                        self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
-
-                        # set first_reg to be val_float_reg
-                        val_reg = val_float_reg
-                        val_type = 'float'
-                    elif val_type == 'float' and next_type == 'int':
-                        # We don't care to save this, so we'll just let it die once we're done with it
-                        next_float_reg = self._find_free_register('float')
-                        # Coerce next_type up
-                        self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
-                        # set second_reg to be next_float_reg
-                        next_reg = next_float_reg
-
-                    if oper == 'PLUS':
-                        self.output_string += asm_add(val_reg, val_reg, next_reg)
-                    elif oper == 'MINUS':
-                        self.output_string += asm_sub(val_reg, val_reg, next_reg)
-
-            # Add up the immediate and val_reg if necessary
-            if immediate_val is not None and immediate_val != 0 and val_reg is not None:
-                self.output_string += asm_add(val_reg, val_reg, immediate_val)
-
-            return val_reg, immediate_val, val_type
-
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_arith'), expr_arith_body)
-
-    # <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
-    # Returns value register (or immediate), value type, and token
-    def _process_term_arith(self, tree_nodes):
-        def term_arith_body(children, children_function, accum_id, val_reg, val_type, val_token, immediate_val):
-            # Initialize val_reg to immediate_val if necessary
-            if val_reg is None: # else, val_reg is already good to go
-                val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
-
-            for i in range(1, len(children), 2):
-                # Get RHS
-                next_reg, next_type, next_token = children_function(children[i+1].children)
-
-                # Save off next_id
-                next_id = None
-                if type(next_reg) is Register:
-                    reg_table = self.float_reg_table if 'f' in str(next_reg) else self.reg_table
-                    next_id = reg_table[next_reg]['id']
-
-                # Ensure val_reg is loaded
-                val_reg = self._ensure_id_loaded(accum_id, val_reg)
-
-                # Ensure next_reg is loaded
-                if next_id:
-                    next_reg = self._ensure_id_loaded(next_id, next_reg)
-
-                ##################################
-
-                # Load the operation
-                oper = tree_nodes[i].label
-
-                # Type checks
-                if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
-                    SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
-                                                          val_token.line_num, val_token.col)
-
-                if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
-                    SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
-                                                          next_token.line_num, next_token.col)
-
+                if oper == 'PLUS':
+                    val_reg = self._init_val_reg(accum_id, next_reg, val_type)
+                elif oper == 'MINUS':
+                    val_reg = self._init_val_reg(accum_id, next_reg, val_type)
+                    # Multiply val_reg by -1
+                    self.output_string += asm_multiply(val_reg, val_reg, -1)
+            else: # add/sub (coerce types if necessary)
                 # Coerce int to float
                 if val_type == 'int' and next_type == 'float':
                     # We care if val_reg is changed to a float, since we're going to keep track of it
@@ -1317,18 +1173,91 @@ class CodeGenerator:
                     # set second_reg to be next_float_reg
                     next_reg = next_float_reg
 
-                # Just move all operations into accumulator (optimize later)
-                # Immediates and register values are handled in asm methods
-                if oper == 'MULTIPLY':
-                    self.output_string += asm_multiply(val_reg, val_reg, next_reg)
-                elif oper == 'DIVIDE':
-                    self.output_string += asm_divide(val_reg, val_reg, next_reg)
-                elif oper == 'MODULO':
-                    self.output_string += asm_modulo(val_reg, val_reg, next_reg)
+                if oper == 'PLUS':
+                    self.output_string += asm_add(val_reg, val_reg, next_reg)
+                elif oper == 'MINUS':
+                    self.output_string += asm_sub(val_reg, val_reg, next_reg)
 
             return val_reg, immediate_val, val_type
 
-        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_fact_arith'), term_arith_body)
+        def expr_arith_tail(accum_id, val_reg, val_type, val_token, immediate_val):
+            # Add up the immediate and val_reg if necessary
+            if immediate_val is not None and immediate_val != 0 and val_reg is not None:
+                self.output_string += asm_add(val_reg, val_reg, immediate_val)
+
+            return val_reg, immediate_val, val_type
+
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_arith'), expr_arith_body,
+                                           expr_arith_tail)
+
+    # <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
+    # Returns value register (or immediate), value type, and token
+    def _process_term_arith(self, tree_nodes):
+        def term_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
+                            next_token):
+            # Initialize val_reg to immediate_val if necessary
+            if val_reg is None: # else, val_reg is already good to go
+                val_reg = self._init_val_reg(accum_id, immediate_val, val_type)
+
+            # Load the operation
+            oper = oper.label
+
+            # Type checks
+            if (val_type not in {'int', 'float'}) or (oper == 'MODULO' and val_type != 'int'):
+                SemanticError.raise_incompatible_type(val_token.pattern, val_type, 'Arithmetic',
+                                                      val_token.line_num, val_token.col)
+
+            if (next_type not in {'int', 'float'}) or (oper == 'MODULO' and next_type != 'int'):
+                SemanticError.raise_incompatible_type(next_token.pattern, next_type, 'Arithmetic',
+                                                      next_token.line_num, next_token.col)
+
+            # Coerce int to float
+            if val_type == 'int' and next_type == 'float':
+                # We care if val_reg is changed to a float, since we're going to keep track of it
+                val_float_reg = self._find_free_register('float')
+
+                # Update sym_table (if available)
+                try:
+                    id_dict = self.sym_table[accum_id]
+                    id_dict['type'] = 'float'
+                    id_dict['val_reg'] = val_float_reg
+                    # id_dict['used'] = True
+                except KeyError:
+                    pass
+
+                # Remove from normal var_queue
+                self.var_queue = [i for i in self.var_queue if i['id'] != accum_id]
+
+                # Add to float var_queue
+                self.float_var_queue.append({'reg': val_float_reg, 'id': accum_id, 'mem_type': 'TYPE.float'})
+
+                # Coerce val_type up
+                self.output_string += asm_cast_int_to_float(val_float_reg, val_reg)
+
+                # set first_reg to be val_float_reg
+                val_reg = val_float_reg
+                val_type = 'float'
+            elif val_type == 'float' and next_type == 'int':
+                # We don't care to save this, so we'll just let it die once we're done with it
+                next_float_reg = self._find_free_register('float')
+                # Coerce next_type up
+                self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
+                # set second_reg to be next_float_reg
+                next_reg = next_float_reg
+
+            # Just move all operations into accumulator (optimize later)
+            # Immediates and register values are handled in asm methods
+            if oper == 'MULTIPLY':
+                self.output_string += asm_multiply(val_reg, val_reg, next_reg)
+            elif oper == 'DIVIDE':
+                self.output_string += asm_divide(val_reg, val_reg, next_reg)
+            elif oper == 'MODULO':
+                self.output_string += asm_modulo(val_reg, val_reg, next_reg)
+
+            return val_reg, immediate_val, val_type
+
+        return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_fact_arith'), term_arith_body,
+                                           self._empty_tail_call)
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
@@ -1411,7 +1340,6 @@ class CodeGenerator:
                 return self._process_id(token)
         else: # if token is <expr_bool>
             return self._process_expr_bool(child.children)
-
 
     # Takes a full ID token
     # Handles loading a variable's address and value into registers
