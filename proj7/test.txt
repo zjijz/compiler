@@ -1,4 +1,5 @@
 begin
-bool x := False;
-write(x);
+    if True then begin
+        write("Hey");
+    end;
 end

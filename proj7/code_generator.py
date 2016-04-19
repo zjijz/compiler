@@ -144,7 +144,7 @@ class CodeGenerator:
 
         # Function dictionary
         self.func_factory = {"READ": self._read, "WRITE": self._write, "ASSIGN": self._assign,
-                             "DECLARATION": self._declare}
+                             "DECLARATION": self._declare, "IF_STATEMENT": self._process_if}
 
         # Stuff from Parser
         self.tree = parse_tree
@@ -797,6 +797,9 @@ class CodeGenerator:
         var_dict['init_val'] = init_val
         self.sym_table[var_id] = var_dict
 
+    def _process_if(self, tree_nodes):
+        print('Found if!')
+
     # Used for expressions
     # Returns the register that has the value of accum_id loaded
     def _ensure_id_loaded(self, curr_id, curr_reg):
@@ -903,8 +906,6 @@ class CodeGenerator:
 
                 # Ensure val_reg is loaded
                 val_reg = self._ensure_id_loaded(accum_id, val_reg)
-
-                print(children_function)
 
                 # Ensure next_reg is loaded
                 if next_id:

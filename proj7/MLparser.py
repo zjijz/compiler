@@ -3,7 +3,7 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
-    <program>		->	begin <statement list> end
+    <block>		->	begin <statement list> end
     <statement list>->	<statement>; { <statement>; }
     <statement>		->	<assignment>
                         | <declaration>
@@ -96,7 +96,7 @@ class Parser:
             raise ParserError.raise_redundant_tokens_error(cur_token)
         return t
 
-    # <program> -> begin <statement_list> end
+    # <block> -> begin <statement_list> end
     def block(self, cur_token, G):
         if cur_token.name != "BEGIN":
             raise ParserError.raise_parse_error("program", "begin", cur_token)
@@ -131,6 +131,7 @@ class Parser:
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
         # Also done to make this more explicit
         # if not in read, write, then it is assign or type
+        print(cur_token)
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             return cur_token, tree("STATEMENT", [child_declaration])
