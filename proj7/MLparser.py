@@ -3,12 +3,13 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
+<<<<<<< HEAD
     <block>		    ->	begin <statement list> end
-    <statement list>->	<statement>; { <statement>; }
-    <statement>		->	<assignment>
-                        | <declaration>
-                        | read( <id list> )
-                        | write( <expr list> )
+    <statement list>->	<statement> { <statement> }
+    <statement>		->	<assignment>;
+                        | <declaration>;
+                        | read( <id list> );
+                        | write( <expr list> );
                         | <if_statement>
                         | <while_statement>
     <declaration>	->	<type> <dec list>
@@ -105,19 +106,16 @@ class Parser:
             raise ParserError.raise_parse_error("program", "end", cur_token)
         return next(G), tree("BLOCK", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
-    # <statement_list> -> <statement>; { <statement>; }
+    # <statement_list> -> <statement> { <statement> }
     def statement_list(self, cur_token, G):
         children_stmt_list = []
         while True:
             cur_token, child_stmt = self.statement(cur_token, G)
-            if cur_token.name != "SEMICOLON":
-                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             children_stmt_list.append(child_stmt)
-            cur_token = next(G)
             if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
-    # <statement> -> <assign> | <declaration> | read( <id_list> ) | write( <expr_list> )
+    # <statement> -> <assign>; | <declaration>; | read( <id_list> ); | write( <expr_list> );
     #                | <if_statement> | <while_statement>
     def statement(self, cur_token, G):
         if cur_token.name in ("READ", "WRITE"):
@@ -128,16 +126,23 @@ class Parser:
             cur_token, child_id_list_or_expr_list = self.id_list(next(G), G) if tokenName == "READ" else self.expr_list(next(G), G)
             if cur_token.name != "RPAREN":
                 raise ParserError.raise_parse_error("STATEMENT", ')', cur_token)
+            cur_token = next(G)
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
         # Also done to make this more explicit
         # if not in read, write, then it is assign or type
         print(cur_token)
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
-            return cur_token, tree("STATEMENT", [child_declaration])
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
+            return next(G), tree("STATEMENT", [child_declaration])
         if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.assign(cur_token, G)
-            return cur_token, tree("STATEMENT", [child_assign])
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
+            return next(G), tree("STATEMENT", [child_assign])
         if cur_token.name == "IF":
             cur_token, child_if = self.if_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_if])
