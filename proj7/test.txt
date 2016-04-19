@@ -1,5 +1,26 @@
 begin
     if True then begin
-        write("Hey");
+        write("True");
+    end else begin
+        write("False");
     end;
 end
+
+#(If-else block)
+#_________________
+#beqz $reg, a_else
+#a_if:
+#    ...
+#    b a_end
+#a_else:
+#    ...
+#a_end:
+#    ...
+
+#(If-block)
+#_________________
+#beqz $reg, a_end
+#a_if:
+#    ...
+#a_end:
+#    ...

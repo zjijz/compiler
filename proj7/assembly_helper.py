@@ -28,7 +28,7 @@ def load_immediates(op_type, ret_asm, f_reg, s_reg):
             ret_asm += asm_reg_set('$f13', f_reg)
             f_reg = '$f13'
     else:
-        if type(f_reg) is int:
+        if type(f_reg) in {int, bool}:
             ret_asm += asm_reg_set('$v1', f_reg)
             f_reg = '$v1'
     return ret_asm, f_reg, s_reg
@@ -341,9 +341,9 @@ def asm_reg_set(f_reg, s_reg):
 
         ret_asm += 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
     else: # int
-        if type(s_reg) is int:
+        if type(s_reg) in {int, bool}:
             ret_asm += 'li {:s}, {:d}\n'.format(f_reg, s_reg)
-        elif type(f_reg) is int:
+        elif type(f_reg) in {int, bool}:
             ret_asm += 'li {:s}, {:d}\n'.format(s_reg, f_reg)
         else:
             ret_asm += 'move {:s}, {:s}\n'.format(f_reg, s_reg)
@@ -387,6 +387,14 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
         return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
     else:
         return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+
+## _______________________Conditionals________________________
+
+
+def asm_conditional_check(reg, label):
+    ret, reg, _ = load_immediates('normal', '', reg, None)
+    ret += 'beqz {:s}, {:s}'.format(reg, label)
+    return ret
 
 # _______________________Helpers________________________
 

@@ -798,7 +798,28 @@ class CodeGenerator:
         self.sym_table[var_id] = var_dict
 
     def _process_if(self, tree_nodes):
-        print('Found if!')
+        if_children = tree_nodes[0]
+
+        # Grab conditional, if block, and else block
+        conditional_expr = if_children.children[1]
+        if_block = if_children.children[3]
+        else_block = if_children.children[5] if len(tree_nodes[0].children) > 3 else None
+
+        # Generate labels
+        block_label = next(self.conditional_name_generator)
+        if_label = block_label + '_if'
+        else_label = block_label + '_else'
+        end_label = block_label + '_end'
+
+        # Process conditional
+        cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children)
+        print(cond_reg, cond_type, cond_token)
+        self.output_string += asm_conditional_check(cond_reg, end_label if else_block is None else else_label);
+
+        # Process if block
+
+        # Process else block
+
 
     # Used for expressions
     # Returns the register that has the value of accum_id loaded

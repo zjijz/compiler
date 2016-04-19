@@ -3,7 +3,7 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
-    <block>		->	begin <statement list> end
+    <block>		    ->	begin <statement list> end
     <statement list>->	<statement>; { <statement>; }
     <statement>		->	<assignment>
                         | <declaration>
@@ -103,7 +103,7 @@ class Parser:
         cur_token, tree_stmt_list = self.statement_list(next(G), G)
         if cur_token.name != "END":
             raise ParserError.raise_parse_error("program", "end", cur_token)
-        return next(G), tree("PROGRAM", [tree("BEGIN"), tree_stmt_list, tree("END")])
+        return next(G), tree("BLOCK", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
     # <statement_list> -> <statement>; { <statement>; }
     def statement_list(self, cur_token, G):
