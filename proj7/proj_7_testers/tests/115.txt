@@ -1,0 +1,13 @@
+# Test basic if statement where if is true and we have more
+# than 20 variables
+# Output: 100
+
+begin
+  int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+  read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+  if a > b and b < c then
+    begin
+      a = 100;
+    end
+  write(a);
+end

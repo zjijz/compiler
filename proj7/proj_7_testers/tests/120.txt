@@ -1,0 +1,15 @@
+# Test int expression
+# Output should be semantic error
+
+begin
+    int x := 4;
+    if x then
+        begin
+        x := 12 + x;
+        end
+    else
+        begin
+        x := 11 + x;
+        end
+    write(x);
+end
