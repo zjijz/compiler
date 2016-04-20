@@ -1,0 +1,15 @@
+# Test 26 variables in a while
+# Input: all zeroes
+# Output: 5.010.0
+
+begin
+  float a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+  read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+  while a < 5 
+    begin
+      a := a + 1;
+      b := 10;
+    end
+  write(a,b);
+end
+      
