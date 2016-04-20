@@ -51,6 +51,10 @@ def asm_save_reg_to_stack(reg, offset = 0):
     return asm_save_mem_var_from_addr('$sp', reg, offset)
 
 
+def asm_save_off_reg_pool():
+    pass
+
+
 ## ______I/O______
 
 # Pass in type information to indicate which syscall to use:
@@ -386,14 +390,21 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
     if 'f' in str(var_reg):
         return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+    elif type(mem_addr_reg) is str and '$' not in mem_addr_reg:
+        ret = ''
+        if type(var_reg) is int:
+            ret = asm_reg_set('$v1', var_reg)
+            var_reg = '$v1'
+        ret += 'sw {:s}, {:s}+{:d}\n'.format(var_reg, mem_addr_reg, offset)
+        return ret
     elif type(var_reg) is int:
         ret = asm_reg_set('$v1', var_reg)
-        ret += 'sw {:s}, {:d}({:s})'.format('$v1', offset, mem_addr_reg)
+        ret += 'sw {:s}, {:d}({:s})\n'.format('$v1', offset, mem_addr_reg)
+        return ret
     elif type(var_reg) is float:
         ret = asm_reg_set('$f13', var_reg)
-        ret += 's.s {:s}, {:d}({:s})'.format('$f13', offset, mem_addr_reg)
-    elif type(var_reg) is str:
-        return 'sw {:s}, {:s}+{:d}'.format(var_reg, mem_addr_reg, offset)
+        ret += 's.s {:s}, {:d}({:s})\n'.format('$f13', offset, mem_addr_reg)
+        return ret
     else:
         return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
 
