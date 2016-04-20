@@ -479,20 +479,22 @@ class CodeGenerator:
         # Merge edited tables with parent's (Used for setting variables to dynamic and preserving 'used')
         new_block_var_edits = self.block_var_edits
         for mem_name in new_block_var_edits.keys():
-            new_dict = self.sym_table[mem_name]
+            # Find dict in current sym_table
+            new_dict = None
+            for dict in self.sym_table.values():
+                if dict['mem_name'] == mem_name:
+                    new_dict = dict
 
             # Find dict in a symbol_table (since we cannot declare in a non-global block, this is fine)
             og_dict = None
-            for dict in sym_table:
+            for dict in sym_table.values():
                 if dict['mem_name'] == mem_name:
                     og_dict = dict
 
             for prop in new_block_var_edits[mem_name]:
-                if prop == 'val_reg' and (og_dict['val_reg'] != new_dict['val_reg']
-                                          or og_dict['curr_val'] != new_dict['curr_val']):
+                print(prop)
+                if prop =='val_reg' and og_dict['val_reg'] != new_dict['val_reg']:
                     val_reg = new_dict['val_reg']
-                    if not val_reg:
-                        val_reg = new_dict['curr_val']
 
                     addr_reg = new_dict['addr_reg']
                     if not addr_reg:
@@ -504,8 +506,17 @@ class CodeGenerator:
 
                     # Require parent block to reload variable
                     og_dict['val_reg'] = None
+                    og_dict['used'] = True
+                elif prop == 'curr_val' and og_dict['curr_val'] != new_dict['curr_val']:
+                    curr_val = new_dict['curr_val']
+                    og_dict['used'] = True
+                    og_dict['curr_val'] = None
+                    self.output_string += asm_save_mem_var_from_addr(mem_name, curr_val)
+                    og_dict['curr_val'] = None
                 elif prop == 'used':
                     og_dict['used'] = new_dict['used'] or og_dict['used']
+                elif prop == 'init_val':
+                    og_dict['init_val'] = 'DYNAMIC'
 
         # Merge the array sym_tables
         for key in self.array_sym_table.keys():
@@ -516,6 +527,8 @@ class CodeGenerator:
                 array_sym_table[key] = self.array_sym_table[key]
 
         # Reset tables to parent block values
+        self.sym_table = sym_table
+        self.array_sym_table = array_sym_table
         self.reg_table = reg_table
         self.aux_reg_table = aux_reg_table
         self.float_reg_table = float_reg_table
@@ -697,13 +710,16 @@ class CodeGenerator:
         token = tree_nodes[0].children[0].token
         ident = token.pattern
         id_dict = self._get_sym_table_entry(ident, token)
+        mem_name = id_dict['mem_name']
 
         # Set init_val if first time calling
         if id_dict['init_val'] is None:
             if type(expr_reg) is Register:
                 id_dict['init_val'] = 'DYNAMIC'
+                self._edit_block_var_edit(mem_name, 'init_val')
             else:
                 id_dict['init_val'] = expr_reg
+                self._edit_block_var_edit(mem_name, 'init_val')
 
         # Throw type error
         id_type = id_dict['type']
@@ -741,6 +757,10 @@ class CodeGenerator:
         init_val = id_dict['init_val']
         curr_val = id_dict['curr_val']
 
+        # Mark this variable as being a 'dynamic' variable out of the scope of this block
+        self._edit_block_var_edit(mem_name, 'curr_val')
+        self._edit_block_var_edit(mem_name, 'used')
+
         python_assn_type = type(assn_reg)
         if python_assn_type is Register:
             curr_val = id_dict['curr_val'] = None
@@ -757,9 +777,6 @@ class CodeGenerator:
         if curr_val is None:
             # Set id to be printed out to MIPS
             id_dict['used'] = True
-
-            # Mark the 'used' field as changed
-            self._edit_block_var_edit(mem_name, 'used')
 
             # Load variable addr and val into registers
             if not val_reg:
@@ -786,9 +803,6 @@ class CodeGenerator:
             # Ensure expr_id is loaded (if not None)
             if expr_id:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
-
-            # Mark this variable as being a 'dynamic' variable out of the scope of this block
-            self._edit_block_var_edit(mem_name, 'curr_val')
 
             # Equate registers (move assn_reg value into val_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)

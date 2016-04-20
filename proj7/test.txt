@@ -1,9 +1,13 @@
 begin
-    if True then begin
-        write("True");
+    int a;
+    read(a);
+    int b;
+    if a > 10 then begin
+        b := 10;
     end else begin
-        write("False");
+        b := 20;
     end
+    write(b);
 end
 
 #(If-else block)

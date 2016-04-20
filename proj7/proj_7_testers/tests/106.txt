@@ -1,0 +1,10 @@
+begin 
+    int x := 5;
+    while x < 15 begin 
+        while x < 10 begin
+            x := x + 1;
+        end
+        x := x + 1;
+        write(x);
+    end
+end
