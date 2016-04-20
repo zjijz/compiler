@@ -7,7 +7,7 @@ do
 
   if ((expr $name - $1) < 0) || ((expr $2 - $name) < 0); then
      continue
-     
+  fi
 
   # Clear file
   > proj_7_testers/output/$name.txt
