@@ -1,10 +1,1 @@
-Traceback (most recent call last):
-  File "compiler.py", line 2, in <module>
-    import argparse
-  File "<frozen importlib._bootstrap>", line 969, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 958, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 673, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 658, in exec_module
-  File "<frozen importlib._bootstrap_external>", line 762, in get_code
-  File "<frozen importlib._bootstrap_external>", line 473, in _compile_bytecode
-KeyboardInterrupt
+Semantic Error

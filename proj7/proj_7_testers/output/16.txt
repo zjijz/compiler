@@ -1,1 +1,5 @@
-Syntax Error
+Traceback (most recent call last):
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/errors.py", line 25, in raise_parse_error
+    %(symbolName, expectedTokenStr, actualToken.pattern, actualToken.line_num, actualToken.col))
+errors.ParserError: Syntax error in <STATEMENT_LIST>, expected ";", actually is "write" 
+Line num: 5, column num: 4

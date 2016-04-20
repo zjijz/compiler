@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "compiler.py", line 2, in <module>
+    import argparse
+  File "<frozen importlib._bootstrap>", line 968, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 168, in __enter__
+  File "<frozen importlib._bootstrap>", line 105, in acquire
+KeyboardInterrupt

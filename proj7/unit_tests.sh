@@ -5,11 +5,7 @@ do
   name=$(basename "$file")
   name="${name%.*}"
 
-  arg1=$(($1+0))
-  arg2=$(($1+0))
-  nameInt = $(($name+0))
-
-  if [ "$nameInt" -lt "$arg1" ] || [ "$arg2" -lt "$nameInt" ]; then
+  if [ $name -lt $1 ] || [ $name -gt $2 ]; then
      continue
   fi
 

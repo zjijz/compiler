@@ -1,12 +1,1 @@
-Failed to import the site module
-Traceback (most recent call last):
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 563, in <module>
-    main()
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 558, in main
-    execusercustomize()
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 523, in execusercustomize
-    import usercustomize
-  File "<frozen importlib._bootstrap>", line 969, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 954, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 896, in _find_spec
-KeyboardInterrupt
+Lexical Error
