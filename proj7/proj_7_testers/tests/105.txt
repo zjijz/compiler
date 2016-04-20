@@ -6,6 +6,7 @@ begin
     else begin 
         while x < 10 begin
             x := x + 1;
+            write(x);
         end
     end
 end
