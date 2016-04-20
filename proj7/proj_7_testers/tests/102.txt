@@ -1,0 +1,6 @@
+begin 
+    while True
+    begin
+        x := 5;
+    end
+end
