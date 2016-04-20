@@ -1,6 +1,6 @@
 begin 
     int x := 5;
-    if x < 15 then begin 
+    while x < 15 begin 
         if x < 10 then begin
             write(x);
         end
