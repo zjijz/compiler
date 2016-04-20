@@ -5,6 +5,10 @@ do
   name=$(basename "$file")
   name="${name%.*}"
 
+  if [ $name -lt $1 ] || [ $name -gt $2 ]; then
+     continue
+  fi
+
   # Clear file
   > proj_7_testers/output/$name.txt
 
