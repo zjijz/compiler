@@ -1,6 +1,6 @@
 begin 
     while False
     begin
-        int x := 5;
+        write("hello world!");
     end
 end
