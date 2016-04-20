@@ -1,0 +1,18 @@
+# Test nested if with 26 variables each
+# Input: the numbers 0 to 51
+
+begin
+  int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+  int aa,bb,cc,dd,ee,ff,gg,hh,,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz;
+  read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+  read(aa,bb,cc,dd,ee,ff,gg,hh,,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz);
+  
+  if 1 < 2 then
+    begin
+      write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+      if True then
+        begin
+          write(aa,bb,cc,dd,ee,ff,gg,hh,,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz);
+        end
+    end
+end
