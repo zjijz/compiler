@@ -3,24 +3,41 @@ begin
         write("True");
     end else begin
         write("False");
-    end;
+    end
 end
 
 #(If-else block)
 #_________________
+# (Open branching)
+#  -
 #beqz $reg, a_else
 #a_if:
+#    Can change
+#    - Load addresses
+#    - Load values
+#    - Change values
 #    ...
 #    b a_end
 #a_else:
 #    ...
 #a_end:
+#    (Cleaning section)
+#    - Save all variables edited to RAM if loaded in block (if not, just keep it in register)
+#    - Change all variables edited in the block to dynamic
+#    - Check if registers on edited variables are the same (if so, keep them; if not, dump them)
 #    ...
 
 #(If-block)
 #_________________
+# (Open branching)
+#  -
 #beqz $reg, a_end
 #a_if:
 #    ...
+#    b a_end
 #a_end:
+#    (Cleaning section)
+#    - Save all variables edited to RAM if loaded in block (if not, just keep it in register)
+#    - Change all variables edited in the block to dynamic
+#    -
 #    ...

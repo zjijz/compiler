@@ -132,7 +132,6 @@ class Parser:
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
         # Also done to make this more explicit
         # if not in read, write, then it is assign or type
-        print(cur_token)
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             if cur_token.name != "SEMICOLON":

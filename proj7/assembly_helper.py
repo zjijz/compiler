@@ -381,10 +381,19 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
         return 'la {:s}, {:s}\nsw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, var_reg, offset, addr_reg)
 
 
+# REWRITE
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
     if 'f' in str(var_reg):
         return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+    elif type(var_reg) is int:
+        ret = asm_reg_set('$v1', var_reg)
+        ret += 'sw {:s}, {:d}({:s})'.format('$v1', offset, mem_addr_reg)
+    elif type(var_reg) is float:
+        ret = asm_reg_set('$f13', var_reg)
+        ret += 's.s {:s}, {:d}({:s})'.format('$f13', offset, mem_addr_reg)
+    elif type(var_reg) is str:
+        return 'sw {:s}, {:s}+{:d}'.format(var_reg, mem_addr_reg, offset)
     else:
         return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
 
@@ -393,8 +402,12 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
 
 def asm_conditional_check(reg, label):
     ret, reg, _ = load_immediates('normal', '', reg, None)
-    ret += 'beqz {:s}, {:s}'.format(reg, label)
+    ret += 'beqz {:s}, {:s}\n'.format(reg, label)
     return ret
+
+
+def asm_branch_to_label(label):
+    return 'b {:s}\n'.format(label)
 
 # _______________________Helpers________________________
 
