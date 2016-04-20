@@ -5,7 +5,7 @@ do
   name=$(basename "$file")
   name="${name%.*}"
 
-  if ((expr $name - $1) < 0) || ((expr $2 - $name) < 0); then
+  if (  ); then
      continue
   fi
 

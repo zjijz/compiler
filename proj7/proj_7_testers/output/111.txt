@@ -15,8 +15,8 @@ Traceback (most recent call last):
     import functools as _functools
   File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/functools.py", line 21, in <module>
     from collections import namedtuple
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/collections/__init__.py", line 445, in <module>
-    class Counter(dict):
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/collections/__init__.py", line 521, in Counter
-    def most_common(self, n=None):
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/collections/__init__.py", line 10, in <module>
+    from operator import itemgetter as _itemgetter, eq as _eq
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/operator.py", line 412, in <module>
+    from _operator import *
 KeyboardInterrupt
