@@ -5,7 +5,7 @@ begin
     end
     else begin
         if x < 10 then begin
-            write(("greater than 3");
+            write("greater than 3");
         end
     end
 end
