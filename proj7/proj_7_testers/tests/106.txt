@@ -3,6 +3,7 @@ begin
     while x < 15 begin 
         while x < 10 begin
             x := x + 1;
+            write(x+5);
         end
         x := x + 1;
         write(x);

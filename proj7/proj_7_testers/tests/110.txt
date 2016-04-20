@@ -1,11 +1,15 @@
 begin 
-    int x := 5;
+    int x;
+    read(x);
+    string str;
     while x < 15 begin 
         if x < 10 then begin
-            write(x);
+            str = "L";
+            write(str);
         end
         else begin
-            write(x-5);
+            str = "G";
+            write(str);
         end
         x := x + 1;
     end

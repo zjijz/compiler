@@ -493,7 +493,7 @@ class CodeGenerator:
 
             for prop in new_block_var_edits[mem_name]:
                 print(prop)
-                if prop =='val_reg' and og_dict['val_reg'] != new_dict['val_reg']:
+                if prop == 'val_reg' and og_dict['val_reg'] != new_dict['val_reg']:
                     val_reg = new_dict['val_reg']
 
                     addr_reg = new_dict['addr_reg']
@@ -908,10 +908,12 @@ class CodeGenerator:
     def _process_if(self, tree_nodes):
         if_children = tree_nodes[0]
 
+        print(if_children, '\n', len(if_children.children))
+
         # Grab conditional, if block, and else block
         conditional_expr = if_children.children[1]
         if_block = if_children.children[3]
-        else_block = if_children.children[5] if len(tree_nodes[0].children) > 3 else None
+        else_block = if_children.children[5] if len(if_children.children) > 4 else None
 
         # Generate labels
         block_label = next(self.conditional_name_generator)
