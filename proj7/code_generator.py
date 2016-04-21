@@ -786,7 +786,6 @@ class CodeGenerator:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
 
             # Equate registers (move assn_reg value into val_reg)
-            print(var_id, val_reg, assn_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
     # Needs to initialize an identifier's symbol table
@@ -1040,8 +1039,6 @@ class CodeGenerator:
     # tail function:
     # - accum_id, val_reg, val_type, val_token, immediate_val as children
     def _process_expr_skeleton(self, children, children_function, body_function, tail_function):
-        print(body_function.__name__, self.forced_dynamic, children)
-
         # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
         # Thus, we can just return exactly whatever returned from the one below
         if len(children) == 1:
@@ -1120,7 +1117,6 @@ class CodeGenerator:
 
             return val_reg, immediate_val, val_type
 
-        print('_expr_bool', self.forced_dynamic)
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body,
                                            expr_bool_tail)
 
@@ -1430,8 +1426,6 @@ class CodeGenerator:
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
     def _process_fact_arith(self, fact_children):
-        print('_process_fact_arith', self.forced_dynamic)
-
         # len(fact_node.children) = 1 or 2
         if len(fact_children) == 2:
             unary_op = fact_children[0].label
@@ -1482,7 +1476,6 @@ class CodeGenerator:
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
     def _process_term_unary(self, term_unary):
-        print('_process_term_unary', self.forced_dynamic)
         # len(term_node) == 1
         child = term_unary.children[0]
         token = child.token
@@ -1520,9 +1513,7 @@ class CodeGenerator:
                             self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
                             self.output_string += asm_load_mem_addr(str_dict['mem_name'], addr_reg)
 
-
                         self.array_sym_table[literal] = str_dict
-                    print(self.forced_dynamic)
                     if self.forced_dynamic:
                         return addr_reg, 'string', token
                     else:

@@ -31,11 +31,9 @@ def load_immediates(op_type, ret_asm, f_reg, s_reg):
             ret_asm += asm_cast_int_to_float('$f13', s_reg)
             s_reg = '$f13'
     else:
-        if type(f_reg) is int:
+        if type(f_reg) in {int, bool}:
             ret_asm += asm_reg_set('$v1', f_reg)
             f_reg = '$v1'
-        elif type(f_reg) is bool:
-            ret_asm += asm_reg_set('$v1', 1 if f_reg else 0)
     return ret_asm, f_reg, s_reg
 # _______________________Assembly________________________
 
@@ -445,6 +443,7 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
 
 
 def asm_conditional_check(reg, label):
+    print(reg, label)
     ret, reg, _ = load_immediates('normal', '', reg, None)
     if 'f' in str(reg):
         ret += asm_rel_eq('$v2', reg, 0)

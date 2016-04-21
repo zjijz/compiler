@@ -1,5 +1,5 @@
 # Test basic if where conditional evaluates to false
-# Ouput: 1234
+# Output: 1234
 
 begin
   #float x := 50.5;
