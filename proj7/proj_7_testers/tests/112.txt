@@ -3,8 +3,8 @@
 
 begin
   int a;
-  read(a)
-  while a + 5 
+  read(a);
+  while a + 5
     begin
       a := a + 5;
     end

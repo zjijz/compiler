@@ -1,6 +1,7 @@
-{$t7: {'id': None, 'mem_type': None}, $t0: {'id': None, 'mem_type': None}, $s2: {'id': None, 'mem_type': None}, $s1: {'id': None, 'mem_type': None}, $s3: {'id': None, 'mem_type': None}, $s6: {'id': None, 'mem_type': None}, $t3: {'id': None, 'mem_type': None}, $t8: {'id': None, 'mem_type': None}, $s4: {'id': None, 'mem_type': None}, $t5: {'id': None, 'mem_type': None}, $t1: {'id': None, 'mem_type': None}, $t6: {'id': None, 'mem_type': None}, $s5: {'id': None, 'mem_type': None}, $t9: {'id': None, 'mem_type': None}, $t2: {'id': None, 'mem_type': None}, $t4: {'id': None, 'mem_type': None}}
-entered
-Traceback (most recent call last):
-  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/assembly_helper.py", line 398, in asm_save_mem_var_from_addr
-    ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
-ValueError: Unknown format code 's' for object of type 'float'
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/116.asm line 17 column 6: "$f25": operand is of incorrect type
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/116.asm line 25 column 7: "$t5": operand is of incorrect type
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/116.asm line 26 column 15: "True": operand is of incorrect type
+
+Processing terminated due to errors.

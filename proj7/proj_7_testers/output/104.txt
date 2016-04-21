@@ -1,11 +1,3 @@
-{$t0: {'id': None, 'mem_type': None}, $s6: {'id': None, 'mem_type': None}, $s2: {'id': None, 'mem_type': None}, $s1: {'id': None, 'mem_type': None}, $t2: {'id': None, 'mem_type': None}, $t7: {'id': None, 'mem_type': None}, $t6: {'id': None, 'mem_type': None}, $t9: {'id': None, 'mem_type': None}, $t3: {'id': None, 'mem_type': None}, $s4: {'id': None, 'mem_type': None}, $s3: {'id': None, 'mem_type': None}, $t4: {'id': None, 'mem_type': None}, $t1: {'id': None, 'mem_type': None}, $t8: {'id': None, 'mem_type': None}, $t5: {'id': None, 'mem_type': None}, $s5: {'id': None, 'mem_type': None}}
-entered
-{$t0: {'id': 'x', 'mem_type': 'ADDRESS'}, $s6: {'id': 'x', 'mem_type': 'VALUE'}, $s2: {'id': 'temp_a', 'mem_type': 'VALUE'}, $s1: {'id': '"less than 3"', 'mem_type': 'ADDRESS_ARRAY'}, $t2: {'id': None, 'mem_type': None}, $t7: {'id': None, 'mem_type': None}, $t6: {'id': None, 'mem_type': None}, $t9: {'id': None, 'mem_type': None}, $t3: {'id': None, 'mem_type': None}, $s4: {'id': None, 'mem_type': None}, $s3: {'id': None, 'mem_type': None}, $t4: {'id': None, 'mem_type': None}, $t1: {'id': None, 'mem_type': None}, $t8: {'id': None, 'mem_type': None}, $t5: {'id': None, 'mem_type': None}, $s5: {'id': None, 'mem_type': None}}
-{'mem_type': 'ADDRESS', 'id': 'x', 'reg': $t0}
-{'mem_type': 'VALUE', 'id': 'x', 'reg': $s6}
-{'mem_type': 'TYPE.int', 'id': 'temp_a', 'reg': $s2}
-{'mem_type': 'ARRAY_ADDRESS', 'id': '"less than 3"', 'reg': $s1}
-Traceback (most recent call last):
-  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/code_generator.py", line 607, in _save_off_registers
-    self.array_symbol_table[mem_id]['addr_reg'] = None
-AttributeError: 'CodeGenerator' object has no attribute 'array_symbol_table'
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+greater than 3

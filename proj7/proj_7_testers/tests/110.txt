@@ -1,10 +1,10 @@
-begin 
+begin
     int x;
     read(x);
     string str;
-    while x < 15 begin 
+    while x < 15 begin
         if x < 10 then begin
-            str = "L";
+            str := "L";
             write(str);
         end
         else begin

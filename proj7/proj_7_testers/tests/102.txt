@@ -1,5 +1,5 @@
-begin 
-    while True
+begin
+    while False
     begin
         int x := 5;
     end

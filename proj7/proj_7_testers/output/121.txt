@@ -1,4 +1,7 @@
-Traceback (most recent call last):
-  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/assembly_helper.py", line 270, in asm_add
-    ret_asm += 'add.s {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
-ValueError: Unknown format code 's' for object of type 'int'
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 193 column 6: "$f10": operand is of incorrect type
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 207 column 6: "$v2": operand is of incorrect type
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 208 column 6: "$v2": operand is of incorrect type
+
+Processing terminated due to errors.

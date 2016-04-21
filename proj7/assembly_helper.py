@@ -27,10 +27,14 @@ def load_immediates(op_type, ret_asm, f_reg, s_reg):
         elif type(f_reg) is float:
             ret_asm += asm_reg_set('$f13', f_reg)
             f_reg = '$f13'
+        elif type(s_reg) is int:
+            ret_asm += asm_cast_int_to_float('$f13', s_reg)
+            s_reg = '$f13'
     else:
         if type(f_reg) in {int, bool}:
             ret_asm += asm_reg_set('$v1', f_reg)
             f_reg = '$v1'
+    print(ret_asm)
     return ret_asm, f_reg, s_reg
 # _______________________Assembly________________________
 
@@ -324,9 +328,11 @@ def asm_modulo(r_reg, f_reg, s_reg):
     return ret_asm
 
 
+# REWRITE
 # Load a value from one register to another
 # f_reg = s_reg
 def asm_reg_set(f_reg, s_reg):
+    print(f_reg, s_reg)
     op_type = get_op_type(f_reg, s_reg)
     ret_asm = ''
     # We don't use the shortcut load_immediates here because this is the function used in that
@@ -335,12 +341,19 @@ def asm_reg_set(f_reg, s_reg):
             ret_asm += 'li {:s}, {:d}\n'.format('$v1', int(convert_float_to_binary(s_reg), 2)) \
                   + 'mtc1 {:s}, {:s}\n'.format('$v1', '$f13')
             s_reg = '$f13'
+        elif type(s_reg) is int:
+            print('error state')
+            pass
         elif type(f_reg) is float:
             ret_asm += 'li {:s}, {:d}\n'.format('$v1', int(convert_float_to_binary(f_reg), 2)) \
                   + 'mtc1 {:s}, {:s}\n'.format('$v1', '$f13')
             f_reg = '$f13'
+        elif 'f' not in str(s_reg):
+            ret_asm += asm_cast_int_to_float('$f13', s_reg)
+            s_reg = '$f13'
 
         ret_asm += 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
+        print(ret_asm)
     else: # int
         if type(s_reg) in {int, bool}:
             ret_asm += 'li {:s}, {:d}\n'.format(f_reg, s_reg)
@@ -388,15 +401,22 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 # REWRITE
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
-    if 'f' in str(var_reg):
-        return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
-    elif type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
+    print(mem_addr_reg, var_reg)
+    if type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
         ret = ''
+        if 'f' in str(var_reg):
+            return 's.s {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
+        if type(var_reg) is float:
+            ret = asm_reg_set('$f13', var_reg)
+            ret += 's.s {:s}, {:s} + {:d}\n'.format('$f13', mem_addr_reg, offset)
+            return ret
         if type(var_reg) is int:
             ret = asm_reg_set('$v1', var_reg)
             var_reg = '$v1'
         ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
         return ret
+    elif 'f' in str(var_reg):
+        return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
     elif type(var_reg) is int:
         ret = asm_reg_set('$v1', var_reg)
         ret += 'sw {:s}, {:d}({:s})\n'.format('$v1', offset, mem_addr_reg)
@@ -413,6 +433,9 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
 
 def asm_conditional_check(reg, label):
     ret, reg, _ = load_immediates('normal', '', reg, None)
+    if 'f' in str(reg):
+        ret += asm_rel_eq('$v2', reg, 0)
+        reg = '$v2'
     ret += 'beqz {:s}, {:s}\n'.format(reg, label)
     return ret
 
@@ -425,11 +448,13 @@ def asm_branch_to_label(label):
 
 # Helper that will convert an int to a float
 def asm_cast_int_to_float(f_reg, i_reg):
+    print(f_reg, i_reg)
     ret_asm = ''
     if type(i_reg) is int:
         ret_asm += asm_reg_set('$v1', i_reg)
         i_reg = '$v1'
     ret_asm += 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
+    print(ret_asm)
     return ret_asm
 
 

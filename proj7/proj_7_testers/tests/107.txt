@@ -1,6 +1,8 @@
-begin 
+# Output: 5678956789
+
+begin
     int x := 5;
-    while x < 15 begin 
+    while x < 15 begin
         if x < 10 then begin
             write(x);
         end

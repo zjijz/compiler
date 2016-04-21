@@ -149,7 +149,8 @@ class CodeGenerator:
 
         # Function dictionary
         self.func_factory = {"READ": self._read, "WRITE": self._write, "ASSIGN": self._assign,
-                             "DECLARATION": self._declare, "IF_STATEMENT": self._process_if}
+                             "DECLARATION": self._declare, "IF_STATEMENT": self._process_if,
+                             "WHILE_STATEMENT": self._process_while}
 
         # Stuff from Parser
         self.tree = parse_tree
@@ -480,11 +481,8 @@ class CodeGenerator:
                   'Variable Queue: ', self.var_queue, '\n\n', 'Float Variable Queue: ', self.float_var_queue, '\n')
 
     def _save_off_registers(self):
-        print(self.reg_table)
-
         while len(self.var_queue) > 0:
             entry = self.var_queue.pop(0)
-            print(entry)
             reg = entry['reg']
             mem_id = entry['id']
             mem_type = entry['mem_type']
@@ -497,7 +495,8 @@ class CodeGenerator:
                 id_dict = self.sym_table[mem_id]
                 id_dict['addr_reg'] = None
             elif mem_type == 'ARRAY_ADDRESS':
-                self.array_symbol_table[mem_id]['addr_reg'] = None
+                self.array_sym_table[mem_id]['used'] = True
+                self.array_sym_table[mem_id]['addr_reg'] = None
 
         while len(self.float_var_queue) > 0:
             entry = self.float_var_queue.pop(0)
@@ -510,12 +509,12 @@ class CodeGenerator:
                 id_dict['val_reg'] = None
                 self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
             elif mem_type == 'ADDRESS':
+                id_dict = self.sym_table[mem_id]
                 id_dict['addr_reg'] = None
 
         for dict in self.sym_table.values():
             dict['used'] = True
             if dict['curr_val']:
-                print('entered')
                 self.output_string += asm_save_mem_var_from_addr(dict['mem_name'], dict['curr_val'])
             dict['curr_val'] = None
 
@@ -922,6 +921,34 @@ class CodeGenerator:
 
         self.output_string += end_label + ':\n'
 
+    def _process_while(self, tree_nodes):
+        while_children = tree_nodes[0]
+
+        # Grab conditional, if block, and else block
+        conditional_expr = while_children.children[1]
+        while_block = while_children.children[2]
+
+        # Generate labels
+        block_label = next(self.conditional_name_generator)
+        while_label = block_label + '_while'
+        end_label = block_label + '_end'
+
+        # Create while
+        self._save_off_registers()
+        self.output_string += while_label + ':\n'
+        cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children, True)
+        if cond_type != 'bool':
+            SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
+                                                  cond_token.line_num, cond_token.col)
+        print('cond_reg: ', cond_reg)
+        self.output_string += asm_conditional_check(cond_reg, end_label)
+        self._process_block(while_block, True)
+        self._save_off_registers()
+        self.output_string += asm_branch_to_label(while_label)
+
+        # Create end label
+        self.output_string += end_label + ':\n'
+
     # Used for expressions
     # Returns the register that has the value of accum_id loaded
     def _ensure_id_loaded(self, curr_id, curr_reg):
@@ -998,7 +1025,7 @@ class CodeGenerator:
     #   as parameters
     # tail function:
     # - accum_id, val_reg, val_type, val_token, immediate_val as children
-    def _process_expr_skeleton(self, children, children_function, body_function, tail_function):
+    def _process_expr_skeleton(self, children, children_function, body_function, tail_function, forced_dynamic = False):
         # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
         # Thus, we can just return exactly whatever returned from the one below
         if len(children) == 1:
@@ -1010,7 +1037,7 @@ class CodeGenerator:
             val_reg = None
 
             temp_reg, val_type, val_token = children_function(children[0].children)
-            if type(temp_reg) in {int, float, bool, str}:
+            if type(temp_reg) in {int, float, bool, str} and not forced_dynamic:
                 immediate_val = temp_reg
             else: # Register
                 val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
@@ -1034,7 +1061,8 @@ class CodeGenerator:
                     next_reg = self._ensure_id_loaded(next_id, next_reg)
 
                 val_reg, immediate_val, val_type = \
-                    body_function(accum_id, val_reg, val_type, val_token, immediate_val, children[i], next_reg, next_type, next_token)
+                    body_function(accum_id, val_reg, val_type, val_token, immediate_val, children[i], next_reg,
+                                  next_type, next_token)
 
             # Run a tail call if necessary
             val_reg, immediate_val, val_type = tail_function(accum_id, val_reg, val_type, val_token, immediate_val)
@@ -1045,7 +1073,7 @@ class CodeGenerator:
                 return val_reg, val_type, val_token
 
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
-    def _process_expr_bool(self, tree_nodes):
+    def _process_expr_bool(self, tree_nodes, forced_dynamic = False):
         def expr_bool_body(accum_id, val_reg, val_type, val_token, immediate_val,
                            oper, next_reg, next_type, next_token):
             # Check if val_reg is a bool
@@ -1077,11 +1105,11 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body,
-                                           expr_bool_tail)
+                                           expr_bool_tail, forced_dynamic)
 
     # <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
     # Returns value register (or immediate), value type, and token
-    def _process_term_bool(self, tree_nodes):
+    def _process_term_bool(self, tree_nodes, forced_dynamic = False):
         def term_bool_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                            next_token):
             # Check if val_reg is a bool
@@ -1116,11 +1144,11 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body,
-                                           term_bool_tail)
+                                           term_bool_tail, forced_dynamic)
 
     # <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
     # Returns value register (or immediate), value type, and token
-    def _process_expr_eq(self, tree_nodes):
+    def _process_expr_eq(self, tree_nodes, forced_dynamic = False):
         def expr_eq_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
             # Save off operator
             equal_op = oper.token.name
@@ -1148,11 +1176,11 @@ class CodeGenerator:
             return val_reg, immediate_val, 'bool'
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body,
-                                           self._empty_tail_call)
+                                           self._empty_tail_call, forced_dynamic)
 
     # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     # Returns value register (or immediate), value type, and token
-    def _process_expr_rel(self, tree_nodes):
+    def _process_expr_rel(self, tree_nodes, forced_dynamic = False):
         def expr_rel_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
             # Save off op
             rel_op = oper.label
@@ -1223,11 +1251,11 @@ class CodeGenerator:
             return val_reg, immediate_val, 'bool'
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body,
-                                           self._empty_tail_call)
+                                           self._empty_tail_call, forced_dynamic)
 
     # <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     # Returns value register (or immediate), value type, and token
-    def _process_expr_arith(self, tree_nodes):
+    def _process_expr_arith(self, tree_nodes, forced_dynamic = False):
         def expr_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                             next_token):
             # Load the operation
@@ -1311,11 +1339,11 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_arith'), expr_arith_body,
-                                           expr_arith_tail)
+                                           expr_arith_tail, forced_dynamic)
 
     # <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
     # Returns value register (or immediate), value type, and token
-    def _process_term_arith(self, tree_nodes):
+    def _process_term_arith(self, tree_nodes, forced_dynamic = False):
         def term_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                             next_token):
             # Initialize val_reg to immediate_val if necessary
@@ -1380,7 +1408,7 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_fact_arith'), term_arith_body,
-                                           self._empty_tail_call)
+                                           self._empty_tail_call, forced_dynamic)
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
