@@ -100,10 +100,10 @@ class Parser:
     # <block> -> begin <statement_list> end
     def block(self, cur_token, G):
         if cur_token.name != "BEGIN":
-            raise ParserError.raise_parse_error("program", "begin", cur_token)
+            raise ParserError.raise_parse_error("block", "begin", cur_token)
         cur_token, tree_stmt_list = self.statement_list(next(G), G)
         if cur_token.name != "END":
-            raise ParserError.raise_parse_error("program", "end", cur_token)
+            raise ParserError.raise_parse_error("block", "end", cur_token)
         return next(G), tree("BLOCK", [tree("BEGIN"), tree_stmt_list, tree("END")])
 
     # <statement_list> -> <statement> { <statement> }
@@ -165,7 +165,7 @@ class Parser:
     # <while_statement>-> while <expr_bool> <block>
     def while_statement(self, cur_token, G):
         cur_token, child_expr_bool = self.expr_bool(next(G), G)
-        cur_token, child_block = self.block(next(G), G)
+        cur_token, child_block = self.block(cur_token, G)
         return cur_token, tree("WHILE_STATEMENT", [tree("WHILE"), child_expr_bool, child_block])
 
     # <declaration>	-> <type> <dec list>

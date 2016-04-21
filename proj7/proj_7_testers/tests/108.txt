@@ -1,7 +1,10 @@
-begin 
+# Input: 5
+# Output: 5
+
+begin
     int x := 0;
     read(x);
-    if x < 15 then begin 
+    if x < 15 then begin
         if x < 10 then begin
             write(x);
         end

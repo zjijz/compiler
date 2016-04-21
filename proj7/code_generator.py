@@ -492,7 +492,7 @@ class CodeGenerator:
                     og_dict = dict
 
             for prop in new_block_var_edits[mem_name]:
-                if prop == 'val_reg' and og_dict['val_reg'] != new_dict['val_reg']:
+                if prop == 'val_reg':
                     val_reg = new_dict['val_reg']
 
                     addr_reg = new_dict['addr_reg']
@@ -511,7 +511,6 @@ class CodeGenerator:
                     og_dict['used'] = True
                     og_dict['curr_val'] = None
                     self.output_string += asm_save_mem_var_from_addr(mem_name, curr_val)
-                    og_dict['curr_val'] = None
                 elif prop == 'used':
                     og_dict['used'] = new_dict['used'] or og_dict['used']
                 elif prop == 'init_val':
@@ -774,6 +773,8 @@ class CodeGenerator:
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
         if curr_val is None:
+            self._edit_block_var_edit(mem_name, 'val_reg')
+
             # Set id to be printed out to MIPS
             id_dict['used'] = True
 
@@ -795,7 +796,6 @@ class CodeGenerator:
                 # Since it is less work to pop an addr register from the queue, I would rather push that first
                 # (if necessary), and then push the value register
                 val_var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
-                self._edit_block_var_edit(mem_name, 'val_reg')
 
                 self.output_string += asm_load_mem_var_from_addr(addr_reg, val_reg)
 
@@ -920,6 +920,9 @@ class CodeGenerator:
 
         # Process conditional
         cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children)
+        if cond_type != 'bool':
+            SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
+                                                  cond_token.line_num, cond_token.col)
         self.output_string += asm_conditional_check(cond_reg, end_label if else_block is None else else_label)
 
         # Process if block

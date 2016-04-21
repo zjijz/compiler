@@ -1,11 +1,27 @@
 #!/bin/bash
 
+counter=0
+
+l_input=$1
+h_input=$2
+
+# Sanitize lower bound from input
+if [[ -z $l_input ]]; then
+l_input=0
+fi
+
+# Sanitize upper bound from input
+if [[ -z $h_input ]]; then
+h_input=0
+fi
+
 for file in proj_7_testers/tests/*.txt
 do
   name=$(basename "$file")
   name="${name%.*}"
 
-  if [ $name -lt $1 ] || [ $name -gt $2 ]; then
+  # Check if file is within range
+  if [ $name -lt $l_input ] || [ $name -gt $h_input ]; then
      continue
   fi
 
@@ -35,4 +51,9 @@ do
   else
     echo "$name passed"
   fi
+
+  # Incrememnt counter
+  counter=$((counter+1))
 done
+
+echo "Finished $counter tests"
