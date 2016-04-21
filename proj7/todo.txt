@@ -81,18 +81,18 @@ Queue for Recent Variables
   - Optimize functions/blocks by calculating how many variables each will need
     - I want this to go into the Optimizer and have it annotate
 
-  - Reqrite two assembly methods
+  - Reqrite assembly methods
 ______________________________
 Project 7
 - if statements
-  - Operates on a boolean
-  - Nested
-  - else blocks
-  - Inline all ifs since they can only be used once in their block (an if in a while would be inlined into the while)
-  - use branch or jump with registers
+  + Operates on a boolean
+  + Nested
+  + else blocks
+  + Inline all ifs since they can only be used once in their block (an if in a while would be inlined into the while)
+  + use branch or jump with labels
 - while statements
-- Semantic Erros
-  - Conditionals must evaluate to bools
++ Semantic Erros
+  + Conditionals must evaluate to bools
 - Think of a possible way to analyze how often while blocks are called to see if inlining could be possible
 - Need a way to generate the code for an if/while block and store it to a "function table" to keep track
 ______________________________
