@@ -5,18 +5,14 @@ begin
     bool b;
     int z;
     float f;
-    if x < y then begin
+    while x < y begin
         s := "Yes, the assertion is correct.";
         b := True;
         z := 20;
         f := 10.0;
-    end else begin
-        s := "No, the assertion is not correct.";
-        b := False;
-        z := 10;
-        f := 15;
+        x := x + 1;
+        write(s, " ", b, " ", z, " ", f, "\n");
     end
-    write(s, " ", b, " ", z, " ", f);
 end
 
 

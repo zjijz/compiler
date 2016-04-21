@@ -81,7 +81,11 @@ Queue for Recent Variables
   - Optimize functions/blocks by calculating how many variables each will need
     - I want this to go into the Optimizer and have it annotate
 
-  - Reqrite assembly methods
+  - Rewrite assembly methods
+
+  - Abstract out all reg_tables to be the same opaque structure
+  - Abstract out all sym_tables to be the same opaque structure
+  - Abstract out all var_queues to be the same opaque structure
 ______________________________
 Project 7
 - if statements

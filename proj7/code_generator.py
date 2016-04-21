@@ -666,7 +666,7 @@ class CodeGenerator:
                         f12_dict['mem_type'] = None
                     else:
                         is_a0_set = True
-
+            print(expr_reg, expr_type)
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
@@ -1469,36 +1469,43 @@ class CodeGenerator:
                 # Check int, float, bool, string literals
                 if token.name == 'STRINGLIT':
                     # See if literal already in array_sym_table
-                    addr_reg = None
+                    str_dict = None
                     try:
-                        addr_reg = self.array_sym_table[literal]
+                        str_dict = self.array_sym_table[literal]
                     except KeyError:
                         # Create new global entry for string
                         str_dict = self._empty_array_sym_table_dict()
                         str_dict['mem_name'] = next(self.var_name_generator)
                         str_dict['type'] = '.asciiz'
-
-                        # Create a temp pointer to the string
-                        if self.forced_dynamic:
-                            str_dict['used'] = True
-
-                            var_id = next(self.temp_id_generator)
-                            mem_name = next(self.var_name_generator)
-                            id_dict = self._empty_sym_table_dict()
-                            id_dict['mem_name'] = mem_name
-                            id_dict['used'] = True
-                            id_dict['type'] = 'string'
-                            id_dict['init_val'] = 'DYNAMIC'
-                            self.sym_table[var_id] = id_dict
-
-                            # Load address
-                            addr_reg = self._find_free_register()
-                            self._update_tables('normal', var_id, addr_reg, None)
-                            self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
-                            self.output_string += asm_load_mem_addr(str_dict['mem_name'], addr_reg)
-
                         self.array_sym_table[literal] = str_dict
+
+                    # Create a temp pointer to the string
                     if self.forced_dynamic:
+                        str_dict['used'] = True
+
+                        var_id = next(self.temp_id_generator)
+                        mem_name = next(self.var_name_generator)
+                        id_dict = self._empty_sym_table_dict()
+                        id_dict['mem_name'] = mem_name
+                        id_dict['used'] = True
+                        id_dict['type'] = 'string'
+                        id_dict['init_val'] = 'DYNAMIC'
+                        self.sym_table[var_id] = id_dict
+
+                        # Load address
+                        addr_reg = self._find_free_register()
+                        self._update_tables('normal', var_id, addr_reg, None)
+                        self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
+                        self.output_string += asm_load_mem_addr(mem_name, addr_reg)
+
+                        # Load Value
+                        val_reg = self._find_free_register()
+                        self._update_tables('normal', var_id, addr_reg, val_reg)
+                        self.var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
+                        self.output_string += asm_load_mem_addr(str_dict['mem_name'], addr_reg)
+
+                    if self.forced_dynamic:
+                        print(addr_reg)
                         return addr_reg, 'string', token
                     else:
                         return literal, 'string', token
