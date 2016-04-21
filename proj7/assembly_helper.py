@@ -31,10 +31,11 @@ def load_immediates(op_type, ret_asm, f_reg, s_reg):
             ret_asm += asm_cast_int_to_float('$f13', s_reg)
             s_reg = '$f13'
     else:
-        if type(f_reg) in {int, bool}:
+        if type(f_reg) is int:
             ret_asm += asm_reg_set('$v1', f_reg)
             f_reg = '$v1'
-    print(ret_asm)
+        elif type(f_reg) is bool:
+            ret_asm += asm_reg_set('$v1', 1 if f_reg else 0)
     return ret_asm, f_reg, s_reg
 # _______________________Assembly________________________
 
@@ -181,6 +182,9 @@ def asm_rel_eq(r_reg, f_reg, s_reg):
                    + asm_reg_set('$v1', 1) \
                    + 'movf $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
+    elif type(s_reg) is bool:
+        ret_asm += asm_reg_set('$v1', 1 if s_reg else 0)
+        s_reg = '$v1'
     else:
         ret_asm += 'seq {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
@@ -195,6 +199,9 @@ def asm_rel_neq(r_reg, f_reg, s_reg):
                    + asm_reg_set('$v1', 1) \
                    + 'movt $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
+    elif type(s_reg) is bool:
+        ret_asm += asm_reg_set('$v1', 1 if s_reg else 0)
+        s_reg = '$v1'
     else:
         ret_asm += 'sne {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
@@ -212,6 +219,9 @@ def asm_rel_le(r_reg, f_reg, s_reg):
                    + 'movf $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
     else:
+        if type(s_reg) is bool:
+            ret_asm += asm_reg_set('$v1', 1 if s_reg else 0)
+            s_reg = '$v1'
         ret_asm += 'sle {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
 
@@ -244,6 +254,9 @@ def asm_rel_ge(r_reg, f_reg, s_reg):
                    + 'movt $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
     else:
+        if type(s_reg) is bool:
+            ret_asm += asm_reg_set('$v1', 1 if s_reg else 0)
+            s_reg = '$v1'
         ret_asm += 'sge {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
 
@@ -258,6 +271,9 @@ def asm_rel_gt(r_reg, f_reg, s_reg):
                    + 'movt $v1, $0\n' \
                    + asm_reg_set(r_reg, '$v1')
     else:
+        if type(s_reg) is bool:
+            ret_asm += asm_reg_set('$v1', 1 if s_reg else 0)
+            s_reg = '$v1'
         ret_asm += 'sgt {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, str(s_reg))
     return ret_asm
 
@@ -332,7 +348,6 @@ def asm_modulo(r_reg, f_reg, s_reg):
 # Load a value from one register to another
 # f_reg = s_reg
 def asm_reg_set(f_reg, s_reg):
-    print(f_reg, s_reg)
     op_type = get_op_type(f_reg, s_reg)
     ret_asm = ''
     # We don't use the shortcut load_immediates here because this is the function used in that
@@ -353,7 +368,6 @@ def asm_reg_set(f_reg, s_reg):
             s_reg = '$f13'
 
         ret_asm += 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
-        print(ret_asm)
     else: # int
         if type(s_reg) in {int, bool}:
             ret_asm += 'li {:s}, {:d}\n'.format(f_reg, s_reg)
@@ -401,7 +415,6 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 # REWRITE
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
-    print(mem_addr_reg, var_reg)
     if type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
         ret = ''
         if 'f' in str(var_reg):
@@ -448,13 +461,11 @@ def asm_branch_to_label(label):
 
 # Helper that will convert an int to a float
 def asm_cast_int_to_float(f_reg, i_reg):
-    print(f_reg, i_reg)
     ret_asm = ''
     if type(i_reg) is int:
         ret_asm += asm_reg_set('$v1', i_reg)
         i_reg = '$v1'
     ret_asm += 'mtc1 {:s}, {:s}\ncvt.s.w {:s}, {:s}\n'.format(i_reg, f_reg, f_reg, f_reg)
-    print(ret_asm)
     return ret_asm
 
 

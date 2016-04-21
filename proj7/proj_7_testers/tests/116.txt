@@ -2,7 +2,8 @@
 # Ouput: 1234
 
 begin
-  float x := 50.5;
+  #float x := 50.5;
+  int x := 50;
   if x / 2 < 2 == True then
     begin
       write(True);

@@ -187,6 +187,7 @@ class CodeGenerator:
 
         # Used to keep track of things a block changes to reconcile them when it closes
         self.block_var_edits = {}
+        self.forced_dynamic = False
 
         # Output options
         self.output_name = output_filename
@@ -449,6 +450,7 @@ class CodeGenerator:
                 if type(init_val) is not str:
                     o_val = str(init_val)
 
+                print(name, o_type, o_val, id)
                 data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
                                 .format(name, o_type, o_val, id)
 
@@ -657,7 +659,7 @@ class CodeGenerator:
                     a0_dict['val'] = expr_reg
                     a0_dict['mem_type'] = 'ADDRESS'
                     expr_reg = addr_reg
-            else: # then expr_reg is int or float
+            elif var_type != 'string': # then expr_reg is int or float
                 a0_dict = self.aux_reg_table[self.arg_0]
                 f12_dict = self.aux_reg_table[self.float_12]
                 if type(expr_reg) is int or expr_type == 'int':
@@ -753,7 +755,7 @@ class CodeGenerator:
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
         if curr_val is None:
-            self._edit_block_var_edit(mem_name, 'val_reg')
+            # self._edit_block_var_edit(mem_name, 'val_reg')
 
             # Set id to be printed out to MIPS
             id_dict['used'] = True
@@ -784,6 +786,7 @@ class CodeGenerator:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
 
             # Equate registers (move assn_reg value into val_reg)
+            print(var_id, val_reg, assn_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
     # Needs to initialize an identifier's symbol table
@@ -885,6 +888,8 @@ class CodeGenerator:
         self.sym_table[var_id] = var_dict
 
     def _process_if(self, tree_nodes):
+        saved_forced_dynamic = True if self.forced_dynamic else False
+
         if_children = tree_nodes[0]
 
         # Grab conditional, if block, and else block
@@ -906,9 +911,11 @@ class CodeGenerator:
         if cond_type != 'bool':
             SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
                                                   cond_token.line_num, cond_token.col)
+
+        self.forced_dynamic = True
         self.output_string += asm_conditional_check(cond_reg, end_label if else_block is None else else_label)
         self.output_string += if_label + ':\n'
-        self._process_block(if_block, True)
+        self._process_block(if_block)
         self._save_off_registers()
         self.output_string += asm_branch_to_label(end_label)
 
@@ -916,12 +923,16 @@ class CodeGenerator:
         if else_block:
             self._save_off_registers()
             self.output_string += else_label + ':\n'
-            self._process_block(else_block, True)
+            self._process_block(else_block)
             self._save_off_registers()
 
         self.output_string += end_label + ':\n'
 
+        self.forced_dynamic = saved_forced_dynamic
+
     def _process_while(self, tree_nodes):
+        saved_forced_dynamic = True if self.forced_dynamic else False
+
         while_children = tree_nodes[0]
 
         # Grab conditional, if block, and else block
@@ -935,19 +946,22 @@ class CodeGenerator:
 
         # Create while
         self._save_off_registers()
+        self.forced_dynamic = True
         self.output_string += while_label + ':\n'
-        cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children, True)
+        cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children)
         if cond_type != 'bool':
             SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
                                                   cond_token.line_num, cond_token.col)
-        print('cond_reg: ', cond_reg)
+
         self.output_string += asm_conditional_check(cond_reg, end_label)
-        self._process_block(while_block, True)
+        self._process_block(while_block)
         self._save_off_registers()
         self.output_string += asm_branch_to_label(while_label)
 
         # Create end label
         self.output_string += end_label + ':\n'
+
+        self.forced_dynamic = saved_forced_dynamic
 
     # Used for expressions
     # Returns the register that has the value of accum_id loaded
@@ -1025,7 +1039,9 @@ class CodeGenerator:
     #   as parameters
     # tail function:
     # - accum_id, val_reg, val_type, val_token, immediate_val as children
-    def _process_expr_skeleton(self, children, children_function, body_function, tail_function, forced_dynamic = False):
+    def _process_expr_skeleton(self, children, children_function, body_function, tail_function):
+        print(body_function.__name__, self.forced_dynamic, children)
+
         # If len(children) == 1 on any expression function, it means the expression just drops through to a lower one
         # Thus, we can just return exactly whatever returned from the one below
         if len(children) == 1:
@@ -1037,7 +1053,7 @@ class CodeGenerator:
             val_reg = None
 
             temp_reg, val_type, val_token = children_function(children[0].children)
-            if type(temp_reg) in {int, float, bool, str} and not forced_dynamic:
+            if type(temp_reg) in {int, float, bool, str} and not self.forced_dynamic:
                 immediate_val = temp_reg
             else: # Register
                 val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
@@ -1073,7 +1089,7 @@ class CodeGenerator:
                 return val_reg, val_type, val_token
 
     # <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
-    def _process_expr_bool(self, tree_nodes, forced_dynamic = False):
+    def _process_expr_bool(self, tree_nodes):
         def expr_bool_body(accum_id, val_reg, val_type, val_token, immediate_val,
                            oper, next_reg, next_type, next_token):
             # Check if val_reg is a bool
@@ -1104,12 +1120,13 @@ class CodeGenerator:
 
             return val_reg, immediate_val, val_type
 
+        print('_expr_bool', self.forced_dynamic)
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_bool'), expr_bool_body,
-                                           expr_bool_tail, forced_dynamic)
+                                           expr_bool_tail)
 
     # <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
     # Returns value register (or immediate), value type, and token
-    def _process_term_bool(self, tree_nodes, forced_dynamic = False):
+    def _process_term_bool(self, tree_nodes):
         def term_bool_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                            next_token):
             # Check if val_reg is a bool
@@ -1144,11 +1161,11 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_eq'), term_bool_body,
-                                           term_bool_tail, forced_dynamic)
+                                           term_bool_tail)
 
     # <expr_eq>       ->  <expr_relation> [ <equal_op> <expr_relation> ]
     # Returns value register (or immediate), value type, and token
-    def _process_expr_eq(self, tree_nodes, forced_dynamic = False):
+    def _process_expr_eq(self, tree_nodes):
         def expr_eq_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
             # Save off operator
             equal_op = oper.token.name
@@ -1176,11 +1193,11 @@ class CodeGenerator:
             return val_reg, immediate_val, 'bool'
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body,
-                                           self._empty_tail_call, forced_dynamic)
+                                           self._empty_tail_call)
 
     # <expr_relation> ->  <expr_arith> [ <rel_op> <expr_arith> ]
     # Returns value register (or immediate), value type, and token
-    def _process_expr_rel(self, tree_nodes, forced_dynamic = False):
+    def _process_expr_rel(self, tree_nodes):
         def expr_rel_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type, next_token):
             # Save off op
             rel_op = oper.label
@@ -1251,11 +1268,11 @@ class CodeGenerator:
             return val_reg, immediate_val, 'bool'
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_arith'), expr_rel_body,
-                                           self._empty_tail_call, forced_dynamic)
+                                           self._empty_tail_call)
 
     # <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
     # Returns value register (or immediate), value type, and token
-    def _process_expr_arith(self, tree_nodes, forced_dynamic = False):
+    def _process_expr_arith(self, tree_nodes):
         def expr_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                             next_token):
             # Load the operation
@@ -1339,11 +1356,11 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_term_arith'), expr_arith_body,
-                                           expr_arith_tail, forced_dynamic)
+                                           expr_arith_tail)
 
     # <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
     # Returns value register (or immediate), value type, and token
-    def _process_term_arith(self, tree_nodes, forced_dynamic = False):
+    def _process_term_arith(self, tree_nodes):
         def term_arith_body(accum_id, val_reg, val_type, val_token, immediate_val, oper, next_reg, next_type,
                             next_token):
             # Initialize val_reg to immediate_val if necessary
@@ -1408,11 +1425,13 @@ class CodeGenerator:
             return val_reg, immediate_val, val_type
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_fact_arith'), term_arith_body,
-                                           self._empty_tail_call, forced_dynamic)
+                                           self._empty_tail_call)
 
     # <fact_arith>    ->  <unary_op> <term_unary> | <unary_add_op> <term_unary> | <term_unary>
     # Returns value register (or immediate), value type, and token
     def _process_fact_arith(self, fact_children):
+        print('_process_fact_arith', self.forced_dynamic)
+
         # len(fact_node.children) = 1 or 2
         if len(fact_children) == 2:
             unary_op = fact_children[0].label
@@ -1422,7 +1441,7 @@ class CodeGenerator:
             val_reg = None
 
             temp_reg, val_type, val_token = self._process_term_unary(fact_children[1])
-            if type(temp_reg) in {int, float, bool, str}:
+            if type(temp_reg) in {int, float, bool, str} and not self.forced_dynamic:
                 immediate_val = temp_reg
             else: # Register
                 val_reg = self._init_val_reg(accum_id, temp_reg, val_type)
@@ -1463,6 +1482,7 @@ class CodeGenerator:
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
     def _process_term_unary(self, term_unary):
+        print('_process_term_unary', self.forced_dynamic)
         # len(term_node) == 1
         child = term_unary.children[0]
         token = child.token
@@ -1472,15 +1492,41 @@ class CodeGenerator:
                 # Check int, float, bool, string literals
                 if token.name == 'STRINGLIT':
                     # See if literal already in array_sym_table
+                    addr_reg = None
                     try:
-                        self.array_sym_table[literal]
+                        addr_reg = self.array_sym_table[literal]
                     except KeyError:
-                        # Create new entry
+                        # Create new global entry for string
                         str_dict = self._empty_array_sym_table_dict()
                         str_dict['mem_name'] = next(self.var_name_generator)
                         str_dict['type'] = '.asciiz'
+
+                        # Create a temp pointer to the string
+                        if self.forced_dynamic:
+                            str_dict['used'] = True
+
+                            var_id = next(self.temp_id_generator)
+                            mem_name = next(self.var_name_generator)
+                            id_dict = self._empty_sym_table_dict()
+                            id_dict['mem_name'] = mem_name
+                            id_dict['used'] = True
+                            id_dict['type'] = 'string'
+                            id_dict['init_val'] = 'DYNAMIC'
+                            self.sym_table[var_id] = id_dict
+
+                            # Load address
+                            addr_reg = self._find_free_register()
+                            self._update_tables('normal', var_id, addr_reg, None)
+                            self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
+                            self.output_string += asm_load_mem_addr(str_dict['mem_name'], addr_reg)
+
+
                         self.array_sym_table[literal] = str_dict
-                    return literal, 'string', token
+                    print(self.forced_dynamic)
+                    if self.forced_dynamic:
+                        return addr_reg, 'string', token
+                    else:
+                        return literal, 'string', token
                 elif token.name == 'BOOLLIT':
                     return literal == 'True', 'bool', token
                 elif token.name == 'INTLIT':
