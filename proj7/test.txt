@@ -1,3 +1,19 @@
+begin
+    int x, y;
+    read(x, y);
+    string s;
+    bool b;
+    if x < y then begin
+        s := "Yes, the assertion is correct.";
+        b := True;
+    end else begin
+        s := "No, the assertion is not correct.";
+        b := False;
+    end
+    write(s, " ", b);
+end
+
+
 # Input: 3,4
 # Output: 2336
 
@@ -29,12 +45,12 @@
 #    write(a,b,c,d,e,f,g);
 #end
 
-begin
-    int x := 5;
-    while x > 0 begin
-        write(x);
-        x := x - 1;
-    end
-end
+#begin
+#    int x := 5;
+#    while x > 0 begin
+#        write(x);
+#        x := x - 1;
+#    end
+#end
 
 

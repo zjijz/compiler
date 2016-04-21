@@ -1,6 +1,6 @@
 MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
 
-Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 193 column 6: "$f21": operand is of incorrect type
+Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 193 column 6: "$f10": operand is of incorrect type
 Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 207 column 6: "$v2": operand is of incorrect type
 Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/proj_7_testers/compiled/121.asm line 208 column 6: "$v2": operand is of incorrect type
 

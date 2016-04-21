@@ -1,0 +1,18 @@
+# Tests the ability to print dynamic booleans and strings set by a branch.
+# Input: 1, 2
+# Output: Yes, the assertion is correct. True
+
+begin
+    int x, y;
+    read(x, y);
+    string s;
+    bool b;
+    if x < y then begin
+        s := "Yes, the assertion is correct.";
+        b := True;
+    end else begin
+        s := "No, the assertion is not correct.";
+        b := False;
+    end
+    write(s, " ", b);
+end

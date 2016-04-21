@@ -186,7 +186,6 @@ class CodeGenerator:
         self.float_var_queue = []
 
         # Used to keep track of things a block changes to reconcile them when it closes
-        self.block_var_edits = {}
         self.forced_dynamic = False
 
         # Output options
@@ -373,13 +372,6 @@ class CodeGenerator:
             SemanticError.raise_declaration_error(ident, token.line_num, token.col)
         return id_dict
 
-    def _edit_block_var_edit(self, mem_name, prop):
-        try:
-            self.block_var_edits[mem_name].append(prop)
-        except KeyError:
-            list = [prop]
-            self.block_var_edits[mem_name] = list
-
     # Used mostly or expr to reserve registers for temporary variables
     def _update_reg_table(self, table_type, mem_id, reg, reg_type):
         reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
@@ -446,13 +438,15 @@ class CodeGenerator:
                     o_type = '.float'
 
                 # If init_val is not a string (i.e. 'DYNAMIC' or 'TEMP'), change o_val to the value
-                o_val = '0'
-                if type(init_val) is not str:
-                    o_val = str(init_val)
+                o_val = 0
+                if type(init_val) is bool:
+                    o_val = 1 if init_val else 0
+                elif type(init_val) is not str:
+                    o_val = init_val
 
                 print(name, o_type, o_val, id)
                 data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
-                                .format(name, o_type, o_val, id)
+                                .format(name, o_type, str(o_val), id)
 
         for string in self.array_sym_table:
             id_dict = self.array_sym_table[string]
@@ -558,10 +552,6 @@ class CodeGenerator:
             # (THIS MIGHT BE UNNECESSARY - TEST REMOVING IT)
             id_dict['used'] = True
             id_dict['init_val'] = 'DYNAMIC'
-
-            # Set block edited fields
-            self._edit_block_var_edit(mem_name, 'used')
-            self._edit_block_var_edit(mem_name, 'init_val')
 
             input_reg = self.float_0 if id_dict['type'] == 'float' else self.val_0
 
@@ -693,13 +683,11 @@ class CodeGenerator:
         mem_name = id_dict['mem_name']
 
         # Set init_val if first time calling
-        if id_dict['init_val'] is None:
+        if id_dict['init_val'] is None or self.forced_dynamic:
             if type(expr_reg) is Register:
                 id_dict['init_val'] = 'DYNAMIC'
-                self._edit_block_var_edit(mem_name, 'init_val')
             else:
                 id_dict['init_val'] = expr_reg
-                self._edit_block_var_edit(mem_name, 'init_val')
 
         # Throw type error
         id_type = id_dict['type']
@@ -737,28 +725,25 @@ class CodeGenerator:
         init_val = id_dict['init_val']
         curr_val = id_dict['curr_val']
 
-        # Mark this variable as being a 'dynamic' variable out of the scope of this block
-        self._edit_block_var_edit(mem_name, 'curr_val')
-        self._edit_block_var_edit(mem_name, 'used')
-
         python_assn_type = type(assn_reg)
-        if python_assn_type is Register:
-            curr_val = id_dict['curr_val'] = None
-        elif python_assn_type is int and var_type == 'int':
-            curr_val = id_dict['curr_val'] = assn_reg
-        elif python_assn_type is float and var_type == 'float':
-            curr_val = id_dict['curr_val'] = assn_reg
-        elif python_assn_type is bool and var_type == 'bool':
-            curr_val = id_dict['curr_val'] = assn_reg
-        elif python_assn_type is str and var_type == 'string':
-            curr_val = id_dict['curr_val'] = assn_reg
+        if not self.forced_dynamic:
+            if python_assn_type is Register:
+                curr_val = id_dict['curr_val'] = None
+            elif python_assn_type is int and var_type == 'int':
+                curr_val = id_dict['curr_val'] = assn_reg
+            elif python_assn_type is float and var_type == 'float':
+                curr_val = id_dict['curr_val'] = assn_reg
+            elif python_assn_type is bool and var_type == 'bool':
+                curr_val = id_dict['curr_val'] = assn_reg
+            elif python_assn_type is str and var_type == 'string':
+                curr_val = id_dict['curr_val'] = assn_reg
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
-        if curr_val is None:
-            # self._edit_block_var_edit(mem_name, 'val_reg')
-
+        if curr_val is None or self.forced_dynamic:
             # Set id to be printed out to MIPS
             id_dict['used'] = True
+
+            id_dict['curr_val'] = None
 
             # Load variable addr and val into registers
             if not val_reg:
@@ -772,7 +757,6 @@ class CodeGenerator:
                     addr_reg = self._find_free_register()
                     self._update_tables(type_str, var_id, addr_reg, val_reg, id_dict)
                     self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
-                    self._edit_block_var_edit(mem_name, 'addr_reg')
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
                 # Since it is less work to pop an addr register from the queue, I would rather push that first
@@ -1563,7 +1547,6 @@ class CodeGenerator:
 
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
-                # self._edit_block_var_edit(mem_name, 'val_reg')
 
                 self.output_string += asm_load_mem_var_from_addr(id_dict['addr_reg'], val_reg)
             # Worst case, you have to load both the addr and the value into registers
@@ -1571,12 +1554,10 @@ class CodeGenerator:
                 addr_reg = self._find_free_register()
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
-                # self._edit_block_var_edit(mem_name, 'addr_reg')
 
                 val_reg = self._find_free_register(cleaned_type)
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
-                # self._edit_block_var_edit(mem_name, 'val_reg')
 
                 self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
         # else: If val_reg was good to go, just return it
