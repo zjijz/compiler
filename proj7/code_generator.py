@@ -35,7 +35,7 @@ from copy import *
 # Float Reg Table
 # Keeps track of the float registers
 #   'id': ID pattern
-#   'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of varible])
+#   'mem_type': Variable type (ADDRESS, VALUE, or TYPE[type of variable])
 
 # Var Queue
 #  Holds a {'reg': "...", 'id': "...", 'mem_type': "VALUE"|"ADDRESS"|"ARRAY_ADDRESS"|"TYPE.type"} dict
@@ -162,6 +162,9 @@ class CodeGenerator:
         self.array_sym_table = self._create_array_sym_table()
 
         # Registers
+        # self.reg_pool = all normal registers
+        # self.aux_reg_pool = all auxiliary registers
+        # self.float_reg_pool = all floating point registers
         self.reg_table = self._init_reg_table()
         self.aux_reg_table = self._init_reg_table('aux')
         self.float_reg_table = self._init_reg_table('float')
@@ -190,7 +193,7 @@ class CodeGenerator:
 
     def compile(self):
         self._start()
-        self._block(self.tree)
+        self._process_block(self.tree)
         self._finish()
 
     def _create_array_sym_table(self):
@@ -241,6 +244,8 @@ class CodeGenerator:
             pool.append(reg)
             setattr(self, 'float_12', reg)
 
+            setattr(self, 'aux_reg_pool', pool)
+
         elif type_s == 'float':
             # Generates first set of temporary float registers
             for i in range(4,11):
@@ -255,6 +260,8 @@ class CodeGenerator:
                 for i in range(20,32):
                     pool.append(Register('$f' + str(i)))
 
+            setattr(self, 'float_reg_pool', pool)
+
         else:
             # Generate $t_ registers
             for i in range(10):
@@ -264,6 +271,8 @@ class CodeGenerator:
             if not self.safe_mode:
                 for i in range(1,7):
                     pool.append(Register('$s' + str(i)))
+
+            setattr(self, 'reg_pool', pool)
 
         return pool
 
@@ -384,6 +393,7 @@ class CodeGenerator:
     # DOES NOT update var_queue, that is up to you
     def _update_tables(self, table_type, ident, new_addr_reg, new_val_reg, id_dict = None, addr_reg_dict = None, val_reg_dict = None):
         val_reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
+        val_reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
 
         # Null Checks
         if not id_dict:
@@ -469,6 +479,7 @@ class CodeGenerator:
                   'Auxiliary Register Table', self.aux_reg_table, '\n\n',
                   'Variable Queue: ', self.var_queue, '\n\n', 'Float Variable Queue: ', self.float_var_queue, '\n')
 
+    '''
     def _save_off_tables(self):
         return deepcopy(self.sym_table), deepcopy(self.array_sym_table), deepcopy(self.reg_table), \
                deepcopy(self.aux_reg_table), deepcopy(self.float_reg_table), deepcopy(self.var_queue), \
@@ -478,6 +489,7 @@ class CodeGenerator:
                            float_var_queue, og_block_var_edits):
         # Merge edited tables with parent's (Used for setting variables to dynamic and preserving 'used')
         new_block_var_edits = self.block_var_edits
+        print(reg_table)
         for mem_name in new_block_var_edits.keys():
             # Find dict in current sym_table
             new_dict = None
@@ -492,29 +504,54 @@ class CodeGenerator:
                     og_dict = dict
 
             for prop in new_block_var_edits[mem_name]:
-                if prop == 'val_reg':
-                    val_reg = new_dict['val_reg']
-
+                print(mem_name, ' ', prop, ' ', new_dict['val_reg'])
+                if prop == 'val_reg' and new_dict['val_reg']:
                     addr_reg = new_dict['addr_reg']
                     if not addr_reg:
                         # This uses a method that saves directly to the label (using a pseudoinstructino)
                         addr_reg = mem_name
 
+                    val_reg = new_dict['val_reg']
+
+                    print('saving', val_reg)
+
                     # Save off variable
                     self.output_string += asm_save_mem_var_from_addr(addr_reg, val_reg)
+
+                    if og_dict['type'] in {'int', 'bool', 'string'}:
+                        var_queue = [x for x in var_queue if x['reg'] != val_reg]
+                        reg_table[val_reg] = self._empty_reg_dict()
+                    elif og_dict['type'] == 'float':
+                        float_var_queue = [x for x in float_var_queue if x['reg'] != val_reg]
+                        float_reg_table[val_reg] = self._empty_reg_dict()
 
                     # Require parent block to reload variable
                     og_dict['val_reg'] = None
                     og_dict['used'] = True
+
+                    new_dict['val_reg'] = None
                 elif prop == 'curr_val' and og_dict['curr_val'] != new_dict['curr_val']:
                     curr_val = new_dict['curr_val']
+                    val_reg = new_dict['val_reg']
+
+                    if val_reg:
+                        if og_dict['type'] in {'int', 'bool', 'string'}:
+                            var_queue = [x for x in var_queue if x['reg'] != val_reg]
+                            reg_table[val_reg] = self._empty_reg_dict()
+                        elif og_dict['type'] == 'float':
+                            float_var_queue = [x for x in float_var_queue if x['reg'] != val_reg]
+                            float_reg_table[val_reg] = self._empty_reg_dict()
+
                     og_dict['used'] = True
                     og_dict['curr_val'] = None
+                    new_dict['val_reg'] = None
                     self.output_string += asm_save_mem_var_from_addr(mem_name, curr_val)
                 elif prop == 'used':
                     og_dict['used'] = new_dict['used'] or og_dict['used']
                 elif prop == 'init_val':
                     og_dict['init_val'] = 'DYNAMIC'
+                elif prop == 'addr_reg':
+                    og_dict['addr_reg'] = None
 
         # Merge the array sym_tables
         for key in self.array_sym_table.keys():
@@ -535,16 +572,67 @@ class CodeGenerator:
         self.block_var_edits = og_block_var_edits
 
     # Eventually, this will do all the scoping stuff
-    def _block(self, tree_nodes, save_mode = False):
+    def _process_block(self, tree_nodes, save_mode = False):
         saved_tables = None
-        if save_mode:
+        if save_mode: # if save_mode is False, we are at global scope
             saved_tables = self._save_off_tables()
             self.block_var_edits = {}
+            self.output_string += asm_save_off_reg_pool(self.reg_pool + self.aux_reg_pool + self.float_reg_pool)
 
         self._traverse(tree_nodes)
 
         if save_mode:
             self._load_saved_tables(*saved_tables)
+            self.output_string += asm_load_reg_pool_from_stack(self.reg_pool + self.aux_reg_pool + self.float_reg_pool)
+    '''
+
+    def _save_off_registers(self):
+        print(self.reg_table)
+
+        while len(self.var_queue) > 0:
+            entry = self.var_queue.pop(0)
+            print(entry)
+            reg = entry['reg']
+            mem_id = entry['id']
+            mem_type = entry['mem_type']
+            if mem_type == 'VALUE':
+                id_dict = self.sym_table[mem_id]
+                id_dict['used'] = True
+                id_dict['val_reg'] = None
+                self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
+            elif mem_type == 'ADDRESS':
+                id_dict = self.sym_table[mem_id]
+                id_dict['addr_reg'] = None
+            elif mem_type == 'ARRAY_ADDRESS':
+                self.array_symbol_table[mem_id]['addr_reg'] = None
+
+        while len(self.float_var_queue) > 0:
+            entry = self.float_var_queue.pop(0)
+            reg = entry['reg']
+            mem_id = entry['id']
+            mem_type = entry['mem_type']
+            if mem_type == 'VALUE':
+                id_dict = self.sym_table[mem_id]
+                id_dict['used'] = True
+                id_dict['val_reg'] = None
+                self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
+            elif mem_type == 'ADDRESS':
+                id_dict['addr_reg'] = None
+
+        for dict in self.sym_table.values():
+            dict['used'] = True
+            if dict['curr_val']:
+                print('entered')
+                self.output_string += asm_save_mem_var_from_addr(dict['mem_name'], dict['curr_val'])
+            dict['curr_val'] = None
+
+        self.reg_table = self._init_reg_table('normal')
+        self.float_reg_table = self._init_reg_table('float')
+        self.aux_reg_table = self._init_reg_table('aux')
+
+    # Do stuff with scope here
+    def _process_block(self, tree_nodes, save_mode = False):
+        self._traverse(tree_nodes)
 
     # Searches tree until it finds something to process
     def _traverse(self, tree):
@@ -880,7 +968,7 @@ class CodeGenerator:
             if type(expr_reg) is not Register:
                 curr_val = init_val = expr_reg
                 val_reg = None
-            else: # If not, load address and variable registers and equate
+            elif expr_reg is not None: # If not, load address and variable registers and equate
                 init_val = 'DYNAMIC'
 
                 # Load addr_reg
@@ -918,22 +1006,26 @@ class CodeGenerator:
         else_label = block_label + '_else'
         end_label = block_label + '_end'
 
-        # Process conditional
+        # Save off registers
+        self._save_off_registers()
+
+        # Process conditional and if block
         cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children)
         if cond_type != 'bool':
             SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
                                                   cond_token.line_num, cond_token.col)
         self.output_string += asm_conditional_check(cond_reg, end_label if else_block is None else else_label)
-
-        # Process if block
         self.output_string += if_label + ':\n'
-        self._block(if_block, True)
+        self._process_block(if_block, True)
+        self._save_off_registers()
+        self.output_string += asm_branch_to_label(end_label)
 
         # Process else block
         if else_block:
-            self.output_string += asm_branch_to_label(end_label)
+            self._save_off_registers()
             self.output_string += else_label + ':\n'
-            self._block(else_block, True)
+            self._process_block(else_block, True)
+            self._save_off_registers()
 
         self.output_string += end_label + ':\n'
 
@@ -1513,7 +1605,7 @@ class CodeGenerator:
 
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
-                self._edit_block_var_edit(mem_name, 'val_reg')
+                # self._edit_block_var_edit(mem_name, 'val_reg')
 
                 self.output_string += asm_load_mem_var_from_addr(id_dict['addr_reg'], val_reg)
             # Worst case, you have to load both the addr and the value into registers
@@ -1521,12 +1613,12 @@ class CodeGenerator:
                 addr_reg = self._find_free_register()
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
-                self._edit_block_var_edit(mem_name, 'addr_reg')
+                # self._edit_block_var_edit(mem_name, 'addr_reg')
 
                 val_reg = self._find_free_register(cleaned_type)
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
-                self._edit_block_var_edit(mem_name, 'val_reg')
+                # self._edit_block_var_edit(mem_name, 'val_reg')
 
                 self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
         # else: If val_reg was good to go, just return it

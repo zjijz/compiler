@@ -1,4 +1,3 @@
-Traceback (most recent call last):
-  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/assembly_helper.py", line 398, in asm_save_mem_var_from_addr
-    ret += 'sw {:s}, {:s}+{:d}\n'.format(var_reg, mem_addr_reg, offset)
-TypeError: non-empty format string passed to object.__format__
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+0123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051

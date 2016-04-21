@@ -2,19 +2,29 @@
 # Output: 2336
 
 # Input: 4,3
-# Output:
+# Output: 4445
+
+#begin
+#    int a,b,c := 20, d := 2;
+#    read(a,b);
+#    if a < b then begin
+#        c := c + 10;
+#        write(d);
+#    end else begin
+#        c := c + 20;
+#        write(d+2);
+#    end
+#    a := a + c;
+#    b := b + d;
+#    write(a,b);
+#end
 
 begin
-    int a,b,c := 20, d := 2;
-    read(a,b);
-    if a < b then begin
-        c := c + 10;
-        write(d);
-    end else begin
-        c := c + 20;
-        write(d+2);
+    int a := 1,b := 2,c := 3,d := 4,e := 5,f := 6,g := 7;
+    #int a,b,c,d,e,f,g;
+    #read(a,b,c,d,e,f,g);
+    if True then begin
+        a := a;
     end
-    a := a + c;
-    b := b + d;
-    write(a,b);
+    write(a,b,c,d,e,f,g);
 end

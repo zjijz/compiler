@@ -12,7 +12,7 @@ fi
 
 # Sanitize upper bound from input
 if [[ -z $h_input ]]; then
-h_input=0
+h_input=1000
 fi
 
 for file in proj_7_testers/tests/*.txt

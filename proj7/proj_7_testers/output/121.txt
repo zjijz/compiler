@@ -1,4 +1,4 @@
 Traceback (most recent call last):
-  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/assembly_helper.py", line 273, in asm_add
+  File "/Users/GNPMobile/Desktop/CSE474/compilers_group9/proj7/assembly_helper.py", line 270, in asm_add
     ret_asm += 'add.s {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
 ValueError: Unknown format code 's' for object of type 'int'

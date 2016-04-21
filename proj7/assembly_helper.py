@@ -34,6 +34,7 @@ def load_immediates(op_type, ret_asm, f_reg, s_reg):
     return ret_asm, f_reg, s_reg
 # _______________________Assembly________________________
 
+
 ## ______STACK______
 
 # Allocates space to the stack
@@ -49,10 +50,6 @@ def asm_load_reg_from_stack(reg, offset = 0):
 # Save variable to stack
 def asm_save_reg_to_stack(reg, offset = 0):
     return asm_save_mem_var_from_addr('$sp', reg, offset)
-
-
-def asm_save_off_reg_pool():
-    pass
 
 
 ## ______I/O______
@@ -369,10 +366,13 @@ def asm_load_mem_var(mem_name, addr_reg, dest_reg, offset = 0):
         return 'la {:s}, {:s}\nlw {:s}, {:d}({:s})\n'.format(addr_reg, mem_name, dest_reg, offset, addr_reg)
 
 
+# REQRITE
 # Assumes mem_addr_reg holds RAM location of desired variable
 def asm_load_mem_var_from_addr(mem_addr_reg, dest_reg, offset = 0):
     if 'f' in str(dest_reg):
         return 'l.s {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
+    elif type(mem_addr_reg) is str and '$' not in mem_addr_reg:
+        return 'lw {:s}, {:s} + {:d}\n'.format(dest_reg, mem_addr_reg, offset)
     else:
         return 'lw {:s}, {:d}({:s})\n'.format(dest_reg, offset, mem_addr_reg)
 
@@ -390,12 +390,12 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
     if 'f' in str(var_reg):
         return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
-    elif type(mem_addr_reg) is str and '$' not in mem_addr_reg:
+    elif type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
         ret = ''
         if type(var_reg) is int:
             ret = asm_reg_set('$v1', var_reg)
             var_reg = '$v1'
-        ret += 'sw {:s}, {:s}+{:d}\n'.format(var_reg, mem_addr_reg, offset)
+        ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
         return ret
     elif type(var_reg) is int:
         ret = asm_reg_set('$v1', var_reg)
@@ -437,3 +437,21 @@ def asm_cast_int_to_float(f_reg, i_reg):
 def asm_dynamic_bool_print(r_reg, f_reg, true_addr_reg, false_addr_reg):
     return asm_rel_eq('$v1', f_reg, 1) + 'movn {:s}, {:s}, {:s}\n'.format(r_reg, true_addr_reg, '$v1') + \
            'movz {:s}, {:s}, {:s}\n'.format(r_reg, false_addr_reg, '$v1')
+
+
+# Saves all registers to stack
+def asm_save_off_reg_pool(reg_pool):
+    ret = ''
+    for i in range(0, len(reg_pool), 1):
+        ret += asm_allocate_stack_space(4)
+        ret += asm_save_reg_to_stack(reg_pool[i])
+    return ret
+
+
+# Reloads registers from stack
+def asm_load_reg_pool_from_stack(reg_pool):
+    ret = ''
+    for i in range(len(reg_pool) - 1, -1, -1):
+        ret += asm_load_reg_from_stack(reg_pool[i])
+        ret += asm_add('$sp', '$sp', 4)
+    return ret

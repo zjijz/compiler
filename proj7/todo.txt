@@ -70,6 +70,18 @@ Queue for Recent Variables
      - Keep a boolean 'register' table of coprocessor 1 flags
 
   - Static analysis of if branches when possible (when boolean can be statically analyzed)
+    - while loops mostly
+
+  - Right now, all variables are assumed to use .word as their length for stack saving
+    - Improve this by explicitally calculating the amount of stack space needed per variable
+      - Bools get byte
+      - ints, floats get word
+      - strings (pointers) get word
+
+  - Optimize functions/blocks by calculating how many variables each will need
+    - I want this to go into the Optimizer and have it annotate
+
+  - Reqrite two assembly methods
 ______________________________
 Project 7
 - if statements
