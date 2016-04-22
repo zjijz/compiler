@@ -1,17 +1,32 @@
 <block>		    ->	begin <statement list> end
-<statement list>->	<statement>; { <statement>; }
-<statement>		->	<assignment>
-                    | <declaration>
-                    | read( <id list> )
-                    | write( <expr list> )
+<statement list>->	<statement> { <statement>}
+<statement>		->	<ident_first>
+                    | <declaration>;
+                    | read( <id list> );
+                    | write( <expr list> );
                     | <if_statement>
                     | <while_statement>
 <declaration>	->	<type> <dec list>
 <dec list>      ->  <dec term> { , <dec term> }
 <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
-<assignment>	->	<ident> := <expr_bool>
+
+<ident_first>   ->  <ident> <after_ident>
+<afer_ident>    ->  <func>
+                    | <assignment>
+
+<func>          ->  ( <func_gen>
+<func_gen>      ->  <func_call>
+                    | <func_dec>
+<func_dec>      ->  <func_dec_t> ) [-> TYPE] <block>
+<func_dec_t>    ->  TYPE <ident> {, TYPE <ident>}
+<func_call>     ->  <ident> {, <ident>} );
+
+<assignment>	->	:= <expr_bool>
+
 <if_statement>  ->  if <expr_bool> then <block> [else <block>]
+
 <while_statement>-> while <expr_bool> <block>
+
 <id list>		->	<ident> {, <ident>}
 <expr list>		->	<expr_bool> { , <expr_bool> }
 

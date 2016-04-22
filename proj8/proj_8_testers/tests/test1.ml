@@ -1,12 +1,12 @@
 begin
     # I'd rather do some funky return syntax (like Swift?)
-    void foo() begin
+    foo() begin
         int i := 0;
         i := i + 1;
         write("In foo: ", i, "\n");
     end
 
-    void foo2() begin
+    foo2() begin
         write("In foo2.\n");
     end
 
