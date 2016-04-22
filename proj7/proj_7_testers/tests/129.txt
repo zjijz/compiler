@@ -1,0 +1,26 @@
+# Test setting all variable types to different values in
+# if/else blocks
+# Output: 1298.5How do you doTrue
+
+begin
+  int x;
+  float y;
+  string s;
+  bool z;
+  
+  if 1 < 2 then
+  begin
+    x := 12;
+    y := 98.5;
+    s := "How do you do"
+    z := True;
+  end
+  else
+  begin
+    x := 14;
+    y := 100.2;
+    s := "Como se va?"
+    z := False;
+  end
+  write(x,y,s,z);
+end
