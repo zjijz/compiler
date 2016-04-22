@@ -7,19 +7,19 @@ begin
   float y;
   string s;
   bool z;
-  
+
   if 1 > 2 then
   begin
     x := 12;
     y := 98.5;
-    s := "How do you do?"
+    s := "How do you do?";
     z := True;
   end
   else
   begin
     x := 14;
     y := 100.2;
-    s := "Como se va?"
+    s := "Como se va?";
     z := False;
   end
   write(x,y,s,z);

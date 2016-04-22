@@ -9,9 +9,9 @@ begin
   string s := "Happy Birthday Greg!";
   x := 3;
 
-  while x > 0 
+  while x > 0
   begin
-  x = x - 1;
+  x := x - 1;
 
   if x % 2 == 0 then
     begin
@@ -19,7 +19,7 @@ begin
       g := 62.0;
       write(f,g, b);
     end
-  else 
+  else
     begin
       b := 3 + 4 == 12;
       f := 6.0;

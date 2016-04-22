@@ -287,7 +287,7 @@ class CodeGenerator:
 
         return ret_dict
 
-    def _find_free_register(self, var_type = 'normal'):
+    def _find_free_register(self, var_type='normal'):
         ### Sub-function ###
         def save_using_s0(name, var_reg):
             # If we are in safe mode, we need to save off the old value
@@ -432,19 +432,18 @@ class CodeGenerator:
                 # - booleans -> .byte
                 # - strings -> different sym table
                 o_type = '.word'
-                if val_type == 'bool':
-                    o_type = '.byte'
-                elif val_type == 'float':
+                #if val_type == 'bool':
+                #    o_type = '.byte'
+                if val_type == 'float':
                     o_type = '.float'
 
                 # If init_val is not a string (i.e. 'DYNAMIC' or 'TEMP'), change o_val to the value
                 o_val = 0
-                if type(init_val) is bool:
+                if init_val is not None and type(init_val) is bool:
                     o_val = 1 if init_val else 0
-                elif type(init_val) is not str:
+                elif init_val is not None and type(init_val) is not str:
                     o_val = init_val
 
-                print(name, o_type, o_val, id)
                 data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
                                 .format(name, o_type, str(o_val), id)
 
@@ -479,11 +478,13 @@ class CodeGenerator:
     def _save_off_registers(self):
         while len(self.var_queue) > 0:
             entry = self.var_queue.pop(0)
+            print(entry)
             reg = entry['reg']
             mem_id = entry['id']
             mem_type = entry['mem_type']
             if mem_type == 'VALUE':
                 id_dict = self.sym_table[mem_id]
+                print('entered', reg, id_dict['mem_name'])
                 id_dict['used'] = True
                 id_dict['val_reg'] = None
                 self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
@@ -510,7 +511,7 @@ class CodeGenerator:
 
         for dict in self.sym_table.values():
             dict['used'] = True
-            if dict['curr_val']:
+            if dict['curr_val'] and dict['type'] != 'string':
                 self.output_string += asm_save_mem_var_from_addr(dict['mem_name'], dict['curr_val'])
             dict['curr_val'] = None
 
@@ -666,7 +667,6 @@ class CodeGenerator:
                         f12_dict['mem_type'] = None
                     else:
                         is_a0_set = True
-            print(expr_reg, expr_type)
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
@@ -770,6 +770,7 @@ class CodeGenerator:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
 
             # Equate registers (move assn_reg value into val_reg)
+            print(val_reg, assn_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
 
     # Needs to initialize an identifier's symbol table
@@ -1170,6 +1171,21 @@ class CodeGenerator:
                     self.output_string += asm_rel_eq(val_reg, val_reg, next_reg) \
                         if equal_op == 'EQUAL' else asm_rel_neq(val_reg, val_reg, next_reg)
 
+            # Ensure val_reg is a normal register
+            if val_reg in self.float_reg_pool:
+                new_val_reg = self._find_free_register('normal')
+                self.output_string += asm_reg_set(new_val_reg, val_reg)
+
+                mem_id = next(self.temp_id_generator)
+                self.reg_table[new_val_reg]['id'] = mem_id
+                self.reg_table[new_val_reg]['mem_type'] = 'VALUE'
+                self.var_queue.append({'reg': new_val_reg, 'id': mem_id, 'mem_type': 'TYPE.bool'})
+
+                self.float_var_queue = [x for x in self.float_var_queue if x['reg'] != val_reg]
+                self.float_reg_table[val_reg] = self._empty_reg_dict()
+
+                val_reg = new_val_reg
+
             return val_reg, immediate_val, 'bool'
 
         return self._process_expr_skeleton(tree_nodes, getattr(self, '_process_expr_rel'), expr_eq_body,
@@ -1231,7 +1247,7 @@ class CodeGenerator:
                 next_float_reg = self._find_free_register('float')
 
                 # Coerce next_type up
-                self.output_string += asm_cast_int_to_float(next_float_reg, val_reg)
+                self.output_string += asm_cast_int_to_float(next_float_reg, next_reg)
 
                 # set second_reg to be next_float_reg
                 second_reg = next_float_reg
@@ -1244,6 +1260,21 @@ class CodeGenerator:
                 self.output_string += asm_rel_ge(val_reg, first_reg, second_reg)
             elif rel_op == 'LESS_EQUAL':
                 self.output_string += asm_rel_le(val_reg, first_reg, second_reg)
+
+            # Ensure val_reg is a normal register
+            if val_reg in self.float_reg_pool:
+                new_val_reg = self._find_free_register('normal')
+                self.output_string += asm_reg_set(new_val_reg, val_reg)
+
+                mem_id = next(self.temp_id_generator)
+                self.reg_table[new_val_reg]['id'] = mem_id
+                self.reg_table[new_val_reg]['mem_type'] = 'VALUE'
+                self.var_queue.append({'reg': new_val_reg, 'id': mem_id, 'mem_type': 'TYPE.bool'})
+
+                self.float_var_queue = [x for x in self.float_var_queue if x['reg'] != val_reg]
+                self.float_reg_table[val_reg] = self._empty_reg_dict()
+
+                val_reg = new_val_reg
 
             return val_reg, immediate_val, 'bool'
 
@@ -1493,6 +1524,8 @@ class CodeGenerator:
                         self.sym_table[var_id] = id_dict
 
                         # Load address
+                        print(self.reg_table)
+                        print(self.var_queue)
                         addr_reg = self._find_free_register()
                         self._update_tables('normal', var_id, addr_reg, None)
                         self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
@@ -1502,13 +1535,13 @@ class CodeGenerator:
                         val_reg = self._find_free_register()
                         self._update_tables('normal', var_id, addr_reg, val_reg)
                         self.var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
-                        self.output_string += asm_load_mem_addr(str_dict['mem_name'], addr_reg)
+                        self.output_string += asm_load_mem_addr(str_dict['mem_name'], val_reg)
+                        print(self.reg_table)
+                        print(self.var_queue)
 
-                    if self.forced_dynamic:
-                        print(addr_reg)
-                        return addr_reg, 'string', token
-                    else:
-                        return literal, 'string', token
+                        return val_reg, 'string', token
+
+                    return literal, 'string', token
                 elif token.name == 'BOOLLIT':
                     return literal == 'True', 'bool', token
                 elif token.name == 'INTLIT':

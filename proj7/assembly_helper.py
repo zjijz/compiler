@@ -364,6 +364,8 @@ def asm_reg_set(f_reg, s_reg):
         elif 'f' not in str(s_reg):
             ret_asm += asm_cast_int_to_float('$f13', s_reg)
             s_reg = '$f13'
+        elif 't' in str(f_reg) or 's' in str(f_reg):
+            return 'mfc1 {:s}, {:s}\n'.format(f_reg, s_reg)
 
         ret_asm += 'mov.s {:s}, {:s}\n'.format(f_reg, s_reg)
     else: # int
@@ -445,9 +447,6 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
 def asm_conditional_check(reg, label):
     print(reg, label)
     ret, reg, _ = load_immediates('normal', '', reg, None)
-    if 'f' in str(reg):
-        ret += asm_rel_eq('$v2', reg, 0)
-        reg = '$v2'
     ret += 'beqz {:s}, {:s}\n'.format(reg, label)
     return ret
 
