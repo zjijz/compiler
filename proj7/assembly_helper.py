@@ -154,8 +154,7 @@ def asm_log_and(r_reg, f_reg, s_reg):
 
 def asm_log_xor(r_reg, f_reg, s_reg):
     ret_asm, f_reg, s_reg = load_immediates('normal', '', f_reg, s_reg)
-    if type(s_reg) is bool:
-        s_reg = 1 if s_reg else 0
+    if type(s_reg) in {bool, int}:
         ret_asm += 'xori {:s}, {:s}, {:d}\n'.format(r_reg, f_reg, s_reg)
     else:
         ret_asm += 'xor {:s}, {:s}, {:s}\n'.format(r_reg, f_reg, s_reg)
@@ -166,6 +165,7 @@ def asm_log_xor(r_reg, f_reg, s_reg):
 # Load f_reg into a register before using if it is an immediate
 # This does a bitflip of the 1's place
 def asm_log_negate(r_reg, f_reg):
+    print(r_reg, f_reg)
     return asm_log_xor(r_reg, f_reg, 1)
 
 
