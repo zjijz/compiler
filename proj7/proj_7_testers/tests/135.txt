@@ -1,3 +1,7 @@
+# Tests static variables that turn into dynamic through a block (similar to the read test that did this before)
+# Input: 4
+# Output: 510.0trueTrue
+
 begin
     int x := 10;
     float f := 20.0;

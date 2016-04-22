@@ -85,6 +85,10 @@ Queue for Recent Variables
 
   - Actually code bools to be represented by bytes
 
+  - Have saving registers check if the address is in memory
+
+  - Overlays for variables
+
   - Abstract out all reg_tables to be the same opaque structure
   - Abstract out all sym_tables to be the same opaque structure
   - Abstract out all var_queues to be the same opaque structure
