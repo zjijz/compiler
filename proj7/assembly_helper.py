@@ -421,7 +421,7 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
             ret = asm_reg_set('$f13', var_reg)
             ret += 's.s {:s}, {:s} + {:d}\n'.format('$f13', mem_addr_reg, offset)
             return ret
-        if type(var_reg) is int:
+        if type(var_reg) in {int, bool}:
             ret = asm_reg_set('$v1', var_reg)
             var_reg = '$v1'
         ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)

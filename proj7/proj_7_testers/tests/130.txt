@@ -1,26 +1,20 @@
-# Test setting all variable types to different values in
-# if/else blocks
-# Output: 14100.2Como se va?False
+# Tests all value types being set in while
+# Input: 0 6
+# Output: Yes, the assertion is correct. True 20 10.0 (x6)
 
 begin
-  int x;
-  float y;
-  string s;
-  bool z;
-  
-  if 1 > 2 then
-  begin
-    x := 12;
-    y := 98.5;
-    s := "How do you do?"
-    z := True;
-  end
-  else
-  begin
-    x := 14;
-    y := 100.2;
-    s := "Como se va?"
-    z := False;
-  end
-  write(x,y,s,z);
+    int x, y;
+    read(x, y);
+    string s;
+    bool b;
+    int z;
+    float f;
+    while x < y begin
+        s := "Yes, the assertion is correct.";
+        b := True;
+        z := 20;
+        f := 10.0;
+        x := x + 1;
+        write(s, " ", b, " ", z, " ", f, "\n");
+    end
 end

@@ -1,26 +1,25 @@
-# Test setting all variable types to different values in
-# if/else blocks
-# Output: 1298.5How do you doTrue
+# Tests the ability to print dynamic booleans and strings set by a branch.
+# Input: 2, 1
+# Output: No, the assertion is not correct. False 10 15.0
 
 begin
-  int x;
-  float y;
-  string s;
-  bool z;
-  
-  if 1 < 2 then
-  begin
-    x := 12;
-    y := 98.5;
-    s := "How do you do"
-    z := True;
-  end
-  else
-  begin
-    x := 14;
-    y := 100.2;
-    s := "Como se va?"
-    z := False;
-  end
-  write(x,y,s,z);
+    int x, y;
+    read(x, y);
+    string s;
+    bool b;
+    int z;
+    float f;
+    if x < y then begin
+        s := "Yes, the assertion is correct.";
+        b := True;
+        z := 20;
+        f := 10.0;
+    end else begin
+        s := "No, the assertion is not correct.";
+        b := False;
+        z := 10;
+        f := 15;
+    end
+    write(s, " ", b, " ", z, " ", f);
 end
+

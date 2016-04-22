@@ -1,30 +1,15 @@
 // Complex pass by reference
-#include <stdio.h>
 
-int foo1(int* x, int* y) {
-  *x = *x + 1;
-  printf("foo1: %d %d\n", *x, *y);
-  *y = *y + 1;
-  printf("foo1: %d %d\n", *x, *y);
-  return *x + *y;
-}
-
-void foo2(int* x) {
-  int b;
-  scanf("%d", &b);
-  int a = *x;
-  a = a + b;
-  printf("foo2: %d %d\n", *x, a);
+int foo(int* x, int* y) {
+  x = x + 1;
+  y = y + 1;
+  return x + y;
 }
 
 int main() {
-  int a;
-  scanf("%d", &a);
-  int b = foo1(&a, &a);
-  printf("main: %d %d\n", a, b);
+  int a = 0;
+  int b = foo(a);
+  printf("%d\t%d\n", a, b);
 
-  int c;
-  scanf("%d", &c);
-  foo2(&c);
   return 0;
 }
