@@ -1,0 +1,23 @@
+begin
+    int x := 10;
+    float f := 20.0;
+    string s := "hey";
+    bool b := True;
+    write(x, f, s, b);
+
+    int a;
+    read(a);
+    if not (a < 1) then begin
+        x := 5;
+        f := 10.0;
+        s := "true";
+        b := True;
+    end else begin
+        x := 20;
+        f := 40.0;
+        s := "false";
+        b := False;
+    end
+
+    write(x, f, s, b);
+end
