@@ -1,5 +1,6 @@
+# Tests basic function handling
+
 begin
-    # I'd rather do some funky return syntax (like Swift?)
     foo() begin
         int i := 0;
         i := i + 1;

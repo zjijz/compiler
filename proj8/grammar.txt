@@ -1,25 +1,29 @@
 <block>		    ->	begin <statement list> end
-<statement list>->	<statement> { <statement>}
-<statement>		->	<ident_first>
+<statement list>->	<statement> {, <statement>}
+<statement>		->	<id_statement>
                     | <declaration>;
                     | read( <id list> );
                     | write( <expr list> );
                     | <if_statement>
                     | <while_statement>
+                    | return <expr_bool>
 <declaration>	->	<type> <dec list>
 <dec list>      ->  <dec term> { , <dec term> }
 <dec term>      ->  <ident> [ := <expr_bool> ] **ALlowed only once
 
-<ident_first>   ->  <ident> <after_ident>
-<afer_ident>    ->  <func>
+<id_statement>  ->  <ident> <id_state_body>
+<id_state_body> ->  <func>
                     | <assignment>
 
 <func>          ->  ( <func_gen>
 <func_gen>      ->  <func_call>
                     | <func_dec>
-<func_dec>      ->  <func_dec_t> ) [-> TYPE] <block>
-<func_dec_t>    ->  TYPE <ident> {, TYPE <ident>}
-<func_call>     ->  <ident> {, <ident>} );
+<func_dec>      ->  <func_dec_t> ) [> <type>] <block>
+<func_dec_t>    ->  <type> <ident> {, <type> <ident>}
+                    | (empty)
+<func_call>     ->  <func_call_t> );
+<func_call_t>   ->  <ident> {, <ident> }
+                    | (empty)
 
 <assignment>	->	:= <expr_bool>
 
@@ -28,28 +32,43 @@
 <while_statement>-> while <expr_bool> <block>
 
 <id list>		->	<ident> {, <ident>}
-<expr list>		->	<expr_bool> { , <expr_bool> }
+<expr list>		->	<expr_bool> {, <expr_bool> }
 
 <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
 <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
 <expr_eq>       ->  <expr_relation> { <equal_op> <expr_relation> }
 <expr_relation> ->  <expr_arith> { <rel_op> <expr_arith> }
-
 <expr_arith>    ->  <term_arith> { <unary_add_op> <term_arith> }
 <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
 <fact_arith>    ->  <unary_op> <term_unary>
-                    | <unary_add_op> <term_unary> | <term_unary>
-<term_unary>    ->  <literals> | <ident> | (expr_bool)
+                    | <unary_add_op> <term_unary>
+                    | <term_unary>
+<term_unary>    ->  <literals>
+                    | <ident>
+                    | ( expr_bool )
 
 # Everything under this needs to store the token in the tree node
-<type>          ->  INT | FLOAT | STRING | BOOL
+<type>          ->  INT
+                    | FLOAT
+                    | STRING
+                    | BOOL
 <ident>			->	ID
+
 # Order is operator preference
-<literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
+<literal>       ->  INTLIT
+                    | FLOATLIT
+                    | STRINGLIT
+                    | BOOLLIT
 <unary_op>      ->  LOG_NEGATION
-<mul_op>        ->  MULTIPLY | DIVIDE | MODULO
+<mul_op>        ->  MULTIPLY
+                    | DIVIDE
+                    | MODULO
 <add_op>		->	ADD | MINUS
-<rel_op>        ->  LESS_EQUAL | GREATER_EQUAL | LESS | GREATER
-<equal_op>      ->  EQUAL | NOT_EQUAL
+<rel_op>        ->  LESS_EQUAL
+                    | GREATER_EQUAL
+                    | LESS
+                    | GREATER
+<equal_op>      ->  EQUAL
+                    | NOT_EQUAL
 <log_and>       ->  LOG_AND
 <log_or>        ->  LOG_OR
