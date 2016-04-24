@@ -19,7 +19,7 @@
 <func_gen>      ->  <func_call>
                     | <func_dec>
 <func_dec>      ->  <func_dec_t> ) [> <type>] <block>
-<func_dec_t>    ->  <type> <ident> {, <type> <ident>}
+<func_dec_t>    ->  <type> [ref] <ident> {, <type> [ref] <ident>}
                     | (empty)
 <func_call>     ->  <func_call_t> );
 <func_call_t>   ->  <ident> {, <ident> }
