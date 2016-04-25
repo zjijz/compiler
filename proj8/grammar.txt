@@ -13,15 +13,14 @@
 
 <id_statement>  ->  <ident> <id_state_body>
 <id_state_body> ->  <func>
-                    | <assignment>
+                    | <assignment> ;
 
 <func>          ->  ( <func_gen> <func_tail>
 <func_gen>      ->  <func_dec>
                     | <func_call>
+		    | (empty)
 <func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
-                    | (empty)
 <func_call>     ->  <ident> {, <ident> }
-                    | (empty)
 <func_tail>     ->  ) <func_tail_gen>
 <func_tail_gen> ->  <func_tail_dec>
                     | <func_tail_call>

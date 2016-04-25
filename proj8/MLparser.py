@@ -3,10 +3,10 @@ Group 9: Caroline Danzi, Nick Liu, Gregory Pataky
 
 Parser for the Micro-language.
 Grammar:
-<<<<<<< HEAD
+
     <block>		    ->	begin <statement list> end
     <statement list>->	<statement> { <statement> }
-    <statement>		->	<assignment>;
+    <statement>		->	<id_statement>
                         | <declaration>;
                         | read( <id list> );
                         | write( <expr list> );
@@ -15,6 +15,22 @@ Grammar:
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
     <dec term>      ->  <ident> [ := <expr_bool> ] **Allowed only once
+
+    <id_statement>  ->  <ident> <id_state_body>
+    <id_state_body> ->  <func>
+                        | <assignment> ;
+
+    <func>          ->  ( <func_gen> <func_tail>
+    <func_gen>      ->  <func_dec>
+                    | <func_call>
+		    | (empty)
+    <func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
+    <func_call>     ->  <id_list>
+    <func_tail>     ->  ) <func_tail_gen>
+    <func_tail_gen> ->  <func_tail_dec>
+                    | <func_tail_call>
+    <func_tail_dec> ->  [> <type>] <block>
+    <func_tail_call>->  ;
 
     <assignment>	->	<ident> := <expr_bool>
     <if_statement>  ->  if <expr_bool> then <block> [else <block>]
@@ -115,7 +131,7 @@ class Parser:
             if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
-    # <statement> -> <assign>; | <declaration>; | read( <id_list> ); | write( <expr_list> );
+    # <statement> -> <id_statement> | <declaration>; | read( <id_list> ); | write( <expr_list> );
     #                | <if_statement> | <while_statement>
     def statement(self, cur_token, G):
         if cur_token.name in ("READ", "WRITE"):
@@ -136,10 +152,8 @@ class Parser:
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [child_declaration])
         if cur_token.t_class == "IDENTIFIER":
-            cur_token, child_assign = self.assign(cur_token, G)
-            if cur_token.name != "SEMICOLON":
-                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
-            return next(G), tree("STATEMENT", [child_assign])
+            cur_token, child_assign = self.id_statement(cur_token, G)
+            return cur_token, tree("STATEMENT", [child_assign])
         if cur_token.name == "IF":
             cur_token, child_if = self.if_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_if])
@@ -192,13 +206,107 @@ class Parser:
             return cur_token, tree("DEC_TERM", [child_ident, child_expr])
         return cur_token, tree("DEC_TERM", [child_ident])
 
-    # <assignment> -> <ident> := <expr_bool>
-    def assign(self, cur_token, G):
+    # <id_statement>  -> <ident> <id_state_body>
+    def id_statement(self, cur_token, G):
         cur_token, child_ident = self.ident(cur_token, G)
+        cur_token, child_state_body = self.id_state_body(cur_token, G)
+        return cur_token, tree("ID_STATEMENT", [child_ident, child_state_body])
+
+    # <id_state_body> -> <func> | <assignment> ;
+    def id_state_body(self, cur_token, G):
+        if cur_token.name == "LPAREN":
+            cur_token, child_tree = self.func(cur_token, G)
+        else:
+            cur_token, child_tree = self.assign(cur_token, G)
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("ID_STATE_BODY", ";", cur_token)
+            cur_token = next(G)
+        return cur_token, tree("ID_STATE_BODY", [child_tree])
+
+    # <func> -> ( <func_gen> <func_tail>
+    def func(self, cur_token, G):
+        if cur_token.name != "LPAREN":
+            raise ParserError.raise_parse_error("FUNC", '(', cur_token)
+        cur_token, child_func_gen = self.func_gen(next(G), G)
+        cur_token, child_func_tail = self.func_tail(cur_token, G)
+        return cur_token, tree("FUNC", [child_func_gen, child_func_tail])
+
+    # <func_gen> ->  <func_call> | <func_dec> | (empty)
+    def func_gen(self, cur_token, G):
+        if cur_token.t_class == "IDENTIFIER":
+            cur_token, child_tree = self.func_call(cur_token, G)
+            return cur_token, tree("FUNC_GEN", [child_tree])
+        elif cur_token.t_class == "TYPE":
+            cur_token, child_tree = self.func_dec(cur_token, G)
+            return cur_token, tree("FUNC_GEN", [child_tree])
+        else:
+            return cur_token, tree("FUNC_GEN")
+
+    # <func_dec> -> <type> [ref] <ident> {, <type> [ref] <ident>}
+    def func_dec(self, cur_token, G):
+        children = []
+        while True:
+            if cur_token.t_class != "TYPE":
+                raise ParserError.raise_parse_error("FUNC_DEC", "TYPE", cur_token)
+            type_tree = tree("TYPE", [], cur_token)
+            children.append(type_tree)
+            cur_token = next(G)
+
+            if cur_token.name == "REF":
+                ref_tree = tree("REF", [], cur_token)
+                children.append(ref_tree)
+                cur_token = next(G)
+
+            cur_token, child_ident = self.ident(cur_token, G)
+            children.append(child_ident)
+            if cur_token.name != "COMMA":
+                return cur_token, tree("FUNC_DEC", children)
+            cur_token = next(G)  # comma
+
+    # <func_call> -> <id_list>
+    def func_call(self, cur_token, G):
+        cur_token, child_id_list = self.id_list(cur_token, G)
+        return cur_token, tree("FUNC_CALL", [child_id_list])
+
+    # <func_tail>  ->  ) <func_tail_gen>
+    def func_tail(self, cur_token, G):
+        if cur_token.name != "RPAREN":
+            raise ParserError.raise_parse_error("FUNC_TAIL", ')', cur_token)
+        cur_token, child_func_tail_gen = self.func_tail_gen(next(G), G)
+        return cur_token, tree("FUNC_TAIL", [child_func_tail_gen])
+
+    # <func_tail_gen> -> <func_tail_dec> | <func_tail_call>
+    def func_tail_gen(self, cur_token, G):
+        if cur_token.name == "SEMICOLON":
+            cur_token, child_tree = self.func_tail_call(cur_token, G)
+        else:
+            cur_token, child_tree = self.func_tail_dec(cur_token, G)
+        return cur_token, tree("FUNC_TAIL_GEN", [child_tree])
+
+    # <func_tail_dec> -> [> <type>] <block>
+    def func_tail_dec(self, cur_token, G):
+        children = []
+        if cur_token.name != "BEGIN":
+            type_tree = tree("TYPE", [], next(G))
+            children.append(type_tree)
+            cur_token = next(G)
+        cur_token, child_block = self.block(cur_token, G)
+        children.append(child_block)
+        return cur_token, tree("FUNC_TAIL_DEC", children)
+
+    # <func_tail_call>-> ;
+    def func_tail_call(self, cur_token, G):
+        if cur_token.name != "SEMICOLON":
+            raise ParserError.raise_parse_error("ID_STATE_BODY", ";", cur_token)
+        return next(G), tree("FUNC_TAIL_CALL")
+
+    # <assignment> -> := <expr_bool>
+    def assign(self, cur_token, G):
         if cur_token.name != "ASSIGNOP":
             raise ParserError.raise_parse_error("ASSIGN", ":=", cur_token)
         cur_token, child_expr_bool = self.expr_bool(next(G), G)
-        return cur_token, tree("ASSIGN", [child_ident, child_expr_bool])
+        
+        return cur_token, tree("ASSIGN", [child_expr_bool])
 
     # <id_list> -> <ident> {, <ident>}
     def id_list(self, cur_token, G):
