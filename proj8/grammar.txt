@@ -15,15 +15,18 @@
 <id_state_body> ->  <func>
                     | <assignment>
 
-<func>          ->  ( <func_gen>
-<func_gen>      ->  <func_call>
-                    | <func_dec>
-<func_dec>      ->  <func_dec_t> ) [> <type>] <block>
-<func_dec_t>    ->  <type> [ref] <ident> {, <type> [ref] <ident>}
+<func>          ->  ( <func_gen> <func_tail>
+<func_gen>      ->  <func_dec>
+                    | <func_call>
+<func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
                     | (empty)
-<func_call>     ->  <func_call_t> );
-<func_call_t>   ->  <ident> {, <ident> }
+<func_call>     ->  <ident> {, <ident> }
                     | (empty)
+<func_tail>     ->  ) <func_tail_gen>
+<func_tail_gen> ->  <func_tail_dec>
+                    | <func_tail_call>
+<func_tail_dec> ->  [> <type>] <block>
+<func_tail_call>->  ;
 
 <assignment>	->	:= <expr_bool>
 
