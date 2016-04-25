@@ -13,7 +13,7 @@ begin
         int i;
         float s := 0;
 
-        int i = 0;
+        int i := 0;
         while i <= 10 begin
             s := s + 1.0 / fact(i);
             i := i + 1;

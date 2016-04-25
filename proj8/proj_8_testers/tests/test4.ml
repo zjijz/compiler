@@ -1,7 +1,7 @@
 # Tests globals and scoping
 
 begin
-    int x = 0;
+    int x := 0;
 
     foo1() begin
         write("foo1: ", x, "\n");
