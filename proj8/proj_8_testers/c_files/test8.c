@@ -8,7 +8,8 @@ int foo(int& x, int& y) {
 
 int main() {
   int a = 0;
-  int b = foo(a, 4);
+  int c = 4;
+  int b = foo(a, c);
   printf("%d\t%d\n", a, b);
 
   return 0;
