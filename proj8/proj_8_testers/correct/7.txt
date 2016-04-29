@@ -1,0 +1,9 @@
+main: 2
+foo1: 2
+foo1: 6
+main: 6
+foo2: 10
+foo3: 10
+foo3: 15
+foo2: 15
+main: 15
