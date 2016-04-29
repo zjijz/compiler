@@ -110,6 +110,101 @@ class Register:
             return True
 
 
+class SymbolTable:
+    @staticmethod
+    def _empty_sym_table_dict():
+        return {'type': None, 'scope': None, 'mem_name': None, 'init_val': None,
+                'curr_val': None, 'addr_reg': None, 'val_reg': None, 'used': False}
+
+    @staticmethod
+    def _empty_array_sym_table_dict():
+        return {'type': None, 'mem_name': None, 'addr_reg': None, 'used': False}
+
+    def _find_table(self, ident):
+        curr_scope = self.scope
+        while curr_scope >= 0:
+            try:
+                self.symbol_tables[self.scope][ident]
+                break
+            except KeyError:
+                pass
+
+            curr_scope -= 1
+
+        return curr_scope
+
+    def _create_array_sym_table(self):
+        array_sym_table = {}
+
+        # 'True' for bool
+        true_dict = self._empty_array_sym_table_dict()
+        true_dict['type'] = '.asciiz'
+        true_dict['mem_name'] = next(self.var_name_generator)
+        array_sym_table['"True"'] = true_dict
+
+        # 'False' for bool
+        false_dict = self._empty_array_sym_table_dict()
+        false_dict['type'] = '.asciiz'
+        false_dict['mem_name'] = next(self.var_name_generator)
+        array_sym_table['"False"'] = false_dict
+
+        return array_sym_table
+
+    def __init__(self):
+        # Scope stuff
+        self.scope = 0
+
+        # Symbol tables
+        self.symbol_tables = [{}]
+        self.array_symbol_tables = [self._create_array_sym_table()]
+        self.closed_table_entries = []
+        self.closed_array_table_entries = []
+
+        # Name generators
+        self.var_name_generator = variable_name_generator()
+
+    def create_entry(self, ident, token, mem_type, init_val, curr_val, addr_reg, val_reg, used):
+        if self.check_entered(ident):
+            ParserError.raise_already_declared_error(ident, token.line_num, token.col)
+
+        self.set_entry(mem_type, next(self.var_name_generator), init_val, curr_val, addr_reg, val_reg, used)
+
+    def get_entry(self, ident, token):
+        table_num = self._find_entry(ident)
+
+        if table_num == -1:
+            SemanticError.raise_declaration_error(ident, token.line_num, token.col)
+
+        ret_dict = self.symbol_tables[table_num][ident]
+
+        return ret_dict['type'], ret_dict['mem_name'], ret_dict['init_val'], ret_dict['curr_val'], ret_dict['addr_reg'], ret_dict['val_reg'], \
+               ret_dict['used']
+
+    def check_entered(self, ident):
+        if self.symbol_tables[self.scope][ident]:
+            return True
+        else:
+            return False
+
+    def set_entry(self, ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used):
+        table_num = self._find_entry(ident)
+        # Might have an error here if ident isn't found
+        self.symbol_tables[table_num][ident] = {'type': mem_type, 'mem_name': mem_name, 'init_val': init_val, 'curr_val': curr_val,
+                   'addr_reg': addr_reg, 'val_reg': val_reg, 'used': used}
+
+    def open_scope(self):
+        self.scope += 1
+        self.symbol_tables.append({})
+
+    def close_scope(self):
+        # Save off all table entries to a list to then proces sfor printing at the end
+        for dict in self.symbol_tables[self.scope]:
+            self.closed_table_entries.append(dict)
+
+        self.symbol_tables = self.symbol_tables[:self.scope]
+        self.scope -= 1
+
+
 class CodeGenerator:
     """
     Object that takes a parse tree, symbol table, and output file,
