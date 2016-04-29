@@ -1,5 +1,8 @@
 // Complex pass by reference
 
+#include <stdio.h>
+
+
 int foo(int& x, int& y) {
   x = x + 1;
   y = y + 1;
