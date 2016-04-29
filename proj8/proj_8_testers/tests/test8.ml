@@ -8,6 +8,8 @@ begin
     end
 
     int a := 0;
-    int b := foo(a);
+    int c := 4;
+    int b := foo(a, c);
     write(a, "\t", b, "\n");
 end
+
