@@ -1,3 +1,7 @@
+# Karro P7 Test
+# Input: none
+# Ouput: Yes\nDone
+
 begin
    bool x;
    x := True;
@@ -5,8 +9,5 @@ begin
    begin
       write("Yes\n");
    end
-   else
-   begin
-      write("No\n");
-   end
+   write("Done\n");
 end

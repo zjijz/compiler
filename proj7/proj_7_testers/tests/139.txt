@@ -1,3 +1,7 @@
+# Karro P7 test
+# Input: none
+# Output: No
+
 begin
    bool x;
    x := False;

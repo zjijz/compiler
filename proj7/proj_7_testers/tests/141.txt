@@ -1,3 +1,7 @@
+# Karro P7 Test
+# Input: 15
+# Output: No
+
 begin
   int i;
   read(i);
