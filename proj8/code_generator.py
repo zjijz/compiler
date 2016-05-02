@@ -243,7 +243,7 @@ class CodeGenerator:
         self.safe_mode = is_safe
 
         # Function dictionary
-        self.func_factory = {"READ": self._read, "WRITE": self._write, "ASSIGN": self._assign,
+        self.func_factory = {"READ": self._read, "WRITE": self._write, "ID_STATEMENT": self._id_statement,
                              "DECLARATION": self._declare, "IF_STATEMENT": self._process_if,
                              "WHILE_STATEMENT": self._process_while}
 
@@ -764,15 +764,61 @@ class CodeGenerator:
                         is_a0_set = True
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
+
+############
+#changed part
+        
+#############
+    def _id_statement(self, tree_nodes):
+        self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
+
+    def _process_id_state_body(self, ident_node, id_state_body_node):
+        print(id_state_body_node)
+        if id_state_body_node.children[0].label == "ASSIGN":
+            self._assign(ident_node, id_state_body_node.children[0])
+        else:
+            self._process_func(ident_node, id_state_body_node)
+
+    def _process_func(self, ident_node, tree_nodes):
+        
+        pass
+
+    def _process_func_gen(self, tree_nodes):
+        pass
+
+    def _process_func_tail(self, tree_nodes):
+        pass
+
+    def _process_func_dec(self, tree_nodes):
+        pass
+
+    def _process_func_call(self, tree_nodes):
+        pass
+
+    def _process_func_tail_gen(self, tree_nodes):
+        pass
+
+    def _process_func_tail_dec(self, tree_nodes):
+        pass
+
+    def _process_func_tail_call(self, tree_nodes):
+        pass
+
+
+#############
+
+##################
+    
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
-    def _assign(self, tree_nodes):
+    def _assign(self, ident_node, tree_nodes):
+        print(tree_nodes.children[0])
         # Get RHS result
         expr_id = None
-        expr_reg, expr_type, expr_token = self._process_expr_bool(tree_nodes[0].children[1].children)
+        expr_reg, expr_type, expr_token = self._process_expr_bool(tree_nodes.children[0].children)
 
         # Get LHS variable
-        token = tree_nodes[0].children[0].token
+        token = ident_node.token
         ident = token.pattern
         id_dict = self._get_sym_table_entry(ident, token)
         mem_name = id_dict['mem_name']
