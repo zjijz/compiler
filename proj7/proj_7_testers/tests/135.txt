@@ -7,7 +7,6 @@ begin
     float f := 20.0;
     string s := "hey";
     bool b := True;
-    write(x, f, s, b);
 
     int a;
     read(a);

@@ -1,3 +1,26 @@
-MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
-
-1404
+Failed to import the site module
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 563, in <module>
+    main()
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 550, in main
+    known_paths = addsitepackages(known_paths)
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 327, in addsitepackages
+    addsitedir(sitedir, known_paths)
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 206, in addsitedir
+    addpackage(sitedir, name, known_paths)
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/site.py", line 167, in addpackage
+    exec(line)
+  File "<string>", line 1, in <module>
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/types.py", line 166, in <module>
+    import functools as _functools
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/functools.py", line 21, in <module>
+    from collections import namedtuple
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/collections/__init__.py", line 10, in <module>
+    from operator import itemgetter as _itemgetter, eq as _eq
+  File "<frozen importlib._bootstrap>", line 969, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 958, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 673, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 658, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 747, in get_code
+  File "<frozen importlib._bootstrap_external>", line 816, in get_data
+KeyboardInterrupt

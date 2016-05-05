@@ -1,3 +1,11 @@
-MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/copy.py", line 265, in _keep_alive
+    memo[id(memo)].append(x)
+KeyError: 4321339400
 
-FalseTrueFalse
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/copy.py", line 268, in _keep_alive
+    memo[id(memo)]=[x]
+KeyboardInterrupt

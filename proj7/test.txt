@@ -1,5 +1,11 @@
 begin
-    write(True, "True");
+    int x := 10;
+    if x > 1 then begin
+        int x;
+        read(x);
+        write(x);
+    end
+    write(x);
 end
 
 #begin

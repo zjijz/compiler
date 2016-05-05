@@ -1,3 +1,10 @@
-MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
-
-I never could get the hang of Thursdays.
+Traceback (most recent call last):
+  File "compiler.py", line 3, in <module>
+    from MLparser import *
+  File "<frozen importlib._bootstrap>", line 969, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 958, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 673, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 658, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 762, in get_code
+  File "<frozen importlib._bootstrap_external>", line 473, in _compile_bytecode
+KeyboardInterrupt

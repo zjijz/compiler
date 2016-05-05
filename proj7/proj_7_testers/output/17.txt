@@ -1,1 +1,4 @@
-Semantic Error
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/sre_parse.py", line 799, in fix_flags
+    if isinstance(src, str):
+KeyboardInterrupt
