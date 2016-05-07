@@ -1,0 +1,17 @@
+# Test if/else where conditional evaluates to true
+# Input: 12
+# Output: True
+
+begin
+  int x,y;
+  x := 12;
+  read(y);
+  if x == y then
+    begin
+      write(True);
+    end
+  else
+    begin
+      write(False);
+    end
+end

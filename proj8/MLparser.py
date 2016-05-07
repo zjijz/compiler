@@ -22,13 +22,13 @@ Grammar:
 
     <func>          ->  ( <func_gen> <func_tail>
     <func_gen>      ->  <func_dec>
-                    | <func_call>
-		    | (empty)
+                        | <func_call>
+                        | (empty)
     <func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
-    <func_call>     ->  <id_list>
+    <func_call>     ->  <param_list>
     <func_tail>     ->  ) <func_tail_gen>
     <func_tail_gen> ->  <func_tail_dec>
-                    | <func_tail_call>
+                        | <func_tail_call>
     <func_tail_dec> ->  [> <type>] <block>
     <func_tail_call>->  ;
 
@@ -38,6 +38,7 @@ Grammar:
 
     <id list>		->	<ident> {, <ident>}
     <expr list>		->	<expr_bool> { , <expr_bool> }
+    <param_list>    ->  <param> {, <param>}
 
     <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
@@ -52,6 +53,8 @@ Grammar:
 
     # Everything under this needs to store the token in the tree node
     <type>          ->  INT | FLOAT | STRING | BOOL
+    <param>         ->  <ident>
+                        | <literal>
     <ident>			->	ID
     # Order is operator preference
     <literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
@@ -305,7 +308,7 @@ class Parser:
         if cur_token.name != "ASSIGNOP":
             raise ParserError.raise_parse_error("ASSIGN", ":=", cur_token)
         cur_token, child_expr_bool = self.expr_bool(next(G), G)
-        
+
         return cur_token, tree("ASSIGN", [child_expr_bool])
 
     # <id_list> -> <ident> {, <ident>}

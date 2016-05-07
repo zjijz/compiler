@@ -1,0 +1,16 @@
+# Test condition is a float
+# Output: Semantic Error
+
+begin
+  float x;
+  read(x);
+  if x + 2.0 then
+    begin
+      x := x + 10;
+    end
+  else
+    begin
+      x := x + 11;
+    end
+  write(x);
+end

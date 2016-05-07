@@ -1,0 +1,19 @@
+# Input: 5
+# Output: LLLLLGGGGG
+
+begin
+    int x;
+    read(x);
+    string str;
+    while x < 15 begin
+        if x < 10 then begin
+            str := "L";
+            write(str);
+        end
+        else begin
+            str := "G";
+            write(str);
+        end
+        x := x + 1;
+    end
+end

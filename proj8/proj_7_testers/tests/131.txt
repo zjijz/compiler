@@ -1,0 +1,32 @@
+# Test setting all variable types to different values in
+# if/else blocks
+# Output: 12.262.0True6.032.3False12.262.0False12.262.0False
+
+begin
+  int x,y;
+  float f,g;
+  bool b := True;
+  string s := "Happy Birthday Greg!";
+  x := 3;
+
+  while x > 0
+  begin
+  x := x - 1;
+
+  if x % 2 == 0 then
+    begin
+      f := 12.2;
+      g := 62.0;
+      write(f,g, b);
+    end
+  else
+    begin
+      b := 3 + 4 == 12;
+      f := 6.0;
+      g := 32.3;
+      write(f, g, b);
+    end
+
+  end # while
+  write(f, g, b);
+end

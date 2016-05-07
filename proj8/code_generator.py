@@ -5,7 +5,7 @@ from errors import *
 from copy import *
 
 # Symbol Table (Keys are ID pattern, Values are Dicts themselves)
-#  'type': Data type
+#  'type': Data type (functions have [(params), ret_type])
 #  'mem_name": variable name for .data
 #  'init_val': initial value ('DYNAMIC' if set with READ)('TEMP' if TEMP variable)
 #  'curr_val': current value (None if used in an operation with a variable from READ)
@@ -50,6 +50,12 @@ from copy import *
 #  Keys are 'mem_name' (unique variable identifiers)
 #
 #  Values are a list of properties from Symbol Table that have been edited
+
+# Frames
+# Old Frame Pointer (4 bytes)
+# Return address (4 bytes)
+# Parameters (variable length)
+# Return value (variable space - to head of $sp)
 
 
 # Courtesy of Dr. Karro
@@ -124,13 +130,12 @@ class SymbolTable:
         curr_scope = self.scope
         while curr_scope >= 0:
             try:
-                self.symbol_tables[self.scope][ident]
+                self.symbol_tables[curr_scope][ident]
                 break
             except KeyError:
                 pass
 
             curr_scope -= 1
-
         return curr_scope
 
     def _create_array_sym_table(self):
@@ -152,53 +157,86 @@ class SymbolTable:
 
     def __init__(self):
         # Scope stuff
-        self.scope = 0
-
-        # Symbol tables
-        self.symbol_tables = [{}]
-        self.array_symbol_tables = [self._create_array_sym_table()]
-        self.closed_table_entries = []
-        self.closed_array_table_entries = []
+        self.scope = -1
 
         # Name generators
         self.var_name_generator = variable_name_generator()
 
+        # Symbol tables
+        self.symbol_tables = [{}]
+        self.array_symbol_table = self._create_array_sym_table()
+        self.closed_table_entries = []
+
     def create_entry(self, ident, token, mem_type, init_val, curr_val, addr_reg, val_reg, used):
         if self.check_entered(ident):
-            ParserError.raise_already_declared_error(ident, token.line_num, token.col)
+            SemanticError.raise_already_declared_error(ident, token.line_num, token.col)
 
-        self.set_entry(mem_type, next(self.var_name_generator), init_val, curr_val, addr_reg, val_reg, used)
+        self.symbol_tables[self.scope][ident] = {'type': mem_type, 'mem_name': next(self.var_name_generator),
+                                                 'init_val': init_val, 'curr_val': curr_val, 'addr_reg': addr_reg,
+                                                 'val_reg': val_reg, 'used': used}
+
+    def create_array_entry(self, string, mem_type, addr_reg, used):
+        self.array_symbol_table[string] = {'type': mem_type, 'mem_name': next(self.var_name_generator),
+                                           'addr_reg': addr_reg, 'used': used}
 
     def get_entry(self, ident, token):
-        table_num = self._find_entry(ident)
+        table_num = self._find_table(ident)
 
         if table_num == -1:
             SemanticError.raise_declaration_error(ident, token.line_num, token.col)
 
         ret_dict = self.symbol_tables[table_num][ident]
+        return ret_dict['type'], ret_dict['mem_name'], ret_dict['init_val'], ret_dict['curr_val'], \
+               ret_dict['addr_reg'], ret_dict['val_reg'], ret_dict['used']
 
-        return ret_dict['type'], ret_dict['mem_name'], ret_dict['init_val'], ret_dict['curr_val'], ret_dict['addr_reg'], ret_dict['val_reg'], \
-               ret_dict['used']
+    def get_array_entry(self, string, token):
+        ret_dict = self.array_symbol_table[string]
+        return ret_dict['type'], ret_dict['mem_name'], ret_dict['addr_reg'], ret_dict['used']
+
+    def get_entry_suppress(self, ident):
+        table_num = self._find_table(ident)
+
+        if table_num == -1:
+            return None, None, None, None, None, None, None
+
+        ret_dict = self.symbol_tables[table_num][ident]
+        return ret_dict['type'], ret_dict['mem_name'], ret_dict['init_val'], ret_dict['curr_val'], \
+               ret_dict['addr_reg'], ret_dict['val_reg'], ret_dict['used']
+
+    def get_array_entry_suppress(self, string):
+        try:
+            ret_dict = self.array_symbol_table[string]
+            return ret_dict['type'], ret_dict['mem_name'], ret_dict['addr_reg'], ret_dict['used']
+        except KeyError:
+            return None, None, None, None
 
     def check_entered(self, ident):
-        if self.symbol_tables[self.scope][ident]:
+        try:
+            self.symbol_tables[self.scope][ident]
             return True
-        else:
+        except KeyError:
             return False
 
     def set_entry(self, ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used):
-        table_num = self._find_entry(ident)
+        table_num = self._find_table(ident)
         # Might have an error here if ident isn't found
-        self.symbol_tables[table_num][ident] = {'type': mem_type, 'mem_name': mem_name, 'init_val': init_val, 'curr_val': curr_val,
-                   'addr_reg': addr_reg, 'val_reg': val_reg, 'used': used}
+        self.symbol_tables[table_num][ident] = {'type': mem_type, 'mem_name': mem_name, 'init_val': init_val,
+                                                'curr_val': curr_val, 'addr_reg': addr_reg,
+                                                'val_reg': val_reg, 'used': used}
+
+    def set_array_entry(self, string, mem_type, mem_name, addr_reg, used):
+        self.array_symbol_table[string] = {'mem_name': mem_name, 'type': mem_type, 'addr_reg': addr_reg,
+                                           'used': used}
 
     def open_scope(self):
         self.scope += 1
         self.symbol_tables.append({})
 
     def close_scope(self):
-        # Save off all table entries to a list to then proces sfor printing at the end
-        for dict in self.symbol_tables[self.scope]:
+        # Save off all table entries to a list to then process for printing at the end
+        for mem_id, dict in self.symbol_tables[self.scope].items():
+            dict['mem_id'] = mem_id
+            dict['scope'] = self.scope
             self.closed_table_entries.append(dict)
 
         self.symbol_tables = self.symbol_tables[:self.scope]
@@ -220,21 +258,11 @@ class CodeGenerator:
         return {'id': None, 'val': None, 'mem_type': None}
 
     @staticmethod
-    def _empty_sym_table_dict():
-        return {'type': None, 'scope': None, 'mem_name': None, 'init_val': None,
-                'curr_val': None, 'addr_reg': None, 'val_reg': None, 'used': False}
-
-    @staticmethod
-    def _empty_array_sym_table_dict():
-        return {'type': None, 'mem_name': None, 'addr_reg': None, 'used': False}
-
-    @staticmethod
     def _empty_tail_call(accum_id, val_reg, val_type, val_token, immediate_val):
         return val_reg, immediate_val, val_type
 
     def __init__(self, parse_tree, output_filename, is_debug, is_safe):
         # Name / ID generators
-        self.var_name_generator = variable_name_generator()
         self.temp_id_generator = temp_var_id_generator()
         self.conditional_name_generator = variable_name_generator()
 
@@ -251,11 +279,7 @@ class CodeGenerator:
         self.tree = parse_tree
 
         # Symbol Tables
-        self.sym_table = {}
-        # These system strings start with an untypable character to ensure no conflict with user-defined strings
-        self.bool_true_string = '"True"'
-        self.bool_false_string = '"False"'
-        self.array_sym_table = self._create_array_sym_table()
+        self.sym_table = SymbolTable()
 
         # Registers
         # self.reg_pool = all normal registers
@@ -286,28 +310,12 @@ class CodeGenerator:
         # Output options
         self.output_name = output_filename
         self.output_string = ''
+        self.func_string = ''
 
     def compile(self):
         self._start()
         self._process_block(self.tree)
         self._finish()
-
-    def _create_array_sym_table(self):
-        array_sym_table = {}
-
-        # 'True' for bool
-        true_dict = self._empty_array_sym_table_dict()
-        true_dict['type'] = '.asciiz'
-        true_dict['mem_name'] = next(self.var_name_generator)
-        array_sym_table[self.bool_true_string] = true_dict
-
-        # 'False' for bool
-        false_dict = self._empty_array_sym_table_dict()
-        false_dict['type'] = '.asciiz'
-        false_dict['mem_name'] = next(self.var_name_generator)
-        array_sym_table[self.bool_false_string] = false_dict
-
-        return array_sym_table
 
     def _create_register_pool(self, type_s = 'normal'):
         pool = []
@@ -425,13 +433,13 @@ class CodeGenerator:
         reg = reg_pop['reg']
 
         if mem_type == 'ARRAY_ADDRESS': # Update array_sym_table and return reg
-            self.array_sym_table[mem_id]['addr_reg'] = None
+            mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(mem_id, None)
+            self.sym_table.set_array_entry(mem_id, mem_type, mem_name, None, used)
         elif mem_type == 'ADDRESS': # If the register stores an address, just update tables
-            self.sym_table[mem_id]['addr_reg'] = None
+            mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
+            self.sym_table.set_entry(mem_id, mem_type, mem_name, init_val, curr_val, None, val_reg, used)
         elif mem_type == 'VALUE':
-            id_dict = self.sym_table[mem_id]
-            mem_name = id_dict['mem_name']
-            addr_reg = id_dict['addr_reg']
+            mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
 
             # Try to find addr_reg, else free up a register
             if not addr_reg:
@@ -441,14 +449,16 @@ class CodeGenerator:
                 self.output_string += asm_save_mem_var_from_addr(addr_reg, reg)
 
             # Remove old references in symbol and register tables
-            id_dict['val_reg'] = None
+            self.sym_table.set_entry(mem_id, mem_type, mem_name, init_val, curr_val, addr_reg, None, used)
         else: # mem_type = TYPE.*
-            mem_name = next(self.var_name_generator)
             mem_type = mem_type[mem_type.find('.') + 1:]
 
-            # Create sym_table entry
-            self.sym_table[mem_id] = {'type': mem_type, 'scope': None, 'mem_name': mem_name, 'init_val': 'TEMP',
-                                      'curr_val': None, 'addr_reg': None, 'val_reg': None, 'used': True}
+            mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry_suppress(mem_id)
+            if mem_name is None:
+                # Create sym_table entry
+                self.sym_table.create_entry(ident=mem_id, token=None, mem_type=mem_type, init_val='TEMP', curr_val=None,
+                                            addr_reg=None, val_reg=None, used=True)
+                _, mem_name, _, _, _, _, _ = self.sym_table.get_entry(mem_id, None)
 
             # Save variable to memory
             save_using_s0(mem_name, reg)
@@ -457,22 +467,12 @@ class CodeGenerator:
         reg_table[reg] = CodeGenerator._empty_reg_dict()
         return reg
 
-    # Abstraction that allows all methods that need to try to access sym_table to run this instead to catch
-    # un-initialization error
-    def _get_sym_table_entry(self, ident, token):
-        id_dict = None
-        try:
-            id_dict = self.sym_table[ident]
-        except KeyError:
-            SemanticError.raise_declaration_error(ident, token.line_num, token.col)
-        return id_dict
-
     # Used mostly or expr to reserve registers for temporary variables
     def _update_reg_table(self, table_type, mem_id, reg, reg_type):
         reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
 
         reg_dict = reg_table[reg]
-        reg_dict['id'] =  mem_id
+        reg_dict['id'] = mem_id
         reg_dict['mem_type'] = reg_type
 
     # Will update tables to reflect the changes made to val_reg and addr_reg
@@ -480,13 +480,11 @@ class CodeGenerator:
     # This WILL NOT update if passed registers are None. Instead, manually remove them yourself (might make a separate
     #  method for this later)
     # DOES NOT update var_queue, that is up to you
-    def _update_tables(self, table_type, ident, new_addr_reg, new_val_reg, id_dict = None, addr_reg_dict = None, val_reg_dict = None):
-        val_reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
+    def _update_tables(self, table_type, ident, new_addr_reg, new_val_reg, addr_reg_dict = None, val_reg_dict = None):
         val_reg_table = self.float_reg_table if table_type == 'float' else self.reg_table
 
-        # Null Checks
-        if not id_dict:
-            id_dict = self.sym_table[ident]
+        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(ident, None)
+
         if not addr_reg_dict and new_addr_reg:
             addr_reg_dict = self.reg_table[new_addr_reg]
         if not val_reg_dict and new_val_reg:
@@ -496,39 +494,37 @@ class CodeGenerator:
         if new_addr_reg:
             addr_reg_dict['id'] = ident
             addr_reg_dict['mem_type'] = 'ADDRESS'
-
-            id_dict['addr_reg'] = new_addr_reg
+            addr_reg = new_addr_reg
 
         # Edit val_reg dict
         if new_val_reg:
             val_reg_dict['id'] = ident
             val_reg_dict['mem_type'] = 'VALUE'
+            val_reg = new_val_reg
 
-            id_dict['val_reg'] = new_val_reg
+        self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
     def _start(self):
         # Append .text' section
-        self.output_string = '.text\n'
+        self.output_string = '.text\n' + asm_init_frame_pointer()
 
     def _finish(self):
         data_section = ''
 
-        for id in self.sym_table:
-            id_dict = self.sym_table[id]
-
-            if id_dict['used']:
-                val_type = id_dict['type']
-                scope = id_dict['scope']
-                name = id_dict['mem_name']
-                init_val = id_dict['init_val']
+        for dict in self.sym_table.closed_table_entries:
+            if dict['used']:
+                mem_id = dict['mem_id']
+                val_type = dict['type']
+                name = dict['mem_name']
+                init_val = dict['init_val']
+                scope = dict['scope']
 
                 # Variables can be:
                 # - ints, floats -> .word
-                # - booleans -> .byte
+                # - booleans -> .word (change to .word later)
                 # - strings -> different sym table
                 o_type = '.word'
-                #if val_type == 'bool':
-                #    o_type = '.byte'
+
                 if val_type == 'float':
                     o_type = '.float'
 
@@ -539,12 +535,10 @@ class CodeGenerator:
                 elif init_val is not None and type(init_val) is not str:
                     o_val = init_val
 
-                data_section += '{:s}:\t{:s}\t{:s}\t# {:s} in original\n'\
-                                .format(name, o_type, str(o_val), id)
+                data_section += '{:s}:\t{:s}\t{:s}\t# {:s} [{:d}] in original\n'\
+                                .format(name, o_type, str(o_val), mem_id, scope)
 
-        for string in self.array_sym_table:
-            id_dict = self.array_sym_table[string]
-
+        for string, id_dict in self.sym_table.array_symbol_table.items():
             if id_dict['used']:
                 name = id_dict['mem_name']
                 o_type = id_dict['type']
@@ -558,6 +552,12 @@ class CodeGenerator:
 
         self.output_string = data_section + self.output_string
 
+        # Add exit on main function
+        self.output_string += asm_call_exit()
+
+        # Append other functions
+        self.output_string += self.func_string
+
         # Write file
         fp = open(self.output_name, 'w')
         fp.write(self.output_string)
@@ -565,30 +565,33 @@ class CodeGenerator:
 
         # Debug printing
         if self.debug_mode:
-            print('\n', 'Symbol Table: ', self.sym_table, '\n\n', 'Array Symbol Table: ', self.array_sym_table, '\n\n',
-                  'Register Table: ', self.reg_table, '\n\n', 'Float Register Table', self.float_reg_table, '\n\n',
+            print('\n',
+                  'Symbol Table: ', self.sym_table.closed_table_entries, '\n\n',
+                  'Array Symbol Table: ', self.sym_table.array_symbol_table, '\n\n',
+                  'Register Table: ', self.reg_table, '\n\n',
+                  'Float Register Table', self.float_reg_table, '\n\n',
                   'Auxiliary Register Table', self.aux_reg_table, '\n\n',
-                  'Variable Queue: ', self.var_queue, '\n\n', 'Float Variable Queue: ', self.float_var_queue, '\n')
+                  'Variable Queue: ', self.var_queue, '\n\n',
+                  'Float Variable Queue: ', self.float_var_queue, '\n')
 
     def _save_off_registers(self):
         while len(self.var_queue) > 0:
             entry = self.var_queue.pop(0)
-            print(entry)
             reg = entry['reg']
             mem_id = entry['id']
             mem_type = entry['mem_type']
             if mem_type == 'VALUE':
-                id_dict = self.sym_table[mem_id]
-                print('entered', reg, id_dict['mem_name'])
-                id_dict['used'] = True
-                id_dict['val_reg'] = None
-                self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
+                mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
+                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                         curr_val=curr_val, addr_reg=addr_reg, val_reg=None, used=True)
+                self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
             elif mem_type == 'ADDRESS':
-                id_dict = self.sym_table[mem_id]
-                id_dict['addr_reg'] = None
+                mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
+                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                         curr_val=curr_val, addr_reg=None, val_reg=val_reg, used=used)
             elif mem_type == 'ARRAY_ADDRESS':
-                self.array_sym_table[mem_id]['used'] = True
-                self.array_sym_table[mem_id]['addr_reg'] = None
+                mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(mem_id, None)
+                self.sym_table.set_array_entry(mem_id, mem_type, mem_name, None, True)
 
         while len(self.float_var_queue) > 0:
             entry = self.float_var_queue.pop(0)
@@ -596,27 +599,185 @@ class CodeGenerator:
             mem_id = entry['id']
             mem_type = entry['mem_type']
             if mem_type == 'VALUE':
-                id_dict = self.sym_table[mem_id]
-                id_dict['used'] = True
-                id_dict['val_reg'] = None
-                self.output_string += asm_save_mem_var_from_addr(id_dict['mem_name'], reg)
+                mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
+                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                         curr_val=curr_val, addr_reg=None, val_reg=None, used=True)
+                self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
             elif mem_type == 'ADDRESS':
-                id_dict = self.sym_table[mem_id]
-                id_dict['addr_reg'] = None
-
-        for dict in self.sym_table.values():
-            dict['used'] = True
-            if dict['curr_val'] and dict['type'] != 'string':
-                self.output_string += asm_save_mem_var_from_addr(dict['mem_name'], dict['curr_val'])
-            dict['curr_val'] = None
+                mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
+                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                         curr_val=curr_val, addr_reg=None, val_reg=val_reg, used=used)
 
         self.reg_table = self._init_reg_table('normal')
         self.float_reg_table = self._init_reg_table('float')
         self.aux_reg_table = self._init_reg_table('aux')
 
-    # Do stuff with scope here
-    def _process_block(self, tree_nodes, save_mode = False):
+    def _process_block(self, tree_nodes):
+        self._save_off_registers()
+        self.sym_table.open_scope()
         self._traverse(tree_nodes)
+        self._save_off_registers()
+        self.sym_table.close_scope()
+
+    def _process_func_block(self, ident, func_name, parameters, tree_nodes):
+        # Save off old tables
+        saved_reg_table = self.reg_table
+        saved_float_reg_table = self.float_reg_table
+        saved_aux_reg_table = self.aux_reg_table
+        saved_float_var_queue = self.float_var_queue
+        saved_var_queue = self.var_queue
+        saved_output_string = self.output_string
+
+        # Reset all tables
+        self.reg_table = self._init_reg_table('normal')
+        self.float_reg_table = self._init_reg_table('float')
+        self.aux_reg_table = self._init_reg_table('aux')
+        self.var_queue = []
+        self.float_var_queue = []
+
+        # Start function work
+        self.output_string = ''
+        self.sym_table.open_scope()
+
+        # Update sym_table for parameters
+        mem_type, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, None)
+        param_types = mem_type[0]
+        for i in range(0, len(parameters)):
+            param = parameters[i]
+            var_id = param[2] if len(param) > 2 else param[1]
+            mem_type = param[0]
+            self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, None, False)
+
+        self._traverse(tree_nodes)
+        saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
+        self.output_string = asm_save_variables_to_stack(saved_table) + self.output_string
+        self.output_string += asm_load_variables_from_stack(saved_table)
+        self.sym_table.close_scope()
+        self.func_string += func_name + ':\n' + self.output_string + 'jr $ra\n'
+
+        # Restore olf output_string
+        self.output_string = saved_output_string
+
+        # Reset tables and var_queues
+        self.reg_table = saved_reg_table
+        self.float_reg_table = saved_float_reg_table
+        self.aux_reg_table = saved_aux_reg_table
+        self.float_var_queue = saved_float_var_queue
+        self.var_queue = saved_var_queue
+
+    def _id_statement(self, tree_nodes):
+        self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
+
+    def _process_id_state_body(self, ident_node, id_state_body_node):
+        if id_state_body_node.children[0].label == "ASSIGN":
+            self._assign(ident_node, id_state_body_node.children[0])
+        else:
+            self._process_func(ident_node, id_state_body_node.children[0])
+
+    def _process_func(self, ident_node, tree_nodes):
+        tail_nodes = tree_nodes.children[1].children[0].children[0]
+        self._process_func_gen(ident_node, tree_nodes.children[0], tail_nodes)
+
+    def _process_func_gen(self, ident_node, tree_nodes, tail_nodes):
+        label = tail_nodes.label
+        if tree_nodes.label == "FUNC_DEC" or label == 'FUNC_TAIL_DEC':
+            self._process_func_dec(ident_node, tree_nodes.children, tail_nodes.children)
+        elif tree_nodes.label == "FUNC_CALL" or label == 'FUNC_TAIL_CALL':
+            self._process_func_call(ident_node, tree_nodes.children)
+
+    def _process_func_dec_params(self, parameter_nodes):
+        params = []
+        i = 0
+        while i < len(parameter_nodes):
+            type = parameter_nodes[i].token.pattern
+            if parameter_nodes[i+1].label == 'REF':
+                ref = 'ref'
+                ident = parameter_nodes[i+2].token.pattern
+                params.append((type, ref, ident))
+                i += 1
+            else:
+                ident = parameter_nodes[i+1].token.pattern
+                params.append((type, ident))
+            i += 2
+        return tuple(params)
+
+    def _process_func_dec(self, ident_node, parameter_nodes, tail_nodes):
+        ret_value = None
+        block_node = None
+        if len(tail_nodes) > 1:
+            tail_nodes[0].token.pattern
+            block_node = tail_nodes[1]
+        else:
+            block_node = tail_nodes[0]
+
+        # Get parameters
+        parameters = ()
+        if len(parameter_nodes) > 0:
+            parameters = self._process_func_dec_params(parameter_nodes[0].children)
+
+        # Create function table entry for function
+        token = ident_node.token
+        ident = token.pattern
+        self.sym_table.create_entry(ident, token, [parameters, ret_value], None, None, None, None, None)
+
+        # Append function block to func_string
+        _, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, token)
+        self._process_func_block(ident, mem_name, parameters, block_node)
+
+    def _create_activation_record(self, parameters, ret_value):
+        # Old frame pointer
+        self.output_string += asm_allocate_stack_space(4)
+        self.output_string += asm_save_mem_var_from_addr('$sp', '$fp')
+
+        # Set new frame pointer
+        self.output_string += asm_reg_set('$fp', '$sp')
+
+        # Store old Return address
+        self.output_string += asm_allocate_stack_space(4)
+        self.output_string += asm_save_mem_var_from_addr('$sp', '$ra')
+
+        # Parameters
+        for p in parameters:
+            self.output_string += asm_allocate_stack_space(4)
+            val_reg, val_type, val_token = self._process_id(p)
+            self.output_string += asm_reg_set('$sp', val_reg)
+
+        # Return value
+        if ret_value is not None:
+            # Just reserve space for a literal or pointer to a global string
+            self.output_string += asm_allocate_stack_space(4)
+
+    def _destroy_activation_record(self):
+        # Restore old return address
+        self.output_string += asm_load_mem_var_from_addr('$fp', '$ra', 4)
+
+        # Restore old stack pointer
+        self.output_string += asm_reg_set('$sp', '$fp')
+        self.output_string += asm_sub('$sp', '$sp', -4)
+
+        # Restore old frame pointer
+        self.output_string += asm_load_mem_var_from_addr('$fp', '$v1')
+        self.output_string += asm_reg_set('$fp', '$v1')
+
+    def _process_func_call(self, ident_node, parameter_nodes):
+        print(parameter_nodes)
+        token = ident_node.token
+        ident = token.pattern
+
+        parameters = ()
+        if len(parameter_nodes) > 0:
+            pass
+
+        # Get return value
+        ret_value = None
+        _, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, token)
+        self._run_func(ident, mem_name, parameters, ret_value)
+
+    def _run_func(self, ident, mem_name, parameters, ret_value):
+        self._save_off_registers()
+        self._create_activation_record(parameters, ret_value)
+        self.output_string += 'jal ' + mem_name + '\n'
+        self._destroy_activation_record()
 
     # Searches tree until it finds something to process
     def _traverse(self, tree):
@@ -634,24 +795,23 @@ class CodeGenerator:
         for ident in id_list:
             token = ident.token
             var_id = token.pattern
-            id_dict = self._get_sym_table_entry(var_id, token)
-            mem_name = id_dict['mem_name']
+            mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(var_id, token)
 
-            if id_dict['type'] in {'string', 'bool'}:
-                SemanticError.raise_incompatible_type(var_id, id_dict['type'], 'Read Function',
-                                                      token.line_num, token.col)
+            if mem_type in {'string', 'bool'}:
+                SemanticError.raise_incompatible_type(var_id, mem_type, 'Read Function', token.line_num, token.col)
 
             # Reset $v0
             self.aux_reg_table[self.val_0] = self._empty_aux_reg_dict()
 
-            # Ensure variable is set to 'used' and prints out since we can't statically analyze it
-            # (THIS MIGHT BE UNNECESSARY - TEST REMOVING IT)
-            id_dict['used'] = True
-            id_dict['init_val'] = 'DYNAMIC'
+            if init_val is None:
+                init_val = 'DYNAMIC'
 
-            input_reg = self.float_0 if id_dict['type'] == 'float' else self.val_0
+            # Used = True might be unneccasry (THIS MIGHT BE UNNECESSARY - TEST REMOVING IT)
+            self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, True)
 
-            self.output_string += asm_read(id_dict['type']) # places input into $v0
+            input_reg = self.float_0 if mem_type == 'float' else self.val_0
+
+            self.output_string += asm_read(mem_type) # places input into $v0
             self._assign_id(var_id, input_reg)
 
     # Takes a list of expressions and correctly prints them
@@ -680,39 +840,36 @@ class CodeGenerator:
             if var_type == 'bool':
                 if type(expr_reg) is bool: # literal
                     # set expr_reg to the string and let the string conditional print it
-                    expr_reg = self.bool_true_string if var_reg else self.bool_false_string
+                    expr_reg = '"True"' if var_reg else '"False"'
                 else: # dynamically set
-                    # Load both addresses of True and False
-                    true_dict = self.array_sym_table[self.bool_true_string]
-                    true_addr_reg = true_dict['addr_reg']
-                    false_dict = self.array_sym_table[self.bool_false_string]
-                    false_addr_reg = false_dict['addr_reg']
+                    true_mem_type, true_mem_name, true_addr_reg, true_used = self.sym_table.get_array_entry('"True"', None)
+                    fal_mem_type, fal_mem_name, fal_addr_reg, fal_used = self.sym_table.get_array_entry('"False"', None)
 
-                    # Set both 'used' to true since we don't know which one will be used
-                    true_dict['used'] = True
-                    false_dict['used'] = True
+                    true_used = True
+                    fal_used = True
 
                     # Ensure addresses are loaded
                     if true_addr_reg is None:
                         true_addr_reg = self._find_free_register()
-                        self._update_reg_table('normal', self.bool_true_string, true_addr_reg, 'ARRAY_ADDRESS')
-                        self.var_queue.append({'reg': true_addr_reg, 'id': self.bool_true_string,
+                        self._update_reg_table('normal', '"True"', true_addr_reg, 'ARRAY_ADDRESS')
+                        self.var_queue.append({'reg': true_addr_reg, 'id': '"True"',
                                                'mem_type': 'ARRAY_ADDRESS'})
-                        true_dict['addr_reg'] = true_addr_reg
-                        self.output_string += asm_load_mem_addr(true_dict['mem_name'], true_addr_reg)
+                        self.output_string += asm_load_mem_addr(true_mem_name, true_addr_reg)
 
-                    if false_addr_reg is None:
-                        false_addr_reg = self._find_free_register()
-                        self._update_reg_table('normal', self.bool_false_string, false_addr_reg, 'ARRAY_ADDRESS')
-                        self.var_queue.append({'reg': false_addr_reg, 'id': self.bool_false_string,
+                    if fal_addr_reg is None:
+                        fal_addr_reg = self._find_free_register()
+                        self._update_reg_table('normal', '"FALSE"', fal_addr_reg, 'ARRAY_ADDRESS')
+                        self.var_queue.append({'reg': fal_addr_reg, 'id': '"False"',
                                                'mem_type': 'ARRAY_ADDRESS'})
-                        false_dict['addr_reg'] = false_addr_reg
-                        self.output_string += asm_load_mem_addr(false_dict['mem_name'], false_addr_reg)
+                        self.output_string += asm_load_mem_addr(fal_mem_name, fal_addr_reg)
+
+                    self.sym_table.set_array_entry('"True"', true_mem_type, true_mem_name, true_addr_reg, true_used)
+                    self.sym_table.set_array_entry('"False"', fal_mem_type, fal_mem_name, fal_addr_reg, fal_used)
 
                     # Since this register will only be used in this function, with no other calls to _find_free_reg(),
                     # it does not have to be reserved, just cleared and made accessible
                     r_reg = self._find_free_register()
-                    self.output_string += asm_dynamic_bool_print(r_reg, expr_reg, true_addr_reg, false_addr_reg)
+                    self.output_string += asm_dynamic_bool_print(r_reg, expr_reg, true_addr_reg, fal_addr_reg)
                     expr_reg = r_reg
 
                     # Reset $a0
@@ -721,20 +878,19 @@ class CodeGenerator:
             # If expr_reg is a string, we look it up and print using it's address
             if type(expr_reg) is str:
                 # Get string
-                sym_dict = self.array_sym_table[expr_reg]
-                mem_name = sym_dict['mem_name']
-                addr_reg = sym_dict['addr_reg']
+                mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(expr_reg, var_token)
 
                 # Set string.'used' = True
-                sym_dict['used'] = True
+                used = True
 
                 # Ensure addr_reg is not None
                 if addr_reg is None:
                     addr_reg = self._find_free_register()
                     self.var_queue.append({'reg': addr_reg, 'id': expr_reg, 'mem_type': 'ARRAY_ADDRESS'})
                     self._update_reg_table('normal', expr_reg, addr_reg, 'ADDRESS_ARRAY')
-                    sym_dict['addr_reg'] = addr_reg
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
+
+                self.sym_table.set_array_entry(expr_reg, mem_type, mem_name, addr_reg, used)
 
                 # Check if address is already in $a0
                 a0_dict = self.aux_reg_table[self.arg_0]
@@ -764,67 +920,9 @@ class CodeGenerator:
                         is_a0_set = True
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
-
-############
-#changed part
-
-#############
-    def _id_statement(self, tree_nodes):
-        self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
-
-    def _process_id_state_body(self, ident_node, id_state_body_node):
-        print(id_state_body_node)
-        if id_state_body_node.children[0].label == "ASSIGN":
-            self._assign(ident_node, id_state_body_node.children[0])
-        else:
-            self._process_func(ident_node, id_state_body_node)
-
-    def _process_func(self, ident_node, tree_nodes):
-        self._process_func_gen(ident_node, tree_nodes[0])
-        self._process_func_tail(tree_nodes[1])
-        pass
-
-    def _process_func_gen(self, ident_node, tree_nodes):
-        if tree_nodes.label == "FUNC_DEC":
-            self._process_func_dec(ident_node, tree_nodes[0])
-        elif tree_nodes.label == "FUNC_CALL":
-            self._process_func_call(ident_node, tree_nodes[0])
-            
-        pass
-
-    def _process_func_tail(self, tree_nodes):
-        
-        pass
-
-    def _process_func_dec(self, ident_node, tree_nodes):
-        #self.process_type(tree_nodes[0])
-        self._assign(ident_node, tree_nodes[0])
-        
-        pass
-
-    def _process_func_call(self, ident_node, tree_nodes):
-        self._assign(ident_node, tree_nodes[0])
-        
-        pass
-
-    def _process_func_tail_gen(self, tree_nodes):
-        pass
-
-    def _process_func_tail_dec(self, tree_nodes):
-        pass
-
-    def _process_func_tail_call(self, tree_nodes):
-        pass
-
-
-#############
-
-##################
-
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
     # Initializes variable on the left, and evalutes RHS using '_expr_funct'
     def _assign(self, ident_node, tree_nodes):
-        print(tree_nodes.children[0])
         # Get RHS result
         expr_id = None
         expr_reg, expr_type, expr_token = self._process_expr_bool(tree_nodes.children[0].children)
@@ -832,21 +930,19 @@ class CodeGenerator:
         # Get LHS variable
         token = ident_node.token
         ident = token.pattern
-        id_dict = self._get_sym_table_entry(ident, token)
-        mem_name = id_dict['mem_name']
+        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(ident, token)
 
         # Set init_val if first time calling
-        if id_dict['init_val'] is None or self.forced_dynamic:
+        if init_val is None:
             if type(expr_reg) is Register:
-                id_dict['init_val'] = 'DYNAMIC'
+                init_val = 'DYNAMIC'
             else:
-                id_dict['init_val'] = expr_reg
+                init_val = expr_reg
 
         # Throw type error
-        id_type = id_dict['type']
-        if  id_type != expr_type:
+        if mem_type != expr_type:
             # Coerce int into float (but not the other way around?)
-            if id_type == 'float' and expr_type == 'int':
+            if mem_type == 'float' and expr_type == 'int':
                 if type(expr_reg) is not int:
                     # Reserve this just in case _assign_id removes it
                     expr_float_reg = self._find_free_register('float')
@@ -859,8 +955,10 @@ class CodeGenerator:
                 else:
                     expr_reg = float(expr_reg)
             else:
-                SemanticError.raise_type_mismatch_error(ident, expr_token.pattern, id_type, expr_type,
+                SemanticError.raise_type_mismatch_error(ident, expr_token.pattern, mem_type, expr_type,
                                                         expr_token.line_num, expr_token.col)
+        # Save changes
+        self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
         # Run _assign_id
         self._assign_id(ident, expr_reg, expr_id)
@@ -870,45 +968,39 @@ class CodeGenerator:
     # Returns nothing, since it should correctly equate values
     # (Either changing curr_val if RHS is an immediate, or
     def _assign_id(self, var_id, assn_reg, expr_id = None):
-        id_dict = self.sym_table[var_id]
-        var_type = id_dict['type']
-        mem_name = id_dict['mem_name']
-        addr_reg = id_dict['addr_reg']
-        val_reg = id_dict['val_reg']
-        init_val = id_dict['init_val']
-        curr_val = id_dict['curr_val']
+        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(var_id, None)
 
         python_assn_type = type(assn_reg)
         if not self.forced_dynamic:
             if python_assn_type is Register:
-                curr_val = id_dict['curr_val'] = None
-            elif python_assn_type is int and var_type == 'int':
-                curr_val = id_dict['curr_val'] = assn_reg
-            elif python_assn_type is float and var_type == 'float':
-                curr_val = id_dict['curr_val'] = assn_reg
-            elif python_assn_type is bool and var_type == 'bool':
-                curr_val = id_dict['curr_val'] = assn_reg
-            elif python_assn_type is str and var_type == 'string':
-                curr_val = id_dict['curr_val'] = assn_reg
+                curr_val = None
+            elif python_assn_type is int and mem_type == 'int':
+                curr_val = assn_reg
+            elif python_assn_type is float and mem_type == 'float':
+                curr_val = assn_reg
+            elif python_assn_type is bool and mem_type == 'bool':
+                curr_val = assn_reg
+            elif python_assn_type is str and mem_type == 'string':
+                curr_val = assn_reg
 
         # Only load variable into memory if there is no curr_val (i.e. the compiler can't do static analysis)
         if curr_val is None or self.forced_dynamic:
             # Set id to be printed out to MIPS
-            id_dict['used'] = True
+            used = True
 
-            id_dict['curr_val'] = None
+            curr_val = None
 
             # Load variable addr and val into registers
             if not val_reg:
-                type_str = 'float' if var_type == 'float' else 'normal'
-                val_var_queue = self.float_var_queue if var_type == 'float' else self.var_queue
+                type_str = 'float' if mem_type == 'float' else 'normal'
+                val_var_queue = self.float_var_queue if mem_type == 'float' else self.var_queue
 
                 val_reg = self._find_free_register(type_str)
-                self._update_tables(type_str, var_id, addr_reg, val_reg, id_dict)
+                self._update_tables(type_str, var_id, addr_reg, val_reg)
 
                 if not addr_reg:
                     addr_reg = self._find_free_register()
-                    self._update_tables(type_str, var_id, addr_reg, val_reg, id_dict)
+                    self._update_tables(type_str, var_id, addr_reg, val_reg)
                     self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
@@ -923,8 +1015,9 @@ class CodeGenerator:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
 
             # Equate registers (move assn_reg value into val_reg)
-            print(val_reg, assn_reg)
             self.output_string += asm_reg_set(val_reg, assn_reg)
+
+        self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
     # Needs to initialize an identifier's symbol table
     # Update: type, mem_name, init_val, curr_val, addr_reg, var_reg (unless value can be statically analyzed)
@@ -947,24 +1040,13 @@ class CodeGenerator:
             self._process_declare_term(term.children, var_type)
 
     # Used to run individual declare statements
-    def _process_declare_term(self, children, var_type):
+    def _process_declare_term(self, children, mem_type):
         # Get var_id and reserve MIPS name
         token = children[0].token
         var_id = token.pattern
 
-        # Checks if var_id is already initialized
-        # If it isn't, simply suppress KeyError
-        # If no KeyError, raise SemanticError
-        try:
-            self.sym_table[var_id]
-            SemanticError.raise_already_declared_error(var_id, token.line_num, token.col)
-        except KeyError:
-            pass
-
-        mem_name = next(self.var_name_generator)
-
         # Clean up the type and get correct var_queue for variable type
-        clean_type = 'float' if var_type == 'float' else 'normal'
+        clean_type = 'float' if mem_type == 'float' else 'normal'
         var_queue = self.float_var_queue if clean_type == 'float' else self.var_queue
 
         # Default to None
@@ -978,9 +1060,9 @@ class CodeGenerator:
             expr_reg, expr_type, expr_token = self._process_expr_bool(children[1].children)
 
             # Raise SemanticError on type mismatch
-            if expr_type != var_type:
+            if expr_type != mem_type:
                 # Coerce int into float (but not the other way around?)
-                if var_type == 'float' and expr_type == 'int':
+                if mem_type == 'float' and expr_type == 'int':
                     if type(expr_reg) is not int:
                         # Reserve this just in case _assign_id removes it
                         expr_float_reg = self._find_free_register('float')
@@ -993,7 +1075,7 @@ class CodeGenerator:
                     else:
                         expr_reg = float(expr_reg)
                 else:
-                    SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, var_type, expr_type,
+                    SemanticError.raise_type_mismatch_error(var_id, expr_token.pattern, mem_type, expr_type,
                                                             expr_token.line_num, expr_token.col)
 
             # Check for immediates
@@ -1015,14 +1097,9 @@ class CodeGenerator:
 
                 self.output_string += asm_reg_set(val_reg, expr_reg)
 
-        var_dict = self._empty_sym_table_dict()
-        var_dict['addr_reg'] = addr_reg
-        var_dict['val_reg'] = val_reg
-        var_dict['type'] = var_type
-        var_dict['mem_name'] = mem_name
-        var_dict['curr_val'] = curr_val
-        var_dict['init_val'] = init_val
-        self.sym_table[var_id] = var_dict
+        # Throws error if already declared
+        # Maybe move this up so it throws error earlier instead of running through all processes?
+        self.sym_table.create_entry(var_id, token, mem_type, init_val, curr_val, addr_reg, val_reg, False)
 
     def _process_if(self, tree_nodes):
         saved_forced_dynamic = True if self.forced_dynamic else False
@@ -1040,28 +1117,23 @@ class CodeGenerator:
         else_label = block_label + '_else'
         end_label = block_label + '_end'
 
-        # Save off registers
-        self._save_off_registers()
-
         # Process conditional and if block
+        self._save_off_registers()
         cond_reg, cond_type, cond_token = self._process_expr_bool(conditional_expr.children)
         if cond_type != 'bool':
             SemanticError.raise_incompatible_type(cond_token.pattern, cond_type, 'conditional blocks',
                                                   cond_token.line_num, cond_token.col)
 
-        self.forced_dynamic = True
         self.output_string += asm_conditional_check(cond_reg, end_label if else_block is None else else_label)
         self.output_string += if_label + ':\n'
+        self.forced_dynamic = True
         self._process_block(if_block)
-        self._save_off_registers()
         self.output_string += asm_branch_to_label(end_label)
 
         # Process else block
         if else_block:
-            self._save_off_registers()
             self.output_string += else_label + ':\n'
             self._process_block(else_block)
-            self._save_off_registers()
 
         self.output_string += end_label + ':\n'
 
@@ -1092,7 +1164,6 @@ class CodeGenerator:
 
         self.output_string += asm_conditional_check(cond_reg, end_label)
         self._process_block(while_block)
-        self._save_off_registers()
         self.output_string += asm_branch_to_label(while_label)
 
         # Create end label
@@ -1110,40 +1181,37 @@ class CodeGenerator:
         clean_type = 'float' if 'f' in str(curr_reg) else 'normal'
         val_var_queue = self.float_var_queue if clean_type == 'float' else self.var_queue
 
-        id_dict = None
-        try:
-            id_dict = self.sym_table[curr_id]
-        except KeyError:
-            # Don't throw an error here, since the accum_id may hav ebeen removed from a register yet
-            pass
+        # Check if value in register
+        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
+            = self.sym_table.get_entry_suppress(curr_id)
 
         # If id_dict is not found, then curr_reg is correct
-        if id_dict:
-            id_reg = id_dict['val_reg']
-            addr_reg = id_dict['addr_reg']
-            mem_name = id_dict['mem_name']
-
+        if mem_name:
             # If id_reg is None, load it into memory
-            if not id_reg:
+            if not val_reg:
                 # Ensure 'used' is checked
                 # If it was removed from a register, and we had to load it again, it means we need it written down
-                id_dict['used'] = True
+                used = True
 
-                id_reg = self._find_free_register(clean_type)
-                val_var_queue.append({'reg': id_reg, 'id': curr_id, 'mem_type': 'VALUE'})
-                self._update_tables(clean_type, curr_id, None, id_reg, id_dict)
+                val_reg = self._find_free_register(clean_type)
+                val_var_queue.append({'reg': val_reg, 'id': curr_id, 'mem_type': 'VALUE'})
+                self._update_tables(clean_type, curr_id, None, val_reg)
 
-                # If addr_reg is none
+                # If addr_reg is None
                 if not addr_reg:
                     addr_reg = self._find_free_register()
                     self.var_queue.append({'reg': addr_reg, 'id': curr_id, 'mem_type': 'ADDRESS'})
-                    self._update_tables(clean_type, curr_id, addr_reg, id_reg, id_dict)
+                    self._update_tables(clean_type, curr_id, addr_reg, val_reg)
 
                     # Load address into addr_reg
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
                 # Load id_reg from addr_reg
-                self.output_string += asm_load_mem_var_from_addr(addr_reg, id_reg)
+                self.output_string += asm_load_mem_var_from_addr(addr_reg, val_reg)
+
+            self.sym_table.set_entry(curr_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
+
+            id_reg = val_reg
 
         return id_reg
 
@@ -1478,10 +1546,12 @@ class CodeGenerator:
 
                     # Update sym_table (if available)
                     try:
-                        id_dict = self.sym_table[accum_id]
-                        id_dict['type'] = 'float'
-                        id_dict['val_reg'] = val_float_reg
-                        # id_dict['used'] = True
+                        mem_type, mem_name, init_val, curr_val, addr_reg, next_val_reg, used \
+                            = self.sym_table.get_entry_suppress(accum_id)
+                        mem_type = 'float'
+                        next_val_reg = val_float_reg
+                        self.sym_table.set_entry(accum_id, mem_type, mem_name, init_val, curr_val, addr_reg,
+                                                 next_val_reg, used)
                     except KeyError:
                         pass
 
@@ -1550,10 +1620,12 @@ class CodeGenerator:
 
                 # Update sym_table (if available)
                 try:
-                    id_dict = self.sym_table[accum_id]
-                    id_dict['type'] = 'float'
-                    id_dict['val_reg'] = val_float_reg
-                    # id_dict['used'] = True
+                    mem_type, mem_name, init_val, curr_val, addr_reg, next_val_reg, used \
+                        = self.sym_table.get_entry_suppress(accum_id)
+                    mem_type = 'float'
+                    next_val_reg = val_float_reg
+                    self.sym_table.set_entry(accum_id, mem_type, mem_name, init_val, curr_val, addr_reg,
+                                             next_val_reg, used)
                 except KeyError:
                     pass
 
@@ -1653,32 +1725,26 @@ class CodeGenerator:
                 # Check int, float, bool, string literals
                 if token.name == 'STRINGLIT':
                     # See if literal already in array_sym_table
-                    str_dict = None
-                    try:
-                        str_dict = self.array_sym_table[literal]
-                    except KeyError:
+                    str_mem_type, str_mem_name, str_addr_reg, str_used = self.sym_table.get_array_entry_suppress(literal)
+                    if str_mem_name is None:
                         # Create new global entry for string
-                        str_dict = self._empty_array_sym_table_dict()
-                        str_dict['mem_name'] = next(self.var_name_generator)
-                        str_dict['type'] = '.asciiz'
-                        self.array_sym_table[literal] = str_dict
+                        str_mem_type = '.asciiz'
+                        self.sym_table.create_array_entry(literal, str_mem_type, None, False)
 
                     # Create a temp pointer to the string
                     if self.forced_dynamic:
-                        str_dict['used'] = True
+                        str_mem_type, str_mem_name, str_addr_reg, str_used \
+                            = self.sym_table.get_array_entry(literal, token)
+                        str_used = True
 
                         var_id = next(self.temp_id_generator)
-                        mem_name = next(self.var_name_generator)
-                        id_dict = self._empty_sym_table_dict()
-                        id_dict['mem_name'] = mem_name
-                        id_dict['used'] = True
-                        id_dict['type'] = 'string'
-                        id_dict['init_val'] = 'DYNAMIC'
-                        self.sym_table[var_id] = id_dict
+                        self.sym_table.create_entry(var_id, token, 'string', 'DYNAMIC', None, None,
+                                                    None, True)
+
+                        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
+                            = self.sym_table.get_entry(var_id, token)
 
                         # Load address
-                        print(self.reg_table)
-                        print(self.var_queue)
                         addr_reg = self._find_free_register()
                         self._update_tables('normal', var_id, addr_reg, None)
                         self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
@@ -1686,11 +1752,13 @@ class CodeGenerator:
 
                         # Load Value
                         val_reg = self._find_free_register()
-                        self._update_tables('normal', var_id, addr_reg, val_reg)
+                        self._update_tables('normal', var_id, addr_reg, val_reg, None)
                         self.var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
-                        self.output_string += asm_load_mem_addr(str_dict['mem_name'], val_reg)
-                        print(self.reg_table)
-                        print(self.var_queue)
+                        self.output_string += asm_load_mem_addr(str_mem_name, val_reg)
+
+                        self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg,
+                                                 used)
+                        self.sym_table.set_array_entry(literal, str_mem_type, str_mem_name, str_addr_reg, str_used)
 
                         return val_reg, 'string', token
 
@@ -1713,16 +1781,10 @@ class CodeGenerator:
     # (Note: This will NOT force a variable to loaded into memory if the compiler can statically evaluate the value)
     def _process_id(self, token):
         ident = token.pattern
-        id_dict = self._get_sym_table_entry(ident, token)
 
-        var_type = id_dict['type']
-        mem_name = id_dict['mem_name']
-        addr_reg = id_dict['addr_reg']
-        val_reg = id_dict['val_reg']
-        init_val = id_dict['init_val']
-        curr_val = id_dict['curr_val']
+        mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(ident, token)
 
-        cleaned_type = 'float' if var_type == 'float' else 'normal'
+        cleaned_type = 'float' if mem_type == 'float' else 'normal'
         val_var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
 
         # If not initialized, throw an error
@@ -1730,32 +1792,34 @@ class CodeGenerator:
             SemanticError.raise_initialization_error(ident, token.line_num, token.col)
 
         # Check if curr_val is not None (thus, if we can just return it)
-        if curr_val is not None:
-            return curr_val, var_type, token
+        if curr_val is not None and not self.forced_dynamic:
+            return curr_val, mem_type, token
         # If the value of the variable is not in register, load it
         elif not val_reg:
             # If not, load the value into a register if the addr is already loaded
             if addr_reg:
                 val_reg = self._find_free_register(cleaned_type)
 
-                self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
+                self._update_tables(cleaned_type, ident, addr_reg, val_reg)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
-                self.output_string += asm_load_mem_var_from_addr(id_dict['addr_reg'], val_reg)
+                self.output_string += asm_load_mem_var_from_addr(addr_reg, val_reg)
             # Worst case, you have to load both the addr and the value into registers
             else:
                 addr_reg = self._find_free_register()
-                self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
+                self._update_tables(cleaned_type, ident, addr_reg, val_reg)
                 self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
 
                 val_reg = self._find_free_register(cleaned_type)
-                self._update_tables(cleaned_type, ident, addr_reg, val_reg, id_dict)
+                self._update_tables(cleaned_type, ident, addr_reg, val_reg)
                 val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
                 self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
         # else: If val_reg was good to go, just return it
 
         # Set id to be printed out in MIPS if it couldn't be statically analyzed
-        id_dict['used'] = True
+        used = True
 
-        return val_reg, var_type, token
+        self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
+
+        return val_reg, mem_type, token

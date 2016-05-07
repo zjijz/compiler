@@ -1,0 +1,7 @@
+# Test for read with incorrect operands(string)
+# Should throw an error
+
+begin 
+    string str;
+    read(str);
+end

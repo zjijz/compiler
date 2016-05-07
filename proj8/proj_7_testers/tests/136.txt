@@ -1,0 +1,13 @@
+# Karro P7 Test
+# Input: none
+# Ouput: Yes\nDone
+
+begin
+   bool x;
+   x := True;
+   if x then
+   begin
+      write("Yes\n");
+   end
+   write("Done\n");
+end

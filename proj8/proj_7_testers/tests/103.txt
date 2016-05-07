@@ -1,0 +1,6 @@
+begin 
+    while False
+    begin
+        write("hello world!");
+    end
+end

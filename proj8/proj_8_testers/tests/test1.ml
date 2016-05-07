@@ -4,7 +4,7 @@ begin
     foo() begin
         int i := 0;
         i := i + 1;
-        write("In foo: ", i, "\n");
+        write("In foo: ", i, ".\n");
     end
 
     foo2() begin
@@ -13,7 +13,7 @@ begin
 
     write("In main.\n");
     foo();
-    write("Returned to the main.\n");
+    write("Returned to main.\n");
     foo();
     write("Returned to main. (Again.)\n");
     foo2();

@@ -1,0 +1,17 @@
+# Test if/else where conditional evaluates to true
+# Input: 7.4
+# Output: False
+
+begin
+  float x,y;
+  x := 7.4;
+  read(y);
+  if x != y then
+    begin
+      write(True);
+    end
+  else
+    begin
+      write(False);
+    end
+end

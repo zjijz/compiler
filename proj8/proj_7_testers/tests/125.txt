@@ -1,0 +1,22 @@
+# Test nested while with 26 variables each
+# Input: the numbers 0 to 51
+# Output: 123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051
+#         1234567891011121314151617181920212223242526
+
+begin
+  int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+  int aa,bb,cc,dd,ee,ff,gg,hh,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz;
+  read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+  read(aa,bb,cc,dd,ee,ff,gg,hh,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz);
+
+  while a < 2
+    begin
+      a := a + 1;
+      write(b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+      while z < 26
+        begin
+          z := 26;
+          write(aa,bb,cc,dd,ee,ff,gg,hh,ii,jj,kk,ll,mm,nn,oo,pp,qq,rr,ss,tt,uu,vv,ww,xx,yy,zz);
+        end
+    end
+end

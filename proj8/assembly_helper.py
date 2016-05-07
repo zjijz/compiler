@@ -12,7 +12,8 @@ def convert_float_to_binary(float_val):
 
 # Easy function to get the operation type of any assembly function (looks at the registers)
 def get_op_type(f_reg, s_reg):
-    return 'float' if 'f' in str(f_reg) or 'f' in str(s_reg) else 'normal'
+    return 'float' if ('f' in str(f_reg) and 'fp' not in str(f_reg)) \
+                      or ('f' in str(s_reg) and 'fp' not in str(s_reg)) else 'normal'
 
 
 # Ensures that f_reg and s_reg are loaded into registers if either is an immediate
@@ -53,6 +54,11 @@ def asm_load_reg_from_stack(reg, offset = 0):
 # Save variable to stack
 def asm_save_reg_to_stack(reg, offset = 0):
     return asm_save_mem_var_from_addr('$sp', reg, offset)
+
+
+# Frame Pointer isn't defaulted to stack pointer
+def asm_init_frame_pointer():
+    return asm_reg_set('$fp', '$sp')
 
 
 ## ______I/O______
@@ -417,7 +423,7 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
     if type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
         ret = ''
-        if 'f' in str(var_reg):
+        if 'f' in str(var_reg) and 'fp' not in str(var_reg):
             return 's.s {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
         if type(var_reg) is float:
             ret = asm_reg_set('$f13', var_reg)
@@ -428,7 +434,7 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
             var_reg = '$v1'
         ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
         return ret
-    elif 'f' in str(var_reg):
+    elif 'f' in str(var_reg) and 'fp' not in str(var_reg):
         return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
     elif type(var_reg) is int:
         ret = asm_reg_set('$v1', var_reg)
@@ -450,6 +456,10 @@ def asm_conditional_check(reg, label):
     ret += 'beqz {:s}, {:s}\n'.format(reg, label)
     return ret
 
+## _______________________Branching________________________
+
+def asm_jal_to_label(label):
+    return 'jal {:s}'.format(label)
 
 def asm_branch_to_label(label):
     return 'b {:s}\n'.format(label)
@@ -489,3 +499,27 @@ def asm_load_reg_pool_from_stack(reg_pool):
         ret += asm_load_reg_from_stack(reg_pool[i])
         ret += asm_add('$sp', '$sp', 4)
     return ret
+
+
+# Load variables from mem to stack
+def asm_save_variables_to_stack(sym_dicts):
+    ret = ''
+    for i in range(0, len(sym_dicts), 1):
+        if sym_dicts[i]['used']:
+            ret += asm_allocate_stack_space(4)
+            ret += asm_load_mem_var_from_addr(sym_dicts[i]['mem_name'], '$sp')
+    return ret
+
+
+# Save variables from stack to mem
+def asm_load_variables_from_stack(sym_dicts):
+    ret = ''
+    for i in range(len(sym_dicts) - 1, -1, -1):
+        if sym_dicts[i]['used']:
+            ret += asm_save_mem_var_from_addr(sym_dicts[i]['mem_name'], '$sp')
+            ret += asm_add('$sp', '$sp', 4)
+    return ret
+
+
+def asm_call_exit():
+    return 'la $v0, 10\nsyscall\n'

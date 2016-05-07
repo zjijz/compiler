@@ -1,0 +1,22 @@
+# Karro P7 Test
+# Input: None
+# Output: Here
+
+begin
+if True then
+begin
+  if True then
+  begin
+    if True or False then
+    begin
+      if False or True then
+      begin
+        if True and True then
+        begin
+	   write("Here\n");
+	end
+      end
+    end
+  end
+end
+end

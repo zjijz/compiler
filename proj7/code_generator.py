@@ -628,6 +628,50 @@ class CodeGenerator:
         self._save_off_registers()
         self.sym_table.close_scope()
 
+    def _id_statement(self, tree_nodes):
+        self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
+
+    def _process_id_state_body(self, ident_node, id_state_body_node):
+        print(id_state_body_node)
+        if id_state_body_node.children[0].label == "ASSIGN":
+            self._assign(ident_node, id_state_body_node.children[0])
+        else:
+            self._process_func(ident_node, id_state_body_node)
+
+    def _process_func(self, ident_node, tree_nodes):
+        self._process_func_gen(ident_node, tree_nodes[0])
+        self._process_func_tail(tree_nodes[1])
+        pass
+
+    def _process_func_gen(self, ident_node, tree_nodes):
+        if tree_nodes.label == "FUNC_DEC":
+            self._process_func_dec(ident_node, tree_nodes[0])
+        elif tree_nodes.label == "FUNC_CALL":
+            self._process_func_call(ident_node, tree_nodes[0])
+
+        pass
+
+    def _process_func_tail(self, tree_nodes):
+        pass
+
+    def _process_func_dec(self, ident_node, tree_nodes):
+        #self.process_type(tree_nodes[0])
+        self._assign(ident_node, tree_nodes[0])
+        pass
+
+    def _process_func_call(self, ident_node, tree_nodes):
+        self._assign(ident_node, tree_nodes[0])
+        pass
+
+    def _process_func_tail_gen(self, tree_nodes):
+        pass
+
+    def _process_func_tail_dec(self, tree_nodes):
+        pass
+
+    def _process_func_tail_call(self, tree_nodes):
+        pass
+
     # Searches tree until it finds something to process
     def _traverse(self, tree):
         if self.tree.children:

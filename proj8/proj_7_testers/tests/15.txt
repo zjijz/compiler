@@ -1,0 +1,6 @@
+# Gives a lexical error
+
+begin
+    int x = 10;
+    write(x);
+end

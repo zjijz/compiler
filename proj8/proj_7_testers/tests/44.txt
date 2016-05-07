@@ -1,0 +1,6 @@
+# Type coersion
+# Should throw an error
+
+begin
+    bool b := 5;
+end

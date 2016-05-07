@@ -1,7 +1,0 @@
-In main.
-In foo: 1.
-Returned to main.
-In foo: 1.
-Returned to main. (Again.)
-In foo2.
-Returned to main.

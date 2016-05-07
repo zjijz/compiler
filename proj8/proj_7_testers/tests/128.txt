@@ -1,0 +1,24 @@
+# Tests the ability to print dynamic variables
+# Input: 1, 2
+# Output: Yes, the assertion is correct. True 20 10.0
+
+begin
+    int x, y;
+    read(x, y);
+    string s;
+    bool b;
+    int z;
+    float f;
+    if x < y then begin
+        s := "Yes, the assertion is correct.";
+        b := True;
+        z := 20;
+        f := 10.0;
+    end else begin
+        s := "No, the assertion is not correct.";
+        b := False;
+        z := 10;
+        f := 15;
+    end
+    write(s, " ", b, " ", z, " ", f);
+end

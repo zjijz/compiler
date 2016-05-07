@@ -1,0 +1,7 @@
+# Testing to see that using a string of 'DYNAMIC' and 'TEMP' doesn't interfere with MIPS output
+# Output: DYNAMICTEMP
+
+begin
+    string s := "DYNAMIC", s2 := "TEMP";
+    write(s,s2);
+end

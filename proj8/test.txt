@@ -1,0 +1,22 @@
+begin
+    foo() begin
+        int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+        read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+        write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+    end
+
+    foo1(int x, int y) begin
+        write(x, y);
+    end
+
+    int x := 10;
+    if x > 1 then begin
+        int x;
+        read(x);
+        write(x);
+    end
+    write(x);
+    foo();
+    foo();
+    foo1(x,x);
+end

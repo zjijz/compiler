@@ -1,0 +1,11 @@
+# Tests while condition is a float
+# Output: Semantic Error
+
+begin
+  float x := 90.0 / 6.0;
+  bool y := False;
+  while x
+    begin
+      y := not y;
+    end
+end

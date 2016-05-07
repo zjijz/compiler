@@ -1,0 +1,8 @@
+# Output: TrueFalseTrueFalse
+
+begin
+    write(True or True);
+    write(True and False);
+    write(False or True);
+    write(False and False);
+end

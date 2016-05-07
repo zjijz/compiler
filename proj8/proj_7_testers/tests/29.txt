@@ -1,0 +1,10 @@
+# Tests unary operators in expression
+# Prints 40480.0TrueFalse
+
+begin
+    int i := 10;
+    float f := 20;
+    bool b := True;
+    bool b2 := False;
+    write(-i+50,-f+500,b and not b2, b2 or not b);
+end

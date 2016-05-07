@@ -15,33 +15,33 @@ if [[ -z $h_input ]]; then
 h_input=1000
 fi
 
-for file in proj_7_testers/tests/*.ml
+for file in proj_8_testers/tests/*.ml
 do
   name=$(basename "$file")
   name="${name%.*}"
 
   # Clear file
-  > proj_7_testers/output/$name.txt
+  > proj_8_testers/output/$name.txt
 
   # If an error, catch the error and print it to file
-  python3.5 compiler.py -t tokens.txt "$file" proj_7_testers/compiled/$name.asm &> proj_7_testers/output/$name.txt
+  python3.5 compiler.py -t tokens.txt "$file" proj_8_testers/compiled/$name.asm &> proj_8_testers/output/$name.txt
 
-  if ! grep --quiet Traceback proj_7_testers/output/$name.txt; then
+  if ! grep --quiet Traceback proj_8_testers/output/$name.txt; then
     # Clear ouput if not error
-    > proj_7_testers/output/$name.txt
+    > proj_8_testers/output/$name.txt
 
     # Run MIPS on file and input
-    cat proj_7_testers/input/$name.txt | java -jar ~/mars4_5.jar proj_7_testers/compiled/$name.asm >> proj_7_testers/output/$name.txt
-  elif grep --quiet Lexical proj_7_testers/output/$name.txt; then
-    echo "Lexical Error" > proj_7_testers/output/$name.txt
-  elif grep --quiet Syntax proj_7_testers/output/$name.txt; then
-    echo "Syntax Error" > proj_7_testers/output/$name.txt
-  elif grep --quiet Semantic proj_7_testers/output/$name.txt; then
-    echo "Semantic Error" > proj_7_testers/output/$name.txt
+    cat proj_8_testers/input/$name.txt | java -jar ~/mars4_5.jar proj_8_testers/compiled/$name.asm >> proj_8_testers/output/$name.txt
+  elif grep --quiet Lexical proj_8_testers/output/$name.txt; then
+    echo "Lexical Error" > proj_8_testers/output/$name.txt
+  elif grep --quiet Syntax proj_8_testers/output/$name.txt; then
+    echo "Syntax Error" > proj_8_testers/output/$name.txt
+  elif grep --quiet Semantic proj_8_testers/output/$name.txt; then
+    echo "Semantic Error" > proj_8_testers/output/$name.txt
   fi
 
   # Check output
-  if ! diff proj_7_testers/output/$name.txt proj_7_testers/correct/$name.txt; then
+  if ! diff proj_8_testers/output/$name.txt proj_8_testers/correct/$name.txt; then
     echo "$name failed"
   else
     echo "$name passed"

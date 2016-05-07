@@ -1,0 +1,6 @@
+# Type coercion
+# Should throw an error
+
+begin
+    string a := 7;
+end

@@ -1,0 +1,10 @@
+# Test while condition is string
+# Output: Semantic Error
+
+begin
+  string s := "Iyi sanslar";
+  while s
+    begin
+      int x := 25;
+    end
+end

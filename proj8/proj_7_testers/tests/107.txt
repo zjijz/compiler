@@ -1,0 +1,14 @@
+# Output: 5678956789
+
+begin
+    int x := 5;
+    while x < 15 begin
+        if x < 10 then begin
+            write(x);
+        end
+        else begin
+            write(x-5);
+        end
+        x := x + 1;
+    end
+end

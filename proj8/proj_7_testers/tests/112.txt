@@ -1,0 +1,12 @@
+# Test while condition int
+# Output: Semantic Error
+
+begin
+  int a;
+  read(a);
+  while a + 5
+    begin
+      a := a + 5;
+    end
+  write(a);
+end

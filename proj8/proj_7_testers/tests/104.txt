@@ -1,0 +1,10 @@
+begin
+    int x := 5;
+    if x < 3 then begin
+        write("less than 3");
+    end else begin
+        if x < 10 then begin
+            write("greater than 3");
+        end
+    end
+end

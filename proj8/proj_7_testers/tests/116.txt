@@ -1,0 +1,12 @@
+# Test basic if where conditional evaluates to false
+# Output: 1234
+
+begin
+  #float x := 50.5;
+  int x := 50;
+  if x / 2 < 2 == True then
+    begin
+      write(True);
+    end
+  write(1234);
+end

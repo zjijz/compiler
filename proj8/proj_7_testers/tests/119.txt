@@ -1,0 +1,10 @@
+# Test condition is a string
+# Output: Semantic Error
+
+begin
+  string s := "Hello World";
+  if s then 
+    begin
+      write(s);
+    end
+end
