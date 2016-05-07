@@ -25,7 +25,7 @@ Grammar:
                         | <func_call>
                         | (empty)
     <func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
-    <func_call>     ->  <param_list>
+    <func_call>     ->  <expr_list>
     <func_tail>     ->  ) <func_tail_gen>
     <func_tail_gen> ->  <func_tail_dec>
                         | <func_tail_call>
@@ -38,7 +38,6 @@ Grammar:
 
     <id list>		->	<ident> {, <ident>}
     <expr list>		->	<expr_bool> { , <expr_bool> }
-    <param_list>    ->  <param> {, <param>}
 
     <expr_bool>     ->  <term_bool> { <log_or> <term_bool> }
     <term_bool>     ->  <expr_eq> { <log_and> <expr_eq> }
@@ -53,8 +52,6 @@ Grammar:
 
     # Everything under this needs to store the token in the tree node
     <type>          ->  INT | FLOAT | STRING | BOOL
-    <param>         ->  <ident>
-                        | <literal>
     <ident>			->	ID
     # Order is operator preference
     <literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
@@ -236,7 +233,7 @@ class Parser:
 
     # <func_gen> ->  <func_call> | <func_dec> | (empty)
     def func_gen(self, cur_token, G):
-        if cur_token.t_class == "IDENTIFIER":
+        if cur_token.t_class in {"IDENTIFIER", "LITERAL", "UNARY_OP", "UNARY_ADD_OP"} or cur_token.name == 'LPAREN':
             cur_token, child_tree = self.func_call(cur_token, G)
             return cur_token, tree("FUNC_GEN", [child_tree])
         elif cur_token.t_class == "TYPE":
@@ -268,7 +265,7 @@ class Parser:
 
     # <func_call> -> <id_list>
     def func_call(self, cur_token, G):
-        cur_token, child_id_list = self.id_list(cur_token, G)
+        cur_token, child_id_list = self.expr_list(cur_token, G)
         return cur_token, tree("FUNC_CALL", [child_id_list])
 
     # <func_tail>  ->  ) <func_tail_gen>
