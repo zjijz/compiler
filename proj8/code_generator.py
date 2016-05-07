@@ -620,12 +620,6 @@ class CodeGenerator:
         self.sym_table.close_scope()
 
     def _process_func_block(self, ident, func_name, parameters, tree_nodes):
-        # Save off old tables
-        saved_reg_table = self.reg_table
-        saved_float_reg_table = self.float_reg_table
-        saved_aux_reg_table = self.aux_reg_table
-        saved_float_var_queue = self.float_var_queue
-        saved_var_queue = self.var_queue
         saved_output_string = self.output_string
 
         # Reset all tables
@@ -647,6 +641,7 @@ class CodeGenerator:
             var_id = param[2] if len(param) > 2 else param[1]
             mem_type = param[0]
             self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, None, False)
+            # Initialize values from stack
 
         self._traverse(tree_nodes)
         saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
@@ -659,11 +654,11 @@ class CodeGenerator:
         self.output_string = saved_output_string
 
         # Reset tables and var_queues
-        self.reg_table = saved_reg_table
-        self.float_reg_table = saved_float_reg_table
-        self.aux_reg_table = saved_aux_reg_table
-        self.float_var_queue = saved_float_var_queue
-        self.var_queue = saved_var_queue
+        self.reg_table = self._init_reg_table('normal')
+        self.float_reg_table = self._init_reg_table('float')
+        self.aux_reg_table = self._init_reg_table('aux')
+        self.var_queue = []
+        self.float_var_queue = []
 
     def _id_statement(self, tree_nodes):
         self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
@@ -705,7 +700,7 @@ class CodeGenerator:
         ret_value = None
         block_node = None
         if len(tail_nodes) > 1:
-            tail_nodes[0].token.pattern
+            ret_value = tail_nodes[0].token.pattern
             block_node = tail_nodes[1]
         else:
             block_node = tail_nodes[0]
@@ -739,7 +734,7 @@ class CodeGenerator:
         # Parameters
         for p in parameters:
             self.output_string += asm_allocate_stack_space(4)
-            val_reg, val_type, val_token = self._process_id(p)
+            val_reg, val_type, val_token = self._process_expr_bool(p.children)
             self.output_string += asm_reg_set('$sp', val_reg)
 
         # Return value
@@ -760,13 +755,13 @@ class CodeGenerator:
         self.output_string += asm_reg_set('$fp', '$v1')
 
     def _process_func_call(self, ident_node, parameter_nodes):
-        print(parameter_nodes)
         token = ident_node.token
         ident = token.pattern
 
-        parameters = ()
+        # Extract parameter_nodes
+        parameters = []
         if len(parameter_nodes) > 0:
-            pass
+            parameters = parameter_nodes[0].children[0].children
 
         # Get return value
         ret_value = None

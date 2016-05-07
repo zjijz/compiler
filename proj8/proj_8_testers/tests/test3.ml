@@ -5,7 +5,7 @@ begin
         return 10;
     end
 
-    foo2() > string beginb
+    foo2() > string begin
         return "Winter is coming.\n";
     end
 

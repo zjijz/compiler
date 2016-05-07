@@ -18,5 +18,5 @@ begin
     write(x);
     foo();
     foo();
-    foo1(100,1000);
+    foo1((100-10),-1000);
 end
