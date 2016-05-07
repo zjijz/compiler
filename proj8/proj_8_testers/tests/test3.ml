@@ -12,7 +12,7 @@ begin
     foo3() > string begin
         int x;
         read(x);
-        if x >= 10 begin
+        if x >= 10 then begin
             return "Yes\n";
         end else begin
             return "No\n";

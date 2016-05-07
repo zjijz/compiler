@@ -1,22 +1,22 @@
 begin
-    foo() begin
-        int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
-        read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
-        write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
-    end
+    #foo() begin
+    #    int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+    #    read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+    #    write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+    #end
 
-    foo1(int x, int y) begin
-        write(x, y);
+    foo1(int param1, int param2) begin
+        write(param1, param2);
     end
 
     int x := 10;
-    if x > 1 then begin
-        int x;
-        read(x);
-        write(x);
-    end
+    #if x > 1 then begin
+    #    int x;
+    #    read(x);
+    #    write(x);
+    #end
     write(x);
-    foo();
-    foo();
+    #foo();
+    #foo();
     foo1((100-10),-1000);
 end

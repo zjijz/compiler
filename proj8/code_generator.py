@@ -619,8 +619,15 @@ class CodeGenerator:
         self._save_off_registers()
         self.sym_table.close_scope()
 
+    # Processing a block has ZERO side effects on the state of the compiler
     def _process_func_block(self, ident, func_name, parameters, tree_nodes):
+        # Save off current state
         saved_output_string = self.output_string
+        saved_reg_table = self.reg_table
+        saved_float_reg_table = self.float_reg_table
+        saved_aux_reg_table = self.aux_reg_table
+        saved_var_queue = self.var_queue
+        saved_float_var_queue = self.float_var_queue
 
         # Reset all tables
         self.reg_table = self._init_reg_table('normal')
@@ -636,29 +643,53 @@ class CodeGenerator:
         # Update sym_table for parameters
         mem_type, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, None)
         param_types = mem_type[0]
+        fp_offset = -8
         for i in range(0, len(parameters)):
+            # Load parameters
             param = parameters[i]
             var_id = param[2] if len(param) > 2 else param[1]
             mem_type = param[0]
-            self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, None, False)
-            # Initialize values from stack
+            cleaned_type = 'float' if mem_type == 'float' else 'normal'
+            val_var_queue = self.float_var_queue if mem_type == 'float' else self.var_queue
+
+            # Reserve a register
+            val_reg = self._find_free_register()
+            self._update_tables(cleaned_type, ident, None, val_reg)
+            val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+
+            self.output_string += asm_load_mem_var_from_addr('$fp', val_reg, fp_offset)
+            self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', val_reg, None, None, False)
+            fp_offset -= 4
 
         self._traverse(tree_nodes)
         saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
         self.output_string = asm_save_variables_to_stack(saved_table) + self.output_string
         self.output_string += asm_load_variables_from_stack(saved_table)
-        self.sym_table.close_scope()
+
+        # Remove loaded addresses and such
+        for entry in self.var_queue + self.float_var_queue:
+            if entry['mem_type'] == 'ARRAY_ADDRESS':
+                mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(entry['id'], None)
+                self.sym_table.set_array_entry(entry['id'],  mem_type, mem_name, None, used)
+            else:
+                print(entry['id'])
+                mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
+                    = self.sym_table.get_entry_suppress(entry['id'])
+                if mem_type is not None:
+                    self.sym_table.set_entry(entry['id'], mem_type, mem_name, init_val, None, None, None, used)
+
         self.func_string += func_name + ':\n' + self.output_string + 'jr $ra\n'
 
-        # Restore olf output_string
+        # Restore old stuff
         self.output_string = saved_output_string
+        self.sym_table.close_scope()
 
         # Reset tables and var_queues
-        self.reg_table = self._init_reg_table('normal')
-        self.float_reg_table = self._init_reg_table('float')
-        self.aux_reg_table = self._init_reg_table('aux')
-        self.var_queue = []
-        self.float_var_queue = []
+        self.reg_table = saved_reg_table
+        self.float_reg_table = saved_float_reg_table
+        self.aux_reg_table = saved_aux_reg_table
+        self.var_queue = saved_var_queue
+        self.float_var_queue = saved_float_var_queue
 
     def _id_statement(self, tree_nodes):
         self._process_id_state_body(tree_nodes[0].children[0], tree_nodes[0].children[1])
@@ -735,7 +766,7 @@ class CodeGenerator:
         for p in parameters:
             self.output_string += asm_allocate_stack_space(4)
             val_reg, val_type, val_token = self._process_expr_bool(p.children)
-            self.output_string += asm_reg_set('$sp', val_reg)
+            self.output_string += asm_save_mem_var_from_addr('$sp', val_reg)
 
         # Return value
         if ret_value is not None:

@@ -21,7 +21,7 @@ begin
     foo1(a);
     write("main: ", a, "\n");
 
-    foo2(a,x);
+    foo2(a, x);
     write("main: ", a, "\t", x, "\n");
 
     string s := "A Lannister always pays his debts.";
