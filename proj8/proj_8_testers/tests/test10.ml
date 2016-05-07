@@ -2,7 +2,7 @@
 
 begin
     fib(int x) > int begin
-        if x <= 1 begin
+        if x <= 1 then begin
             return x;
         end
 

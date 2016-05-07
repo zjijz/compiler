@@ -3,7 +3,10 @@
 begin
     foo3(int ref x) begin
         int y;
-        write();
+        write("foo3: ", x, "\n");
+		read(y);
+		x := x + y;
+		write("foo3: ", x, "\n");
     end
 
     foo2(int ref x) begin
@@ -11,7 +14,7 @@ begin
         read(z);
         x := x + z;
         write("foo2: ", x, "\n");
-        foo3(x);
+        foo3(x)
         write("foo2: ", x, "\n");
     end
 
@@ -26,9 +29,9 @@ begin
     int x;
     read(x);
     write("main: ", x, "\n");
-    foo1(x);
-    write("main: ", x "\n");
+    foo1(x)
+    write("main: ", x, "\n");
 
-    foo2(x);
+    foo2(x)
     write("main: ", x, "\n");
 end

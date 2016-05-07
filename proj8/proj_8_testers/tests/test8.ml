@@ -19,11 +19,11 @@ begin
 
     int a;
     read(a);
-    int b = foo1(a, a);
+    int b := foo1(a, a);
     write("main: ", a, " ", b);
 
     int c;
     read(c);
-    foo2(c);
+    foo2(c)
 end
 

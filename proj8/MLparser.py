@@ -12,6 +12,7 @@ Grammar:
                         | write( <expr list> );
                         | <if_statement>
                         | <while_statement>
+                        | return <expr_bool> ;
     <declaration>	->	<type> <dec list>
     <dec list>      ->  <dec term> { , <dec term> }
     <dec term>      ->  <ident> [ := <expr_bool> ] **Allowed only once
@@ -20,17 +21,12 @@ Grammar:
     <id_state_body> ->  <func>
                         | <assignment> ;
 
-    <func>          ->  ( <func_gen> <func_tail>
+    <func>          ->  ( <func_gen> ) [> <type>] [<block>]
     <func_gen>      ->  <func_dec>
                         | <func_call>
                         | (empty)
     <func_dec>      ->  <type> [ref] <ident> {, <type> [ref] <ident>}
     <func_call>     ->  <expr_list>
-    <func_tail>     ->  ) <func_tail_gen>
-    <func_tail_gen> ->  <func_tail_dec>
-                        | <func_tail_call>
-    <func_tail_dec> ->  [> <type>] <block>
-    <func_tail_call>->  ;
 
     <assignment>	->	<ident> := <expr_bool>
     <if_statement>  ->  if <expr_bool> then <block> [else <block>]
@@ -48,7 +44,9 @@ Grammar:
     <term_arith>    ->  <fact_arith> { <mul_op> <fact_arith> }
     <fact_arith>    ->  <unary_op> <term_unary>
                         | <unary_add_op> <term_unary> | <term_unary>
-    <term_unary>    ->  <literals> | <ident> | (expr_bool)
+    <term_unary>    ->  <literals> | <var_ident> | (expr_bool)
+    <var_ident>     ->  <ident> <var_or_func>
+    <var_or_func>   ->  <func> | lambda
 
     # Everything under this needs to store the token in the tree node
     <type>          ->  INT | FLOAT | STRING | BOOL
@@ -128,11 +126,11 @@ class Parser:
         while True:
             cur_token, child_stmt = self.statement(cur_token, G)
             children_stmt_list.append(child_stmt)
-            if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF") and cur_token.t_class != 'TYPE':
+            if cur_token.name not in ("READ", "WRITE", "ID", "WHILE", "IF", "RETURN") and cur_token.t_class != 'TYPE':
                 return cur_token, tree("STATEMENT_LIST", children_stmt_list)
 
     # <statement> -> <id_statement> | <declaration>; | read( <id_list> ); | write( <expr_list> );
-    #                | <if_statement> | <while_statement>
+    #                | <if_statement> | <while_statement> | return <expr_bool> ;
     def statement(self, cur_token, G):
         if cur_token.name in ("READ", "WRITE"):
             tokenName = cur_token.name
@@ -146,18 +144,29 @@ class Parser:
             if cur_token.name != "SEMICOLON":
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
+        
+        if cur_token.name == "RETURN":
+            cur_token = next(G) # eat the return
+            cur_token, child_expr_bool = self.expr_bool(cur_token, G)
+            if cur_token.name != "SEMICOLON":
+                raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
+            return next(G), tree("STATEMENT", [child_expr_bool])
+                                   
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             if cur_token.name != "SEMICOLON":
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [child_declaration])
+                                   
         if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.id_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_assign])
+                                   
         if cur_token.name == "IF":
             cur_token, child_if = self.if_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_if])
         if cur_token.name == "WHILE":
+                                   
             cur_token, child_while = self.while_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_while])
         raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID or IF or WHILE', cur_token)
@@ -223,13 +232,27 @@ class Parser:
             cur_token = next(G)
         return cur_token, tree("ID_STATE_BODY", [child_tree])
 
-    # <func> -> ( <func_gen> <func_tail>
+    # <func>   ->  ( <func_gen> ) [> <type>] [<block>]
     def func(self, cur_token, G):
         if cur_token.name != "LPAREN":
             raise ParserError.raise_parse_error("FUNC", '(', cur_token)
         cur_token, child_func_gen = self.func_gen(next(G), G)
-        cur_token, child_func_tail = self.func_tail(cur_token, G)
-        return cur_token, tree("FUNC", [child_func_gen, child_func_tail])
+        if cur_token.name != "RPAREN":
+            raise ParserError.raise_parse_error("FUNC", ')', cur_token)
+        cur_token = next(G) # )
+        children = []
+        if cur_token.name == "GREATER":
+            type_tree = tree("TYPE", [], next(G))
+            children.append(type_tree)
+            cur_token = next(G)   
+        if cur_token.name == "BEGIN":
+            cur_token, child_block = self.block(cur_token, G)
+            children.append(child_block)
+        # If the children list is empty, do not put it as a tree child
+        if not children:
+            return cur_token, tree("FUNC", [child_func_gen])
+        else:
+            return cur_token, tree("FUNC", [child_func_gen, tree("FUNC_DEC_TAIL", children)])
 
     # <func_gen> ->  <func_call> | <func_dec> | (empty)
     def func_gen(self, cur_token, G):
@@ -263,42 +286,10 @@ class Parser:
                 return cur_token, tree("FUNC_DEC", children)
             cur_token = next(G)  # comma
 
-    # <func_call> -> <id_list>
+    # <func_call> ->  <expr_list>
     def func_call(self, cur_token, G):
         cur_token, child_id_list = self.expr_list(cur_token, G)
         return cur_token, tree("FUNC_CALL", [child_id_list])
-
-    # <func_tail>  ->  ) <func_tail_gen>
-    def func_tail(self, cur_token, G):
-        if cur_token.name != "RPAREN":
-            raise ParserError.raise_parse_error("FUNC_TAIL", ')', cur_token)
-        cur_token, child_func_tail_gen = self.func_tail_gen(next(G), G)
-        return cur_token, tree("FUNC_TAIL", [child_func_tail_gen])
-
-    # <func_tail_gen> -> <func_tail_dec> | <func_tail_call>
-    def func_tail_gen(self, cur_token, G):
-        if cur_token.name == "SEMICOLON":
-            cur_token, child_tree = self.func_tail_call(cur_token, G)
-        else:
-            cur_token, child_tree = self.func_tail_dec(cur_token, G)
-        return cur_token, tree("FUNC_TAIL_GEN", [child_tree])
-
-    # <func_tail_dec> -> [> <type>] <block>
-    def func_tail_dec(self, cur_token, G):
-        children = []
-        if cur_token.name != "BEGIN":
-            type_tree = tree("TYPE", [], next(G))
-            children.append(type_tree)
-            cur_token = next(G)
-        cur_token, child_block = self.block(cur_token, G)
-        children.append(child_block)
-        return cur_token, tree("FUNC_TAIL_DEC", children)
-
-    # <func_tail_call>-> ;
-    def func_tail_call(self, cur_token, G):
-        if cur_token.name != "SEMICOLON":
-            raise ParserError.raise_parse_error("ID_STATE_BODY", ";", cur_token)
-        return next(G), tree("FUNC_TAIL_CALL")
 
     # <assignment> -> := <expr_bool>
     def assign(self, cur_token, G):
@@ -405,7 +396,7 @@ class Parser:
             cur_token, child_term_unary = self.term_unary(cur_token, G)
             return cur_token, tree('FACT_ARITH', [child_term_unary])
 
-    # <term_unary> -> <literal> | <ident> | (expr_bool)
+    # <term_unary>   ->  <literals> | <var_ident> | (expr_bool)
     def term_unary(self, cur_token, G):
         if cur_token.name == "LPAREN":
             cur_token, child_expr_bool = self.expr_bool(next(G), G)
@@ -413,7 +404,7 @@ class Parser:
                 raise ParserError.raise_parse_error("TERM_UNARY", ")", cur_token)
             return next(G), tree("TERM_UNARY", [child_expr_bool])
         elif cur_token.name == "ID":
-            cur_token, child_ident = self.ident(cur_token, G)
+            cur_token, child_ident = self.var_ident(cur_token, G)
             return cur_token, tree("TERM_UNARY", [child_ident])
         # I flipped this to a positive check just to make
         # it slightly clearer
@@ -421,6 +412,20 @@ class Parser:
             return next(G), tree("TERM_UNARY", [tree(cur_token.name, [], cur_token)])
         else:
             raise ParserError.raise_parse_error('TERM_UNARY', "ID or LITERAL", cur_token)
+
+    # <var_ident>     ->  <ident> <var_or_func>
+    def var_ident(self, cur_token, G):
+        cur_token, child_ident = self.ident(cur_token, G)
+        cur_token, child_var_or_func = self.var_or_func(cur_token, G)
+        return cur_token, tree("VAR_IDENT", [child_ident, child_var_or_func])
+
+    # <var_or_func>   ->  <func> | lambda
+    def var_or_func(self, cur_token, G):
+        if cur_token.name == "LPAREN":
+            cur_token, child_func = self.func(cur_token, G)
+            return cur_token, tree("VAR_OR_FUNC", [child_func])
+        else:
+            return cur_token, tree("VAR_OR_FUNC") 
 
     # <ident> -> ID
     def ident(self, cur_token, G):

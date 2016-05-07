@@ -12,10 +12,10 @@ begin
     end
 
     write("In main.\n");
-    foo();
+    foo()
     write("Returned to main.\n");
-    foo();
+    foo()
     write("Returned to main. (Again.)\n");
-    foo2();
+    foo2()
     write("Returned to main.\n");
 end
