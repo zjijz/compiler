@@ -29,7 +29,7 @@ begin
     int x;
     read(x);
     write("main: ", x, "\n");
-    foo1(x)
+    foo1(x, x)
     write("main: ", x, "\n");
     foo2(x)
     write("main: ", x, "\n");

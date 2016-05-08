@@ -20,7 +20,7 @@ begin
     int a;
     read(a);
     int b := foo1(a, a);
-    write("main: ", a, " ", b);
+    write("main: ", a, " ", b, "\n");
 
     int c;
     read(c);

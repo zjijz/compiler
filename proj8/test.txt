@@ -5,18 +5,18 @@ begin
     #    write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
     #end
 
-    foo1(int param1, int param2) begin
-        write(param1, param2);
+    foo2(int ref x) begin
+        x := x + 4;
+        write(x);
+    end
+
+    foo1(int ref x) begin
+        x := x + 5;
+        foo2(x)
+        write(x);
     end
 
     int x := 10;
-    #if x > 1 then begin
-    #    int x;
-    #    read(x);
-    #    write(x);
-    #end
     write(x);
-    #foo();
-    #foo();
-    foo1((100-10),-1000);
+    foo1(x)
 end
