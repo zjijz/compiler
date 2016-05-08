@@ -31,7 +31,6 @@ begin
     write("main: ", x, "\n");
     foo1(x)
     write("main: ", x, "\n");
-
     foo2(x)
     write("main: ", x, "\n");
 end

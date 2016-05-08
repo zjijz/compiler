@@ -8,7 +8,5 @@ foo2: 7
 foo3: 7
 foo3: 12
 foo2: 268501028
-Error in : invalid program counter value: 0x00000000
-
-Processing terminated due to errors.
+main: 268501068
 

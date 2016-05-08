@@ -803,7 +803,7 @@ class CodeGenerator:
 
     def _destroy_activation_record(self):
         # Restore old return address
-        self.output_string += asm_load_mem_var_from_addr('$fp', '$ra', 4)
+        self.output_string += asm_load_mem_var_from_addr('$fp', '$ra', -4)
 
         # Restore old stack pointer
         self.output_string += asm_reg_set('$sp', '$fp')

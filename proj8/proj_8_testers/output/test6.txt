@@ -2,7 +2,8 @@ MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
 
 foo1: 3
 foo2: 2
-Error in : invalid program counter value: 0x00000002
-
-Processing terminated due to errors.
+main: 1
+foo3: 3
+foo4: 2
+main: 1
 
