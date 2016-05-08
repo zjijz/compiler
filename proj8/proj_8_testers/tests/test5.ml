@@ -15,16 +15,16 @@ begin
         write("foo3: ", s, "\n");
     end
 
-    foo1(100);
+    foo1(100)
 
     int a := 10;
-    foo1(a);
+    foo1(a)
     write("main: ", a, "\n");
 
-    foo2(a, x);
+    foo2(a,x)
     write("main: ", a, "\t", x, "\n");
 
     string s := "A Lannister always pays his debts.";
-    foo3(s);
+    foo3(s)
     write("main: ", s, "\n");
 end

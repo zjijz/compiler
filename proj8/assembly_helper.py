@@ -171,7 +171,6 @@ def asm_log_xor(r_reg, f_reg, s_reg):
 # Load f_reg into a register before using if it is an immediate
 # This does a bitflip of the 1's place
 def asm_log_negate(r_reg, f_reg):
-    print(r_reg, f_reg)
     return asm_log_xor(r_reg, f_reg, 1)
 
 
@@ -451,7 +450,6 @@ def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
 
 
 def asm_conditional_check(reg, label):
-    print(reg, label)
     ret, reg, _ = load_immediates('normal', '', reg, None)
     ret += 'beqz {:s}, {:s}\n'.format(reg, label)
     return ret
@@ -507,7 +505,8 @@ def asm_save_variables_to_stack(sym_dicts):
     for i in range(0, len(sym_dicts), 1):
         if sym_dicts[i]['used']:
             ret += asm_allocate_stack_space(4)
-            ret += asm_load_mem_var_from_addr(sym_dicts[i]['mem_name'], '$sp')
+            ret += asm_load_mem_var_from_addr(sym_dicts[i]['mem_name'], '$v1')
+            ret += asm_save_mem_var_from_addr('$sp', '$v1')
     return ret
 
 
@@ -516,7 +515,8 @@ def asm_load_variables_from_stack(sym_dicts):
     ret = ''
     for i in range(len(sym_dicts) - 1, -1, -1):
         if sym_dicts[i]['used']:
-            ret += asm_save_mem_var_from_addr(sym_dicts[i]['mem_name'], '$sp')
+            ret += asm_load_mem_var_from_addr('$sp', '$v1')
+            ret += asm_save_mem_var_from_addr(sym_dicts[i]['mem_name'], '$v1')
             ret += asm_add('$sp', '$sp', 4)
     return ret
 

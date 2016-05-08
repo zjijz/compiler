@@ -12,8 +12,8 @@ begin
         write("\n");
     end
 
-    foo();
+    foo()
     write("Done\n");
-    foo();
+    foo()
     write("Done\n");
 end

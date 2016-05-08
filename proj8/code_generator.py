@@ -623,6 +623,7 @@ class CodeGenerator:
     def _process_func_block(self, ident, func_name, parameters, tree_nodes):
         # Save off current state
         saved_output_string = self.output_string
+        saved_forced_dynamic = self.forced_dynamic
         saved_reg_table = self.reg_table
         saved_float_reg_table = self.float_reg_table
         saved_aux_reg_table = self.aux_reg_table
@@ -638,6 +639,7 @@ class CodeGenerator:
 
         # Start function work
         self.output_string = ''
+        self.forced_dynamic = True
         self.sym_table.open_scope()
 
         # Update sym_table for parameters
@@ -664,6 +666,7 @@ class CodeGenerator:
         self._traverse(tree_nodes)
         saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
         self.output_string = asm_save_variables_to_stack(saved_table) + self.output_string
+        self._save_off_registers()
         self.output_string += asm_load_variables_from_stack(saved_table)
 
         # Remove loaded addresses and such
@@ -672,16 +675,16 @@ class CodeGenerator:
                 mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(entry['id'], None)
                 self.sym_table.set_array_entry(entry['id'],  mem_type, mem_name, None, used)
             else:
-                print(entry['id'])
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
                     = self.sym_table.get_entry_suppress(entry['id'])
                 if mem_type is not None:
-                    self.sym_table.set_entry(entry['id'], mem_type, mem_name, init_val, None, None, None, used)
+                    self.sym_table.set_entry(entry['id'], mem_type, mem_name, 'DYNAMIC', None, None, None, used)
 
         self.func_string += func_name + ':\n' + self.output_string + 'jr $ra\n'
 
         # Restore old stuff
         self.output_string = saved_output_string
+        self.forced_dynamic = saved_forced_dynamic
         self.sym_table.close_scope()
 
         # Reset tables and var_queues
@@ -922,28 +925,34 @@ class CodeGenerator:
                 a0_dict = self.aux_reg_table[self.arg_0]
                 if a0_dict['val'] == expr_reg:
                     is_a0_set = True
-                # Update $v0 otherwise
                 else:
                     a0_dict['val'] = expr_reg
                     a0_dict['mem_type'] = 'ADDRESS'
+                    a0_dict['id'] = None
                     expr_reg = addr_reg
             elif var_type != 'string': # then expr_reg is int or float
                 a0_dict = self.aux_reg_table[self.arg_0]
                 f12_dict = self.aux_reg_table[self.float_12]
                 if type(expr_reg) is int or expr_type == 'int':
-                    if a0_dict['val'] != expr_reg:
-                        a0_dict['val'] = expr_reg
-                        a0_dict['id'] = None
-                        a0_dict['mem_type'] = None
-                    else:
-                        is_a0_set = True
+                    #if a0_dict['val'] != expr_reg:
+                    #    a0_dict['val'] = expr_reg
+                    #    a0_dict['id'] = None
+                    #    a0_dict['mem_type'] = 'int'
+                    #else:
+                    #    is_a0_set = True
+                    a0_dict['val'] = expr_reg
+                    a0_dict['id'] = None
+                    a0_dict['mem_type'] = 'int'
                 elif type(expr_reg) is float or expr_type == 'float':
-                    if f12_dict['val'] != expr_reg:
-                        f12_dict['val'] = expr_reg
-                        f12_dict['id'] = None
-                        f12_dict['mem_type'] = None
-                    else:
-                        is_a0_set = True
+                    #if f12_dict['val'] != expr_reg:
+                    #    f12_dict['val'] = expr_reg
+                    #    f12_dict['id'] = None
+                    #    f12_dict['mem_type'] = 'float'
+                    #else:
+                    #    is_a0_set = True
+                    f12_dict['val'] = expr_reg
+                    f12_dict['id'] = None
+                    f12_dict['mem_type'] = 'float'
             self.output_string += asm_write(expr_reg, expr_type, is_a0_set)
 
     # Takes assign tree_nodes: with an ID on the left and some expression on the right
