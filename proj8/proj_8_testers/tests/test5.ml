@@ -21,6 +21,10 @@ begin
     foo1(a)
     write("main: ", a, "\n");
 
+    int x := 10;
+    foo1(x)
+    write("main: ", x, "\n");
+
     foo2(a,x)
     write("main: ", a, "\t", x, "\n");
 

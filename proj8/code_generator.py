@@ -665,7 +665,7 @@ class CodeGenerator:
             val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
             self.output_string += asm_load_mem_var_from_addr('$fp', val_reg, fp_offset)
-            self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', val_reg, None, None, False)
+            self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, val_reg, False)
             fp_offset -= 4
 
         self._traverse(tree_nodes.children[1])
@@ -786,6 +786,14 @@ class CodeGenerator:
         for p in parameters:
             self.output_string += asm_allocate_stack_space(4)
             val_reg, val_type, val_token = self._process_expr_bool(p.children)
+            if type(val_reg) is str:
+                string = val_reg
+                _, mem_name, _, _ = self.sym_table.get_array_entry(string, None)
+                val_reg = self._find_free_register()
+
+                self._update_reg_table('normal', '"True"', val_reg, 'ARRAY_ADDRESS')
+                self.var_queue.append({'reg': val_reg, 'id': string, 'mem_type': 'ARRAY_ADDRESS'})
+                self.output_string += asm_load_mem_addr(mem_name, val_reg)
             self.output_string += asm_save_mem_var_from_addr('$sp', val_reg)
 
         # Return value
