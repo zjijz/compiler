@@ -419,32 +419,32 @@ def asm_save_mem_var(mem_name, addr_reg, var_reg, offset = 0):
 
 # REWRITE
 # Assumes mem_addr_reg holds RAM location of desired variable
-def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0):
+def asm_save_mem_var_from_addr(mem_addr_reg, var_reg, offset = 0, ret=False):
     if type(mem_addr_reg) is str and '$' not in mem_addr_reg: # might be risky to assume this, although we won't make labels with $
         ret = ''
         if 'f' in str(var_reg) and 'fp' not in str(var_reg):
-            return 's.s {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
+            return 's.s {:s}, {:s} + {:d} {:s}\n'.format(var_reg, mem_addr_reg, offset, '#return' if ret else '')
         if type(var_reg) is float:
             ret = asm_reg_set('$f13', var_reg)
-            ret += 's.s {:s}, {:s} + {:d}\n'.format('$f13', mem_addr_reg, offset)
+            ret += 's.s {:s}, {:s} + {:d} {:s}\n'.format('$f13', mem_addr_reg, offset, '#return' if ret else '')
             return ret
         if type(var_reg) in {int, bool}:
             ret = asm_reg_set('$v1', var_reg)
             var_reg = '$v1'
-        ret += 'sw {:s}, {:s} + {:d}\n'.format(var_reg, mem_addr_reg, offset)
+        ret += 'sw {:s}, {:s} + {:d} {:s}\n'.format(var_reg, mem_addr_reg, offset, '#return' if ret else '')
         return ret
     elif 'f' in str(var_reg) and 'fp' not in str(var_reg):
-        return 's.s {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
-    elif type(var_reg) is int:
+        return 's.s {:s}, {:d}({:s}) {:s}\n'.format(var_reg, offset, mem_addr_reg, '#return' if ret else '')
+    elif type(var_reg) in {int, bool}:
         ret = asm_reg_set('$v1', var_reg)
-        ret += 'sw {:s}, {:d}({:s})\n'.format('$v1', offset, mem_addr_reg)
+        ret += 'sw {:s}, {:d}({:s}) {:s}\n'.format('$v1', offset, mem_addr_reg, '#return' if ret else '')
         return ret
     elif type(var_reg) is float:
         ret = asm_reg_set('$f13', var_reg)
-        ret += 's.s {:s}, {:d}({:s})\n'.format('$f13', offset, mem_addr_reg)
+        ret += 's.s {:s}, {:d}({:s}) {:s}\n'.format('$f13', offset, mem_addr_reg, '#return' if ret else '')
         return ret
     else:
-        return 'sw {:s}, {:d}({:s})\n'.format(var_reg, offset, mem_addr_reg)
+        return 'sw {:s}, {:d}({:s}) {:s}\n'.format(var_reg, offset, mem_addr_reg, '#return' if ret else '')
 
 ## _______________________Conditionals________________________
 

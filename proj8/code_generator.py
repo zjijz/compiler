@@ -51,11 +51,11 @@ from copy import *
 #
 #  Values are a list of properties from Symbol Table that have been edited
 
-# Frames
+# Activation Record
 # Old Frame Pointer (4 bytes)
 # Return address (4 bytes)
 # Parameters (variable length)
-# Return value (variable space - to head of $sp)
+# Return value (variable space - to head of $sp)(always 4 bytes for this project)
 
 
 # Courtesy of Dr. Karro
@@ -273,7 +273,7 @@ class CodeGenerator:
         # Function dictionary
         self.func_factory = {"READ": self._read, "WRITE": self._write, "ID_STATEMENT": self._id_statement,
                              "DECLARATION": self._declare, "IF_STATEMENT": self._process_if,
-                             "WHILE_STATEMENT": self._process_while}
+                             "WHILE_STATEMENT": self._process_while, 'RETURN': self._process_return}
 
         # Stuff from Parser
         self.tree = parse_tree
@@ -428,6 +428,9 @@ class CodeGenerator:
         # If none are open, free up a register
         reg_pop = var_queue.pop(0)
 
+        while reg_pop['mem_type'] == 'FUNC':
+            reg_pop = var_queue.pop(0)
+
         mem_id = reg_pop['id']
         mem_type = reg_pop['mem_type']
         reg = reg_pop['reg']
@@ -512,7 +515,7 @@ class CodeGenerator:
         data_section = ''
 
         for dict in self.sym_table.closed_table_entries:
-            if dict['used']:
+            if dict['used'] and dict['type'] is not list:
                 mem_id = dict['mem_id']
                 val_type = dict['type']
                 name = dict['mem_name']
@@ -582,9 +585,10 @@ class CodeGenerator:
             mem_type = entry['mem_type']
             if mem_type == 'VALUE':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
-                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
-                                         curr_val=curr_val, addr_reg=addr_reg, val_reg=None, used=True)
-                self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
+                if type(mem_type) is not list:
+                    self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                             curr_val=curr_val, addr_reg=addr_reg, val_reg=None, used=True)
+                    self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
             elif mem_type == 'ADDRESS':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
                 self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
@@ -600,9 +604,10 @@ class CodeGenerator:
             mem_type = entry['mem_type']
             if mem_type == 'VALUE':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
-                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
-                                         curr_val=curr_val, addr_reg=None, val_reg=None, used=True)
-                self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
+                if type(mem_type) is not list:
+                    self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                             curr_val=curr_val, addr_reg=addr_reg, val_reg=None, used=True)
+                    self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
             elif mem_type == 'ADDRESS':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
                 self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
@@ -663,11 +668,22 @@ class CodeGenerator:
             self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', val_reg, None, None, False)
             fp_offset -= 4
 
-        self._traverse(tree_nodes)
+        self._traverse(tree_nodes.children[1])
+
         saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
-        self.output_string = asm_save_variables_to_stack(saved_table) + self.output_string
+        pre_string = asm_save_variables_to_stack(saved_table)
         self._save_off_registers()
-        self.output_string += asm_load_variables_from_stack(saved_table)
+        post_string = asm_load_variables_from_stack(saved_table)
+
+        # Hack to reoffset the return stack address (this is bad)
+        split = self.output_string.split('\n')
+        for i in range(0, len(split)):
+            s = split[i]
+            if 'return' in s:
+                s = s.replace('0($sp)', str(4 * len(saved_table)) + '($sp)')
+                split[i] = s
+
+        self.output_string = pre_string + '\n'.join(split) + post_string
 
         # Remove loaded addresses and such
         for entry in self.var_queue + self.float_var_queue:
@@ -704,14 +720,15 @@ class CodeGenerator:
             self._process_func(ident_node, id_state_body_node.children[0])
 
     def _process_func(self, ident_node, tree_nodes):
-        tail_nodes = tree_nodes.children[1].children[0].children[0]
+        tail_nodes = None
+        if len(tree_nodes.children) > 1:
+            tail_nodes = tree_nodes.children[1].children
         self._process_func_gen(ident_node, tree_nodes.children[0], tail_nodes)
 
     def _process_func_gen(self, ident_node, tree_nodes, tail_nodes):
-        label = tail_nodes.label
-        if tree_nodes.label == "FUNC_DEC" or label == 'FUNC_TAIL_DEC':
-            self._process_func_dec(ident_node, tree_nodes.children, tail_nodes.children)
-        elif tree_nodes.label == "FUNC_CALL" or label == 'FUNC_TAIL_CALL':
+        if tree_nodes.label == "FUNC_DEC" or tail_nodes is not None:
+            self._process_func_dec(ident_node, tree_nodes.children, tail_nodes)
+        elif tree_nodes.label == "FUNC_CALL" or tail_nodes is None:
             self._process_func_call(ident_node, tree_nodes.children)
 
     def _process_func_dec_params(self, parameter_nodes):
@@ -799,14 +816,34 @@ class CodeGenerator:
 
         # Get return value
         ret_value = None
-        _, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, token)
-        self._run_func(ident, mem_name, parameters, ret_value)
+        mem_type, mem_name, _, _, _, _, _ = self.sym_table.get_entry(ident, token)
+        return self._run_func(ident, mem_type, mem_name, parameters, ret_value)
 
-    def _run_func(self, ident, mem_name, parameters, ret_value):
+    def _run_func(self, ident, mem_type, mem_name, parameters, ret_value):
         self._save_off_registers()
+        #saved_reg_pool = self.reg_pool + self.float_reg_pool + self.aux_reg_pool
         self._create_activation_record(parameters, ret_value)
+        #self.output_string += asm_save_off_reg_pool(saved_reg_pool)
         self.output_string += 'jal ' + mem_name + '\n'
+
+        #self.output_string += asm_load_reg_pool_from_stack(saved_reg_pool)
+        # Get return value (if necessary)
+        ret_reg = None
+        ret_type = mem_type[1]
+        if ret_type is not None:
+            cleaned_type = 'float' if ret_type == 'float' else 'normal'
+            val_var_queue = self.float_var_queue if mem_type == 'float' else self.var_queue
+
+            ret_reg = self._find_free_register(cleaned_type)
+            self._update_reg_table('normal', ident, ret_reg, 'FUNC')
+            val_var_queue.append({'reg': ret_reg, 'id': ident, 'mem_type': 'FUNC'})
+            self.output_string += asm_load_mem_var_from_addr('$sp', ret_reg)
         self._destroy_activation_record()
+        return ret_reg, ret_type, None
+
+    def _process_return(self, tree_nodes):
+        val_reg, val_type, val_token = self._process_expr_bool(tree_nodes[0].children[0].children)
+        self.output_string += asm_save_mem_var_from_addr('$sp', val_reg, ret=True)
 
     # Searches tree until it finds something to process
     def _traverse(self, tree):
@@ -1221,7 +1258,7 @@ class CodeGenerator:
             = self.sym_table.get_entry_suppress(curr_id)
 
         # If id_dict is not found, then curr_reg is correct
-        if mem_name:
+        if mem_name and type(mem_type) is not list:
             # If id_reg is None, load it into memory
             if not val_reg:
                 # Ensure 'used' is checked
@@ -1751,7 +1788,6 @@ class CodeGenerator:
     # <term_unary>    ->  <literals> | <ident> | (expr_bool)
     # Returns value register (or immediate), value type, and token
     def _process_term_unary(self, term_unary):
-        # len(term_node) == 1
         child = term_unary.children[0]
         token = child.token
         if token:
@@ -1804,8 +1840,14 @@ class CodeGenerator:
                     return int(literal), 'int', token
                 elif token.name == 'FLOATLIT':
                     return float(literal), 'float', token
-            elif token.t_class == 'IDENTIFIER': # If token is an id
-                return self._process_id(token)
+        elif child.label == 'VAR_IDENT': # If child is <ident><var_or_func>
+            children = child.children
+            if len(children[1].children) == 0:
+                return self._process_id(children[0].token)
+            else:
+                ident_node = children[0]
+                parameter_nodes = children[1].children[0].children[0].children
+                return self._process_func_call(ident_node, parameter_nodes)
         else: # if token is <expr_bool>
             return self._process_expr_bool(child.children)
 

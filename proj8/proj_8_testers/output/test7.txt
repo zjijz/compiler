@@ -1,1 +1,14 @@
-Syntax Error
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+main: 2
+foo1: 0
+foo1: 0
+main: 3
+foo2: 4
+foo3: 0
+foo3: 5
+foo2: 268500992
+Error in : invalid program counter value: 0x00000000
+
+Processing terminated due to errors.
+

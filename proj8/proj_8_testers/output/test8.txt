@@ -1,1 +1,5 @@
-Syntax Error
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+
+Program terminated when maximum step limit -1 reached.
+

@@ -144,29 +144,29 @@ class Parser:
             if cur_token.name != "SEMICOLON":
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [tree(tokenName), child_id_list_or_expr_list])
-        
+
         if cur_token.name == "RETURN":
             cur_token = next(G) # eat the return
             cur_token, child_expr_bool = self.expr_bool(cur_token, G)
             if cur_token.name != "SEMICOLON":
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
-            return next(G), tree("STATEMENT", [child_expr_bool])
-                                   
+            return next(G), tree("STATEMENT", [tree('RETURN', [child_expr_bool])])
+
         if cur_token.t_class == "TYPE":
             cur_token, child_declaration = self.declaration(cur_token, G)
             if cur_token.name != "SEMICOLON":
                 raise ParserError.raise_parse_error("STATEMENT_LIST", ";", cur_token)
             return next(G), tree("STATEMENT", [child_declaration])
-                                   
+
         if cur_token.t_class == "IDENTIFIER":
             cur_token, child_assign = self.id_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_assign])
-                                   
+
         if cur_token.name == "IF":
             cur_token, child_if = self.if_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_if])
         if cur_token.name == "WHILE":
-                                   
+
             cur_token, child_while = self.while_statement(cur_token, G)
             return cur_token, tree("STATEMENT", [child_while])
         raise ParserError.raise_parse_error("STATEMENT", 'TYPE or ID or IF or WHILE', cur_token)
@@ -244,7 +244,7 @@ class Parser:
         if cur_token.name == "GREATER":
             type_tree = tree("TYPE", [], next(G))
             children.append(type_tree)
-            cur_token = next(G)   
+            cur_token = next(G)
         if cur_token.name == "BEGIN":
             cur_token, child_block = self.block(cur_token, G)
             children.append(child_block)
@@ -425,7 +425,7 @@ class Parser:
             cur_token, child_func = self.func(cur_token, G)
             return cur_token, tree("VAR_OR_FUNC", [child_func])
         else:
-            return cur_token, tree("VAR_OR_FUNC") 
+            return cur_token, tree("VAR_OR_FUNC")
 
     # <ident> -> ID
     def ident(self, cur_token, G):
