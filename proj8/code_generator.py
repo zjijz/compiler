@@ -242,6 +242,12 @@ class SymbolTable:
         self.symbol_tables = self.symbol_tables[:self.scope]
         self.scope -= 1
 
+    def remove_all_reg(self):
+        for table in self.symbol_tables:
+            for k, v in table.items():
+                v['addr_reg'] = None
+                v['val_reg'] = None
+
 
 class CodeGenerator:
     """
@@ -617,6 +623,7 @@ class CodeGenerator:
         self.reg_table = self._init_reg_table('normal')
         self.float_reg_table = self._init_reg_table('float')
         self.aux_reg_table = self._init_reg_table('aux')
+        self.sym_table.remove_all_reg()
 
     def _process_block(self, tree_nodes):
         self._save_off_registers()
@@ -667,6 +674,7 @@ class CodeGenerator:
                 self.sym_table.create_entry(var_id, None, mem_type + ' ref', 'PARAM', None, None, addr_reg, False)
                 _, var_mem_name, _, _, _, _, _ = self.sym_table.get_entry(var_id, None)
                 self._update_tables(cleaned_type, var_id, None, addr_reg)
+                #val_var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
 
                 self.output_string += asm_load_mem_var_from_addr('$fp', addr_reg, fp_offset)
                 self.output_string += asm_save_mem_var_from_addr(var_mem_name, addr_reg)
@@ -676,25 +684,38 @@ class CodeGenerator:
                 self.output_string += asm_load_mem_var_from_addr('$fp', val_reg, fp_offset)
                 self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, val_reg, False)
                 self._update_tables(cleaned_type, var_id, None, val_reg)
-                val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+                val_var_queue.append({'reg': val_reg, 'id': var_id, 'mem_type': 'VALUE'})
+
             fp_offset -= 4
 
         self._traverse(tree_nodes.children[1])
 
+        # Remove old references (save anyhting changed)
+        self._save_off_registers()
+
         saved_table = [v for k, v in self.sym_table.symbol_tables[self.sym_table.scope].items()]
         pre_string = asm_save_variables_to_stack(saved_table)
-        self._save_off_registers()
         post_string = asm_load_variables_from_stack(saved_table)
 
         # Hack to reoffset the return stack address (this is bad)
         split = self.output_string.split('\n')
+        process_split = []
+        found = False
         for i in range(0, len(split)):
             s = split[i]
             if 'return' in s:
                 s = s.replace('0($sp)', str(4 * len(saved_table)) + '($sp)')
                 split[i] = s
+                process_split.append(s)
+                process_split.append(post_string)
+                found = True
+            else:
+                process_split.append(s)
 
-        self.output_string = pre_string + '\n'.join(split) + post_string
+        if found == True:
+            self.output_string = pre_string + '\n'.join(process_split)
+        else:
+            self.output_string = pre_string + '\n'.join(process_split) + post_string
 
         # Remove loaded addresses and such
         for entry in self.var_queue + self.float_var_queue:
@@ -801,23 +822,27 @@ class CodeGenerator:
 
             val_reg, val_type, val_token = self._process_expr_bool(p[0].children)
 
-            if type(val_reg) in {int, float}:
-                if val_token.t_class == 'IDENTIFIER':
-                    mem_type, mem_name, init_val, curr_val, m_addr_reg, m_val_reg, used \
-                        = self.sym_table.get_entry(val_token.pattern, val_token)
-                    self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, None, None, None, used)
-
             # Type check
             if val_type != p[1]:
-                SemanticError.raise_parameter_type_mismatch("I'm too lazy to get the param...", val_type,
+                SemanticError.raise_parameter_type_mismatch("I'm too lazy to get the param name...", val_type,
                                                             "Also too lazy to get func name...", val_token.line_num,
                                                             val_token.col)
 
             if pass_type == 'ref':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
                     = self.sym_table.get_entry(val_token.pattern, val_token)
+
+                if curr_val is not None:
+                    self.output_string += asm_save_mem_var_from_addr(mem_name, curr_val)
+                    curr_val = None
+                    used = True
+
+                if addr_reg is None:
+                    addr_reg = self._find_free_register()
+                    self.output_string += asm_load_mem_addr(mem_name, addr_reg)
+
                 # Assume function will edit this
-                self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, curr_val, None, None, used)
+                self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, None, None, None, used)
                 if 'ref' not in mem_type:
                     val_reg = addr_reg
 
@@ -890,13 +915,11 @@ class CodeGenerator:
             self.output_string += asm_load_mem_var_from_addr('$sp', ret_reg)
         self._destroy_activation_record()
 
-        print(self.reg_table)
-
         return ret_reg, ret_type, None
 
     def _process_return(self, tree_nodes):
         val_reg, val_type, val_token = self._process_expr_bool(tree_nodes[0].children[0].children)
-        self.output_string += asm_save_mem_var_from_addr('$sp', val_reg, ret=True)
+        self.output_string += asm_save_mem_var_from_addr('$sp', val_reg, ret_stat=True) + 'jr $ra\n'
 
     # Searches tree until it finds something to process
     def _traverse(self, tree):

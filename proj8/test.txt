@@ -2,19 +2,22 @@ begin
     #foo() begin
     #    int a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
     #    read(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
-    #    write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z);
+    #    write(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z, "\n");
     #end
 
     #foo2(int ref x) begin
     #    x := x + 4;
-    #    write(x);
+    #    write(x, "\n");
     #end
 
     #foo1(int ref x) begin
     #    x := x + 5;
     #    foo2(x)
-    #    write(x);
+    #    write(x, "\n");
     #end
+    #int x := 90;
+    #foo()
+    #foo1(x)
 
     # Tests return values
     #foo1() > int begin
@@ -34,21 +37,56 @@ begin
     #end
     #write(foo()*foo() + 5);
 
-    foo3(int ref z) begin
-        z := z + 10;
-    end
+    # # Layer Pass by Reference
+    #foo3(int ref z) begin
+    #    z := z + 10;
+    #end
 
-    foo2(int ref y) begin
-        y := y + 20;
-        foo3(y)
-    end
+    #foo2(int ref y) begin
+    #    y := y + 20;
+    #    foo3(y)
+    #end
 
-    foo(int ref x) begin
-        x := x + 30;
-        foo2(x)
-    end
+    #foo(int ref x) begin
+    #    x := x + 30;
+    #    foo2(x)
+    #end
 
-    int x := 10;
-    foo(x)
-    write(x);
+    #int x := 100;
+    #foo(x)
+    #write(x);
+
+    # Basic Recursion
+    #foo(int x) begin
+    #    if x > 0 then begin
+    #        write(x);
+    #        foo(x - 1)
+    #    end
+    #end
+    #foo(10)
+
+    # Basic Recursion Pass by Reference
+    #int x := 1;
+    #foo(int ref x) begin
+    #    if x < 100 then begin
+    #        x := x + 1;
+    #        foo(x)
+    #    end
+    #end
+    #foo(x)
+    #write(x);
+
+    # Tests return actually breaking function
+    #foo(int x) > int begin
+    #    if x > 0 then begin
+    #        return 1;
+    #        write("foo: ", x, "\n");
+    #    end else begin
+    #        return 2;
+    #        write("foo: ", x, "\n");
+    #    end
+    #end
+    #int x;
+    #read(x);
+    #write(foo(x));
 end

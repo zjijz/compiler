@@ -5,7 +5,7 @@ begin
         if x <= 1 then begin
             y := x;
         end else begin
-            int a, b;
+            int a := 0, b := 0;
             fib(x - 1, a)
             fib(x - 2, b)
             y := a + b;
@@ -13,7 +13,7 @@ begin
     end
 
     int f := 8;
-    int x;
+    int x := 0;
     fib(f, x)
     write(x, "\n");
 end

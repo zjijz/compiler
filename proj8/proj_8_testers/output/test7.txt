@@ -1,4 +1,12 @@
-Traceback (most recent call last):
-  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/re.py", line 163, in match
-    return _compile(pattern, flags).match(string)
-KeyboardInterrupt
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+main: 2
+foo1: 2
+foo1: 6
+main: 6
+foo2: 10
+foo3: 10
+foo3: 15
+foo2: 15
+main: 15
+
