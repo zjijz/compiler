@@ -33,4 +33,22 @@ begin
     #    return 200;
     #end
     #write(foo()*foo() + 5);
+
+    foo3(int ref z) begin
+        z := z + 10;
+    end
+
+    foo2(int ref y) begin
+        y := y + 20;
+        foo3(y)
+    end
+
+    foo(int ref x) begin
+        x := x + 30;
+        foo2(x)
+    end
+
+    int x := 10;
+    foo(x)
+    write(x);
 end

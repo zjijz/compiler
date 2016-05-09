@@ -1,6 +1,7 @@
 # Tests globals and scoping
 
 begin
+    # global needs to be defined before functions that use them!!!
     int x := 0;
 
     foo1() begin
