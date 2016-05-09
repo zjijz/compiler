@@ -798,21 +798,20 @@ class CodeGenerator:
             pass_type = p[2]
 
             self.output_string += asm_allocate_stack_space(4)
-            self.output_string += '# jey\n'
 
             val_reg, val_type, val_token = self._process_expr_bool(p[0].children)
 
-            #if type(val_reg) in {int, float}:
-            #    if val_token.t_class == 'IDENTIFIER':
-            #        mem_type, mem_name, init_val, curr_val, m_addr_reg, m_val_reg, used \
-            #            = self.sym_table.get_entry(val_token.pattern, val_token)
-            #        self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, None, None, None, used)
-
-            self.output_string += '# hey\n'
+            if type(val_reg) in {int, float}:
+                if val_token.t_class == 'IDENTIFIER':
+                    mem_type, mem_name, init_val, curr_val, m_addr_reg, m_val_reg, used \
+                        = self.sym_table.get_entry(val_token.pattern, val_token)
+                    self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, None, None, None, used)
 
             # Type check
             if val_type != p[1]:
-                pass
+                SemanticError.raise_parameter_type_mismatch("I'm too lazy to get the param...", val_type,
+                                                            "Also too lazy to get func name...", val_token.line_num,
+                                                            val_token.col)
 
             if pass_type == 'ref':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
@@ -860,13 +859,12 @@ class CodeGenerator:
         func_params = mem_type[0]
         if len(parameter_nodes) > 0:
             parameter_nodes = parameter_nodes[0].children[0].children
+        if len(parameter_nodes) != len(func_params):
+            SemanticError.raise_parameter_number_mismatch(len(func_params), ident, token.line_num, token.col)
         parameters = []
         for i in range(0, len(func_params)):
             param = func_params[i]
-            try:
-                parameters.append((parameter_nodes[i], param[0], param[1]))
-            except IndexError:
-                pass
+            parameters.append((parameter_nodes[i], param[0], param[1]))
 
         return self._run_func(ident, mem_type, mem_name, parameters)
 
@@ -891,6 +889,8 @@ class CodeGenerator:
             val_var_queue.append({'reg': ret_reg, 'id': ident, 'mem_type': 'FUNC'})
             self.output_string += asm_load_mem_var_from_addr('$sp', ret_reg)
         self._destroy_activation_record()
+
+        print(self.reg_table)
 
         return ret_reg, ret_type, None
 

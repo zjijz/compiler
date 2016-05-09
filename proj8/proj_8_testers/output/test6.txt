@@ -1,9 +1,12 @@
-MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
-
-foo1: 3
-foo2: 2
-main: 1
-foo3: 3
-foo4: 2
-main: 1
-
+Traceback (most recent call last):
+  File "compiler.py", line 2, in <module>
+    import argparse
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/argparse.py", line 93, in <module>
+    from gettext import gettext as _, ngettext
+  File "/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/gettext.py", line 49, in <module>
+    import locale, copy, io, os, re, struct, sys
+  File "<frozen importlib._bootstrap>", line 968, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 165, in __enter__
+  File "<frozen importlib._bootstrap>", line 189, in _get_module_lock
+  File "<frozen importlib._bootstrap>", line 76, in __init__
+KeyboardInterrupt

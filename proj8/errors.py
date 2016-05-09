@@ -61,7 +61,7 @@ class SemanticError(Exception):
                             ' of incompatible type {:s} for {:s}.'.format(line, col, var_name, type_name, func_name))
 
     @staticmethod
-    def raise_parameter_type_mismatch(param_name, func_name, line, col):
+    def raise_parameter_type_mismatch(param_name, type_name, func_name, line, col):
         raise SemanticError('Semantic error: Parameter Type Mismatch: Line num {:d}, column num: {:d}\n\t{:s} is'
                             ' of incompatible type {:s} in function {:s}.'.format(line, col, param_name, type_name, func_name))
 
