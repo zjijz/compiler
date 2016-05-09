@@ -428,9 +428,6 @@ class CodeGenerator:
         # If none are open, free up a register
         reg_pop = var_queue.pop(0)
 
-        while reg_pop['mem_type'] == 'FUNC':
-            reg_pop = var_queue.pop(0)
-
         mem_id = reg_pop['id']
         mem_type = reg_pop['mem_type']
         reg = reg_pop['reg']
@@ -580,6 +577,7 @@ class CodeGenerator:
     def _save_off_registers(self):
         while len(self.var_queue) > 0:
             entry = self.var_queue.pop(0)
+            print(entry)
             reg = entry['reg']
             mem_id = entry['id']
             mem_type = entry['mem_type']
@@ -591,8 +589,12 @@ class CodeGenerator:
                     self.output_string += asm_save_mem_var_from_addr(mem_name, reg)
             elif mem_type == 'ADDRESS':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(mem_id, None)
-                self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
-                                         curr_val=curr_val, addr_reg=None, val_reg=val_reg, used=used)
+                if val_reg != 'REF':
+                    self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                             curr_val=curr_val, addr_reg=None, val_reg=val_reg, used=used)
+                else:
+                    self.sym_table.set_entry(ident=mem_id, mem_type=mem_type, mem_name=mem_name, init_val=init_val,
+                                             curr_val=curr_val, addr_reg=reg, val_reg=val_reg, used=used)
             elif mem_type == 'ARRAY_ADDRESS':
                 mem_type, mem_name, addr_reg, used = self.sym_table.get_array_entry(mem_id, None)
                 self.sym_table.set_array_entry(mem_id, mem_type, mem_name, None, True)
@@ -616,8 +618,6 @@ class CodeGenerator:
         self.reg_table = self._init_reg_table('normal')
         self.float_reg_table = self._init_reg_table('float')
         self.aux_reg_table = self._init_reg_table('aux')
-
-        print(self.sym_table.symbol_tables)
 
     def _process_block(self, tree_nodes):
         self._save_off_registers()
@@ -664,17 +664,20 @@ class CodeGenerator:
             # Reserve a register
             if param[1] == 'ref':
                 addr_reg = self._find_free_register()
-                self._update_tables(cleaned_type, ident, None, addr_reg)
+
+                self.sym_table.create_entry(var_id, None, mem_type + ' ref', 'PARAM', None, None, addr_reg, False)
+                _, var_mem_name, _, _, _, _, _ = self.sym_table.get_entry(var_id, None)
+                self._update_tables(cleaned_type, var_id, None, addr_reg)
 
                 self.output_string += asm_load_mem_var_from_addr('$fp', addr_reg, fp_offset)
-                self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, addr_reg, 'REF', False)
+                self.output_string += asm_save_mem_var_from_addr(var_mem_name, addr_reg)
             else:
                 val_reg = self._find_free_register()
-                self._update_tables(cleaned_type, ident, None, val_reg)
-                val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
                 self.output_string += asm_load_mem_var_from_addr('$fp', val_reg, fp_offset)
                 self.sym_table.create_entry(var_id, None, mem_type, 'PARAM', None, None, val_reg, False)
+                self._update_tables(cleaned_type, var_id, None, val_reg)
+                val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
             fp_offset -= 4
 
         self._traverse(tree_nodes.children[1])
@@ -796,7 +799,10 @@ class CodeGenerator:
             pass_type = p[2]
 
             self.output_string += asm_allocate_stack_space(4)
+            self.output_string += '# jey\n'
             val_reg, val_type, val_token = self._process_expr_bool(p[0].children)
+
+            self.output_string += '# hey\n'
 
             # Type check
             if val_type != p[1]:
@@ -805,13 +811,12 @@ class CodeGenerator:
             if pass_type == 'ref':
                 mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used \
                     = self.sym_table.get_entry(val_token.pattern, val_token)
-                if addr_reg is None:
-                    addr_reg = self._find_free_register()
-                    self._update_reg_table('normal', val_token.pattern, addr_reg, 'ADDRESS')
-                val_reg = addr_reg
+                # Assume function will edit this
                 self.sym_table.set_entry(val_token.pattern, mem_type, mem_name, init_val, curr_val, None, None, used)
+                if 'ref' not in mem_type:
+                    val_reg = addr_reg
 
-            if type(val_reg) is str and pass_type != 'ref':
+            if type(val_reg) is str:
                 string = val_reg
                 _, mem_name, _, _ = self.sym_table.get_array_entry(string, None)
                 val_reg = self._find_free_register()
@@ -820,7 +825,10 @@ class CodeGenerator:
                 self.var_queue.append({'reg': val_reg, 'id': string, 'mem_type': 'ARRAY_ADDRESS'})
                 self.output_string += asm_load_mem_addr(mem_name, val_reg)
 
+            print(val_reg)
             self.output_string += asm_save_mem_var_from_addr('$sp', val_reg)
+            #if pass_type == 'ref':
+            #    self.output_string +=  asm_save_mem_var_from_addr(mem_name, val_reg)
 
         # Return value
         self.output_string += asm_allocate_stack_space(4)
@@ -831,7 +839,7 @@ class CodeGenerator:
 
         # Restore old stack pointer
         self.output_string += asm_reg_set('$sp', '$fp')
-        self.output_string += asm_sub('$sp', '$sp', -4)
+        #self.output_string += asm_sub('$sp', '$sp', -4)
 
         # Restore old frame pointer
         self.output_string += asm_load_mem_var_from_addr('$fp', '$v1')
@@ -859,8 +867,6 @@ class CodeGenerator:
 
     def _run_func(self, ident, mem_type, mem_name, parameters):
         self._save_off_registers()
-
-        print(self.sym_table.symbol_tables)
 
         #saved_reg_pool = self.reg_pool + self.float_reg_pool + self.aux_reg_pool
         self._create_activation_record(parameters)
@@ -927,8 +933,6 @@ class CodeGenerator:
         expr_lst = tree_nodes[1].children
         for expr in expr_lst:
             var_reg, var_type, var_token = self._process_expr_bool(expr.children)
-
-            print(var_reg, var_type, var_token)
 
             # Construct expr_type, which will control what's written out
             expr_reg = var_reg
@@ -1048,6 +1052,8 @@ class CodeGenerator:
         ident = token.pattern
         mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(ident, token)
 
+        ref_type = mem_type.split(' ')[0]
+
         # Set init_val if first time calling
         if init_val is None:
             if type(expr_reg) is Register:
@@ -1056,9 +1062,9 @@ class CodeGenerator:
                 init_val = expr_reg
 
         # Throw type error
-        if mem_type != expr_type:
+        if ref_type != expr_type:
             # Coerce int into float (but not the other way around?)
-            if mem_type == 'float' and expr_type == 'int':
+            if ref_type == 'float' and expr_type == 'int':
                 if type(expr_reg) is not int:
                     # Reserve this just in case _assign_id removes it
                     expr_float_reg = self._find_free_register('float')
@@ -1076,6 +1082,14 @@ class CodeGenerator:
         # Save changes
         self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
+        #if 'ref' in mem_type:
+        #    actual_val_reg = self._find_free_register()
+        #    self.output_string += asm_load_mem_var_from_addr(val_reg, actual_val_reg)
+        #    self._update_reg_table('normal', ident, actual_val_reg, 'VALUE')
+        #    expr_reg = actual_val_reg
+
+        print(ident, expr_reg, expr_id)
+
         # Run _assign_id
         self._assign_id(ident, expr_reg, expr_id)
 
@@ -1085,7 +1099,9 @@ class CodeGenerator:
     # (Either changing curr_val if RHS is an immediate, or
     def _assign_id(self, var_id, assn_reg, expr_id = None):
         mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(var_id, None)
-        ref_flag = True if val_reg == 'REF' else False
+        ref_flag = True if 'ref' in mem_type else False
+
+        print(var_id, assn_reg, expr_id)
 
         python_assn_type = type(assn_reg)
         if not self.forced_dynamic:
@@ -1108,20 +1124,16 @@ class CodeGenerator:
             curr_val = None
 
             # Load variable addr and val into registers
-            if not val_reg or ref_flag:
+            if not val_reg:
                 type_str = 'float' if mem_type == 'float' else 'normal'
                 val_var_queue = self.float_var_queue if mem_type == 'float' else self.var_queue
 
                 val_reg = self._find_free_register(type_str)
-                if not ref_flag:
-                    self._update_tables(type_str, var_id, addr_reg, val_reg)
+                self._update_tables(type_str, var_id, addr_reg, val_reg)
 
                 if not addr_reg:
                     addr_reg = self._find_free_register()
-                    if not ref_flag:
-                        self._update_tables(type_str, var_id, addr_reg, val_reg)
-                    else:
-                        self._update_tables(type_str, var_id, addr_reg, 'REF')
+                    self._update_tables(type_str, var_id, addr_reg, val_reg)
                     self.var_queue.append({'reg': addr_reg, 'id': var_id, 'mem_type': 'ADDRESS'})
                     self.output_string += asm_load_mem_addr(mem_name, addr_reg)
 
@@ -1136,17 +1148,20 @@ class CodeGenerator:
             if expr_id:
                 assn_reg = self._ensure_id_loaded(expr_id, assn_reg)
 
+            act_reg = val_reg
+            if ref_flag:
+                new_reg = self._find_free_register()
+                self.output_string += asm_load_mem_var_from_addr(val_reg, new_reg)
+                act_reg = new_reg
+
             # Equate registers (move assn_reg value into val_reg)
-            self.output_string += asm_reg_set(val_reg, assn_reg)
+            self.output_string += asm_reg_set(act_reg, assn_reg)
 
             if ref_flag:
                 # save to memory
-                self.output_string += asm_save_mem_var_from_addr(addr_reg, val_reg)
+                self.output_string += asm_save_mem_var_from_addr(val_reg, act_reg)
 
-        if not ref_flag:
-            self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
-        else:
-            self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, 'REF', used)
+        self.sym_table.set_entry(var_id, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
     # Needs to initialize an identifier's symbol table
     # Update: type, mem_name, init_val, curr_val, addr_reg, var_reg (unless value can be statically analyzed)
@@ -1919,9 +1934,14 @@ class CodeGenerator:
         mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used = self.sym_table.get_entry(ident, token)
         print(mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
+        print(self.reg_table)
+
         cleaned_type = 'float' if mem_type == 'float' else 'normal'
         val_var_queue = self.float_var_queue if cleaned_type == 'float' else self.var_queue
-        ref_flag = True if val_reg == 'REF' else False
+        ref_flag = True if 'ref' in mem_type else False
+        real_type = mem_type
+        if ref_flag:
+            real_type = mem_type.split(' ')[0]
 
         # If not initialized, throw an error
         if init_val is None:
@@ -1931,42 +1951,47 @@ class CodeGenerator:
         if curr_val is not None and not self.forced_dynamic:
             return curr_val, mem_type, token
         # If the value of the variable is not in register, load it
-        elif not val_reg or ref_flag:
+        elif not val_reg:
             # If not, load the value into a register if the addr is already loaded
             if addr_reg:
-                print('loaded addr')
+                print('h')
+                print(addr_reg)
                 val_reg = self._find_free_register(cleaned_type)
 
-                if not ref_flag:
-                    self._update_tables(cleaned_type, ident, addr_reg, val_reg)
-                    val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+                self._update_tables(cleaned_type, ident, addr_reg, val_reg)
+                val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
                 self.output_string += asm_load_mem_var_from_addr(addr_reg, val_reg)
             # Worst case, you have to load both the addr and the value into registers
             else:
-                print('loaded addr')
                 addr_reg = self._find_free_register()
                 self._update_tables(cleaned_type, ident, addr_reg, val_reg)
                 self.var_queue.append({'reg': addr_reg, 'id': ident, 'mem_type': 'ADDRESS'})
 
-                print('loaded val')
                 val_reg = self._find_free_register(cleaned_type)
-                if not ref_flag:
-                    self._update_tables(cleaned_type, ident, addr_reg, val_reg)
-                    val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
+                self._update_tables(cleaned_type, ident, addr_reg, val_reg)
+                val_var_queue.append({'reg': val_reg, 'id': ident, 'mem_type': 'VALUE'})
 
+                print(addr_reg, val_reg)
                 self.output_string += asm_load_mem_var(mem_name, addr_reg, val_reg)
         # else: If val_reg was good to go, just return it
 
         # Set id to be printed out in MIPS if it couldn't be statically analyzed
         used = True
 
-        print('val_loaded')
+        print(val_reg, addr_reg)
+
+        self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
 
         if ref_flag:
-            self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, 'REF', used)
-        else:
-            self.sym_table.set_entry(ident, mem_type, mem_name, init_val, curr_val, addr_reg, val_reg, used)
+            actual_val_reg = self._find_free_register()
 
-        print(val_reg, token, ref_flag)
-        return val_reg, mem_type, token
+            while actual_val_reg == val_reg:
+                actual_val_reg = self._find_free_register()
+                self._update_reg_table('normal', ident, actual_val_reg, 'FUNC')
+
+            self.output_string += asm_load_mem_var_from_addr(val_reg, actual_val_reg)
+            print(val_reg, actual_val_reg)
+            val_reg = actual_val_reg
+
+        return val_reg, real_type, token

@@ -5,7 +5,8 @@ foo1: 2
 foo1: 6
 main: 6
 foo2: 10
-foo3: Error in /Users/GNPMobile/Desktop/CSE474/compilers_group9/proj8/proj_8_testers/compiled/test7.asm line 134: Runtime exception at 0x00400210: fetch address not aligned on word boundary 0x0000000a
-
-Processing terminated due to errors.
+foo3: 10
+foo3: 15
+foo2: 15
+main: 15
 
