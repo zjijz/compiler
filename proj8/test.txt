@@ -20,19 +20,19 @@ begin
     #foo1(x)
 
     # Tests return values
-    #foo1() > int begin
+    #foo1() -> int begin
     #    return 10;
     #end
-    #foo2() > bool begin
+    #foo2() -> bool begin
     #    return True;
     #end
-    #foo3() > string begin
+    #foo3() -> string begin
     #    return "Hey";
     #end
     #write(foo1(), foo2(), foo3());
 
     # Function used in epression
-    #foo() > int begin
+    #foo() -> int begin
     #    return 200;
     #end
     #write(foo()*foo() + 5);
@@ -77,7 +77,7 @@ begin
     #write(x);
 
     # Tests return actually breaking function
-    #foo(int x) > int begin
+    #foo(int x) -> int begin
     #    if x > 0 then begin
     #        return 1;
     #        write("foo: ", x, "\n");
@@ -89,4 +89,12 @@ begin
     #int x;
     #read(x);
     #write(foo(x));
+
+    foo() -> int begin
+        return 10;
+    end
+
+    if foo() > 1 then begin
+        write("works");
+    end
 end

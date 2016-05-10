@@ -1,15 +1,15 @@
 # Tests ability to return values
 
 begin
-    foo1() > int begin
+    foo1() -> int begin
         return 10;
     end
 
-    foo2() > string begin
+    foo2() -> string begin
         return "Winter is coming.\n";
     end
 
-    foo3() > string begin
+    foo3() -> string begin
         int x;
         read(x);
         if x >= 10 then begin
@@ -19,7 +19,7 @@ begin
         end
     end
 
-    foo4() > bool begin
+    foo4() -> bool begin
         return True;
     end
 

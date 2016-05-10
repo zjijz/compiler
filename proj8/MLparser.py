@@ -21,7 +21,7 @@ Grammar:
     <id_state_body> ->  <func>
                         | <assignment> ;
 
-    <func>          ->  ( <func_gen> ) [> <type>] [<block>]
+    <func>          ->  ( <func_gen> ) [-> <type>] [<block>]
     <func_gen>      ->  <func_dec>
                         | <func_call>
                         | (empty)
@@ -232,7 +232,7 @@ class Parser:
             cur_token = next(G)
         return cur_token, tree("ID_STATE_BODY", [child_tree])
 
-    # <func>   ->  ( <func_gen> ) [> <type>] [<block>]
+    # <func>   ->  ( <func_gen> ) [-> <type>] [<block>]
     def func(self, cur_token, G):
         if cur_token.name != "LPAREN":
             raise ParserError.raise_parse_error("FUNC", '(', cur_token)
@@ -241,7 +241,7 @@ class Parser:
             raise ParserError.raise_parse_error("FUNC", ')', cur_token)
         cur_token = next(G) # )
         children = []
-        if cur_token.name == "GREATER":
+        if cur_token.name == "ARROW":
             type_tree = tree("TYPE", [], next(G))
             children.append(type_tree)
             cur_token = next(G)

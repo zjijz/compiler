@@ -1,7 +1,7 @@
 # Complex pass by reference
 
 begin
-    foo1(int ref x, int ref y) > int begin
+    foo1(int ref x, int ref y) -> int begin
         x := x + 1;
         write("foo1: ", x, " ", y, "\n");
         y := y + 1;
