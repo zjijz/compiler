@@ -16,7 +16,7 @@ def compiler(source, tokens, output, is_debug, is_safe):
 if __name__ == "__main__":  # Only true if program invoked from the command line
 
     # Use the argparse library to parse the commandline arguments
-    parser = argparse.ArgumentParser(description = "GroupX micro-language compiler")
+    parser = argparse.ArgumentParser(description = "Group9 micro-language compiler")
     parser.add_argument('-t', type = str, dest = 'token_file',
                        help = "Token file", default = 'tokens.txt')
     parser.add_argument('-s', dest = 'safe_mode', action = 'store_true')
