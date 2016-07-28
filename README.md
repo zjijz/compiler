@@ -22,6 +22,7 @@ Grammar
 
 ### Main Grammar
 
+```
 <block>		    ->	begin <statement list> end
 <statement list>->	<statement> { <statement> }
 <statement>		->	<id_statement>
@@ -69,9 +70,11 @@ Grammar
 <term_unary>    ->  <literals> | <ident> | (expr_bool)
 <type>          ->  INT | FLOAT | STRING | BOOL
 <ident>			->	ID
+```
 
 ### Operators (Order is operator preference)
 
+```
 <literal>       ->  INTLIT | FLOATLIT | STRINGLIT |BOOLLIT
 <unary_op>      ->  LOG_NEGATION
 <mul_op>        ->  MULTIPLY | DIVIDE | MODULO
@@ -80,6 +83,7 @@ Grammar
 <equal_op>      ->  EQUAL | NOT_EQUAL
 <log_and>       ->  LOG_AND
 <log_or>        ->  LOG_OR
+```
 
 Compiler
 ========
