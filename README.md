@@ -25,7 +25,7 @@ Built-In Functions
 Tokens
 ------
 
-'''
+```
 RESERVED		    BEGIN			(begin)(\W|$)
 RESERVED		    END			    (end)(\W|$)
 RESERVED		    READ			(read)(\W|$)
@@ -65,7 +65,7 @@ SYMBOL		        SEMICOLON		(;)
 SYMBOL		        COMMA			(,)
 SYMBOL		        ASSIGNOP		(\:=)
 IDENTIFIER		    ID			    ([a-zA-Z]\w*)
-'''
+```
 
 Grammar
 ------
