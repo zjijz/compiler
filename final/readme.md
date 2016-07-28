@@ -3,11 +3,11 @@ Documentation
 
 compiler.py
 -----------
--t <file>: Specifies the token file for the lexer
--d: Adds the debug flag to tell the compiler to print out the AST and code generator tables
--s: Adds the safe flag to tell the compiler to only use registers that don't require saving
-(first positional argument): file to copmile to MIPS
-(second positional argument): the destination file
+* **-t <file>**: Specifies the token file for the lexer
+* **-d**: Adds the debug flag to tell the compiler to print out the AST and code generator tables
+* **-s**: Adds the safe flag to tell the compiler to only use registers that don't require saving
+* *(first positional argument)*: file to copmile to MIPS
+* *(second positional argument)*: the destination file
 
 
 Run Example
