@@ -1,7 +1,7 @@
 Project Description
 ===================
 
-Nick (*bboysnick*), Caroline (*carolinedanzi*), and Greg (*zjijz*) worked together to develop a compiler for the ALGOl-like language specified below for Dr. Karro's CSE474: Compiler Design during January - May 2016. As part of the class, we were given liberty in developing the basic language (ALGOL derived) to whatever we wanted when we added functions. We chose to go in a direction more akin to a scripting language, with no need to specify a main method and no need to specify a return value of *void*.
+Nick (*bboysnick*), Caroline (*carolinedanzi*), and Greg (*zjijz*) worked together to develop a compiler for the ALGOL-like language specified below for Dr. Karro's CSE474: Compiler Design during January - May 2016. As part of the class, we were given liberty in developing the basic language (ALGOL derived) to whatever we wanted when we added functions. We chose to go in a direction more akin to a scripting language, with no need to specify a main method and no need to specify a return value of *void*.
 
 The compiler converts this language to MARS MIPS assembly code.
 
