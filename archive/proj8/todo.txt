@@ -119,7 +119,7 @@ ______________________________
 Features
 - Static analysis of integers, booleans, floats, and strings
 - Static analysis of if a variable is used
-- Dynanmic register management with different register pools for integers and floats
+- Dynamic register management with different register pools for integers and floats
 - Tracks auxiliary registers to minimize unnecessary moves to registers used in syscall functions
 - Safe mode and unsafe mode (unsafe mode uses registers that are normally supposed to be saved without saving them off)
 - Debug mode that shows debugging on the parser and prints out the code generator tables
